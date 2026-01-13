@@ -18,15 +18,16 @@
         background: white;
         border-radius: 12px;
         border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
     .hover-card {
-        transition: all 0.3s ease;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .hover-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        transform: translateY(-4px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
     }
 
     .filter-btn {
@@ -36,64 +37,126 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        transition: all 0.2s;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         border: 1px solid #e2e8f0;
         background: white;
         color: #64748b;
+        cursor: pointer;
     }
 
     .filter-btn.active {
-        background: #043277;
+        background: linear-gradient(135deg, #043277 0%, #0a469b 100%);
         color: white;
         border-color: #043277;
-        box-shadow: 0 2px 8px rgba(4, 50, 119, 0.25);
+        box-shadow: 0 4px 12px rgba(4, 50, 119, 0.3);
+        transform: translateY(-1px);
     }
 
     .filter-btn:hover:not(.active) {
         background: #f8fafc;
         border-color: #cbd5e1;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-btn:active {
+        transform: translateY(0);
     }
 
     .insight-badge {
-        padding: 0.25rem 0.75rem;
+        padding: 0.35rem 0.85rem;
         border-radius: 9999px;
         font-size: 9px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+        transition: all 0.2s ease;
+        display: inline-block;
+    }
+
+    .insight-badge:hover {
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     }
 
     .insight-naik {
-        background: #fee2e2;
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
         color: #991b1b;
+        border: 1px solid #fca5a5;
     }
 
     .insight-turun {
-        background: #d1fae5;
+        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
         color: #065f46;
+        border: 1px solid #6ee7b7;
     }
 
     .insight-stabil {
-        background: #e0e7ff;
+        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
         color: #3730a3;
+        border: 1px solid #a5b4fc;
     }
 
     .overflow-x-auto::-webkit-scrollbar {
-        height: 6px;
+        height: 8px;
+    }
+
+    .overflow-x-auto::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 10px;
     }
 
     .overflow-x-auto::-webkit-scrollbar-thumb {
         background: #cbd5e1;
         border-radius: 10px;
+        transition: background 0.3s ease;
+    }
+
+    .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
     }
 
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
+        from { 
+            opacity: 0; 
+            transform: translateY(10px); 
+        }
+        to { 
+            opacity: 1; 
+            transform: translateY(0); 
+        }
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
     }
 
     .animate-fade-in {
-        animation: fadeIn 0.4s ease-out;
+        animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .animate-slide-in {
+        animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #skeleton-overlay {
+        transition: opacity 0.3s ease-in-out;
+    }
+
+    #real-content {
+        transition: all 0.3s ease-in-out;
+    }
+
+    canvas {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
     }
 </style>
 
@@ -198,27 +261,27 @@
                 Grafik Tren Harga & Proyeksi
             </h3>
             <p class="text-[9px] text-slate-400 mt-1">
-                Visualisasi data historis dan prediksi masa depan
+                Komoditas: <span class="font-medium-clean text-blue-600">{{ $selectedCommodity }}</span> • Visualisasi data historis dan prediksi
             </p>
         </div>
 
-        <div class="flex gap-2">
+        <div class="flex gap-2 flex-wrap">
             <button onclick="changeChartPeriod('daily')" class="filter-btn active" id="btn-daily">
-                <i class="fas fa-calendar-day mr-1"></i> Harian
+                Harian
             </button>
             <button onclick="changeChartPeriod('weekly')" class="filter-btn" id="btn-weekly">
-                <i class="fas fa-calendar-week mr-1"></i> Mingguan
+                Mingguan
             </button>
             <button onclick="changeChartPeriod('monthly')" class="filter-btn" id="btn-monthly">
-                <i class="fas fa-calendar-alt mr-1"></i> Bulanan
+                Bulanan
             </button>
             <button onclick="changeChartPeriod('yearly')" class="filter-btn" id="btn-yearly">
-                <i class="fas fa-calendar mr-1"></i> Tahunan
+                Tahunan
             </button>
         </div>
     </div>
     
-    <div class="p-6 h-[450px]">
+    <div class="p-6 h-[500px]">
         <canvas id="mainChart"></canvas>
     </div>
 </div>
@@ -326,7 +389,6 @@ function initializeChart() {
     const ctx = canvas.getContext('2d');
     const data = chartData[currentPeriod];
 
-    // Gradient setup
     const gradientActual = ctx.createLinearGradient(0, 0, 0, 400);
     gradientActual.addColorStop(0, 'rgba(4, 50, 119, 0.15)');
     gradientActual.addColorStop(1, 'rgba(4, 50, 119, 0)');
@@ -347,33 +409,39 @@ function initializeChart() {
                 {
                     label: 'Rentang Bawah',
                     data: data.lower,
-                    backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    borderColor: 'transparent',
+                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                    borderColor: 'rgba(34, 197, 94, 0.3)',
+                    borderWidth: 1,
                     fill: '+1',
                     pointRadius: 0,
-                    tension: 0.4
+                    tension: 0.4,
+                    order: 3
                 },
                 {
                     label: 'Rentang Atas',
                     data: data.upper,
-                    borderColor: 'transparent',
+                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                    borderColor: 'rgba(34, 197, 94, 0.3)',
+                    borderWidth: 1,
                     fill: false,
                     pointRadius: 0,
-                    tension: 0.4
+                    tension: 0.4,
+                    order: 3
                 },
                 {
                     label: 'Harga Aktual',
                     data: data.actual,
                     borderColor: '#043277',
                     backgroundColor: gradientActual,
-                    borderWidth: 2.5,
+                    borderWidth: 3,
                     fill: true,
                     tension: 0.4,
                     pointRadius: 0,
-                    pointHoverRadius: 6,
+                    pointHoverRadius: 7,
                     pointHoverBackgroundColor: '#043277',
                     pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 2
+                    pointHoverBorderWidth: 3,
+                    order: 1
                 },
                 {
                     label: 'Harga Prediksi',
@@ -381,14 +449,15 @@ function initializeChart() {
                     borderColor: '#f97316',
                     backgroundColor: gradientForecast,
                     borderDash: [8, 4],
-                    borderWidth: 2.5,
+                    borderWidth: 3,
                     fill: true,
                     tension: 0.4,
                     pointRadius: 0,
-                    pointHoverRadius: 6,
+                    pointHoverRadius: 7,
                     pointHoverBackgroundColor: '#f97316',
                     pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 2
+                    pointHoverBorderWidth: 3,
+                    order: 2
                 }
             ]
         },
@@ -400,42 +469,70 @@ function initializeChart() {
                 mode: 'index' 
             },
             plugins: {
+                title: {
+                    display: true,
+                    text: '{{ $selectedCommodity }}',
+                    color: '#043277',
+                    font: {
+                        size: 16,
+                        weight: '700',
+                        family: 'Inter'
+                    },
+                    padding: {
+                        top: 15,
+                        bottom: 20
+                    }
+                },
                 legend: {
                     display: true,
                     position: 'top',
                     align: 'end',
                     labels: {
-                        boxWidth: 12,
-                        boxHeight: 12,
-                        padding: 15,
+                        boxWidth: 14,
+                        boxHeight: 14,
+                        padding: 18,
                         font: {
                             size: 11,
-                            weight: '600'
+                            weight: '600',
+                            family: 'Inter'
                         },
                         color: '#64748b',
                         usePointStyle: true,
-                        pointStyle: 'circle'
+                        pointStyle: 'circle',
+                        filter: function(legendItem) {
+                            return legendItem.text !== 'Rentang Bawah' && legendItem.text !== 'Rentang Atas';
+                        }
                     }
                 },
                 tooltip: {
-                    backgroundColor: '#ffffff',
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
                     titleColor: '#1e293b',
                     bodyColor: '#475569',
                     borderColor: '#e2e8f0',
-                    borderWidth: 1,
-                    padding: 12,
-                    boxPadding: 6,
+                    borderWidth: 2,
+                    padding: 14,
+                    boxPadding: 8,
                     usePointStyle: true,
                     titleFont: {
-                        size: 11,
-                        weight: '600'
+                        size: 12,
+                        weight: '700',
+                        family: 'Inter'
                     },
                     bodyFont: {
-                        size: 11
+                        size: 11,
+                        weight: '500',
+                        family: 'Inter'
                     },
+                    displayColors: true,
                     callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
                         label: function(context) {
                             let label = context.dataset.label || '';
+                            if (label === 'Rentang Bawah' || label === 'Rentang Atas') {
+                                return null;
+                            }
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
                                 label += new Intl.NumberFormat('id-ID', {
@@ -453,31 +550,42 @@ function initializeChart() {
                 y: {
                     beginAtZero: false,
                     grid: { 
-                        color: '#f1f5f9',
-                        drawBorder: false
+                        color: 'rgba(148, 163, 184, 0.1)',
+                        drawBorder: false,
+                        lineWidth: 1
+                    },
+                    border: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#94a3b8',
+                        font: { 
+                            size: 11,
+                            weight: '500',
+                            family: 'Inter'
+                        },
+                        padding: 10,
+                        callback: value => 'Rp ' + value.toLocaleString('id-ID')
+                    }
+                },
+                x: {
+                    grid: { 
+                        display: false 
+                    },
+                    border: {
+                        display: false
                     },
                     ticks: {
                         color: '#94a3b8',
                         font: { 
                             size: 10,
-                            weight: '500'
-                        },
-                        padding: 8,
-                        callback: value => 'Rp ' + value.toLocaleString('id-ID')
-                    }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: {
-                        color: '#94a3b8',
-                        font: { 
-                            size: 9,
-                            weight: '500'
+                            weight: '500',
+                            family: 'Inter'
                         },
                         maxRotation: 45,
                         minRotation: 0,
                         autoSkip: true,
-                        maxTicksLimit: 12
+                        maxTicksLimit: 15
                     }
                 }
             }
@@ -488,13 +596,18 @@ function initializeChart() {
 function changeChartPeriod(period) {
     currentPeriod = period;
     
-    // Update button states
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.classList.remove('active');
+        btn.style.transform = 'scale(1)';
     });
-    document.getElementById(`btn-${period}`).classList.add('active');
     
-    // Update period text
+    const activeBtn = document.getElementById(`btn-${period}`);
+    activeBtn.classList.add('active');
+    activeBtn.style.transform = 'scale(1.05)';
+    setTimeout(() => {
+        activeBtn.style.transform = 'scale(1)';
+    }, 200);
+    
     const periodText = {
         'daily': 'Harian',
         'weekly': 'Mingguan',
@@ -503,10 +616,15 @@ function changeChartPeriod(period) {
     };
     document.getElementById('selectedPeriodText').textContent = periodText[period];
     
-    // Update chart
-    initializeChart();
+    const chartContainer = document.getElementById('mainChart').parentElement;
+    chartContainer.style.opacity = '0.5';
+    chartContainer.style.transition = 'opacity 0.3s ease';
     
-    // Update table
+    setTimeout(() => {
+        initializeChart();
+        chartContainer.style.opacity = '1';
+    }, 150);
+    
     updateInsightTable();
 }
 
@@ -519,54 +637,63 @@ function updateInsightTable() {
     
     if (!tbody || !data.labels.length) return;
     
-    tbody.innerHTML = '';
+    tbody.style.opacity = '0';
+    tbody.style.transform = 'translateY(10px)';
     
-    // Ambil 10 data terakhir
-    const start = Math.max(0, data.labels.length - 10);
-    
-    for (let i = start; i < data.labels.length; i++) {
-        const actual = data.actual[i];
-        const forecast = data.forecast[i];
-        const diff = actual && forecast ? forecast - actual : null;
+    setTimeout(() => {
+        tbody.innerHTML = '';
         
-        // Tentukan insight
-        let insight = 'Stabil';
-        let insightClass = 'insight-stabil';
+        const start = Math.max(0, data.labels.length - 10);
         
-        if (diff !== null) {
-            if (diff > 500) {
-                insight = 'Naik';
-                insightClass = 'insight-naik';
-            } else if (diff < -500) {
-                insight = 'Turun';
-                insightClass = 'insight-turun';
+        for (let i = start; i < data.labels.length; i++) {
+            const actual = data.actual[i];
+            const forecast = data.forecast[i];
+            const diff = actual && forecast ? forecast - actual : null;
+            
+            let insight = 'Stabil';
+            let insightClass = 'insight-stabil';
+            
+            if (diff !== null) {
+                if (diff > 500) {
+                    insight = 'Naik';
+                    insightClass = 'insight-naik';
+                } else if (diff < -500) {
+                    insight = 'Turun';
+                    insightClass = 'insight-turun';
+                }
             }
+            
+            const row = `
+                <tr class="border-b border-slate-50 hover:bg-slate-50 transition-colors duration-200" style="animation-delay: ${(i - start) * 0.05}s">
+                    <td class="px-6 py-4 text-slate-500 font-medium-clean">
+                        ${data.labels[i]}
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        ${actual ? 'Rp ' + actual.toLocaleString('id-ID') : '—'}
+                    </td>
+                    <td class="px-6 py-4 text-right text-[#043277] font-medium-clean">
+                        Rp ${forecast.toLocaleString('id-ID')}
+                    </td>
+                    <td class="px-6 py-4 text-right ${diff > 0 ? 'text-red-600' : diff < 0 ? 'text-emerald-600' : 'text-slate-500'} font-medium-clean">
+                        ${diff !== null ? (diff > 0 ? '+' : '') + diff.toLocaleString('id-ID') : '—'}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="insight-badge ${insightClass}">
+                            ${insight}
+                        </span>
+                    </td>
+                </tr>
+            `;
+            
+            tbody.innerHTML += row;
         }
         
-        const row = `
-            <tr class="border-b border-slate-50 hover:bg-slate-50 animate-fade-in">
-                <td class="px-6 py-4 text-slate-500 font-medium-clean">
-                    ${data.labels[i]}
-                </td>
-                <td class="px-6 py-4 text-right">
-                    ${actual ? 'Rp ' + actual.toLocaleString('id-ID') : '—'}
-                </td>
-                <td class="px-6 py-4 text-right text-[#043277] font-medium-clean">
-                    Rp ${forecast.toLocaleString('id-ID')}
-                </td>
-                <td class="px-6 py-4 text-right ${diff > 0 ? 'text-red-600' : diff < 0 ? 'text-emerald-600' : 'text-slate-500'}">
-                    ${diff !== null ? (diff > 0 ? '+' : '') + diff.toLocaleString('id-ID') : '—'}
-                </td>
-                <td class="px-6 py-4 text-center">
-                    <span class="insight-badge ${insightClass}">
-                        ${insight}
-                    </span>
-                </td>
-            </tr>
-        `;
-        
-        tbody.innerHTML += row;
-    }
+        tbody.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+        setTimeout(() => {
+            tbody.style.opacity = '1';
+            tbody.style.transform = 'translateY(0)';
+        }, 50);
+    }, 200);
 }
 
 /* =========================================================
@@ -581,19 +708,37 @@ function triggerSubmit() {
     const skeleton = document.getElementById('skeleton-overlay');
 
     if (content && skeleton) {
-        content.classList.add('opacity-30', 'blur-[2px]');
+        content.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+        content.style.opacity = '0.3';
+        content.style.transform = 'scale(0.98)';
+        content.classList.add('blur-[2px]');
+        
+        skeleton.style.transition = 'opacity 0.3s ease';
         skeleton.classList.remove('hidden');
+        setTimeout(() => {
+            skeleton.style.opacity = '1';
+        }, 50);
     }
 
     setTimeout(() => {
         document.getElementById('mainForm').submit();
-    }, 100);
+    }, 150);
 }
 
 /* =========================================================
    INITIALIZATION
    ========================================================= */
 document.addEventListener('DOMContentLoaded', function() {
+    const content = document.getElementById('real-content');
+    content.style.opacity = '0';
+    content.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+        content.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+        content.style.opacity = '1';
+        content.style.transform = 'translateY(0)';
+    }, 100);
+    
     initializeChart();
     updateInsightTable();
 });

@@ -3,106 +3,109 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use App\Models\MasterKomoditas;
 use App\Models\PriceData;
-use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class PriceDataSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        ini_set('memory_limit', '1024M');
-        set_time_limit(0);
+        $path = database_path('seeders/csv/newcommoditydataset.csv');
 
-        // 1. DAFTAR LOKASI PENCARIAN FILE
-        $locations = [
-            base_path('newcommoditydataset.csv'), // Di Root
-            database_path('seeders/csv/newcommoditydataset.csv'), // Di Database/Seeders/csv
-            base_path('dataset/seeder/csv/newcommoditydataset.csv'), // Di folder dataset
-        ];
-
-        $filePath = null;
-        foreach ($locations as $loc) {
-            if (file_exists($loc)) {
-                $filePath = $loc;
-                break;
-            }
-        }
-
-        if (!$filePath) {
-            $this->command->error("File TIDAK ditemukan di lokasi manapun:");
-            foreach ($locations as $loc) { $this->command->line(" - $loc"); }
+        if (!file_exists($path)) {
+            $this->command->error('File CSV tidak ditemukan');
             return;
         }
 
-        $this->command->info("File ditemukan di: $filePath");
+        $handle = fopen($path, 'r');
 
-        // 2. PROSES MEMBERSIHKAN TABEL
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        PriceData::truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        // Ambil header CSV & bersihkan spasi
+        $header = fgetcsv($handle, 0, ',');
+        $header = array_map(fn ($h) => trim($h), $header);
 
-        $file = fopen($filePath, 'r');
-        fgetcsv($file); // Skip header
+        while (($row = fgetcsv($handle, 0, ',')) !== false) {
 
-        $this->command->info("Sedang mengimpor data...");
-
-        DB::beginTransaction();
-        $count = 0;
-
-        try {
-            while (($line = fgets($file)) !== false) {
-                $line = trim($line);
-                if (empty($line)) continue;
-
-                // Membersihkan kutip ganda yang rusak
-                if (str_starts_with($line, '"') && str_ends_with($line, '"')) {
-                    $line = substr($line, 1, -1);
-                }
-                $line = str_replace('""', '"', $line);
-
-                // Menggunakan str_getcsv untuk parsing yang aman
-                $row = str_getcsv($line, ",");
-
-                if (count($row) >= 9) {
-                    // Reverse Mapping untuk keamanan kolom nama yang mengandung koma
-                    $minggu    = end($row);
-                    $bulan     = prev($row);
-                    $tahun     = prev($row);
-                    $harga     = prev($row);
-                    $waktu     = prev($row);
-                    $satuan    = prev($row);
-                    $kuantitas  = prev($row);
-                    
-                    // Nama varian adalah sisa kolom di tengah
-                    $nama_varian = implode(',', array_slice($row, 1, count($row) - 8));
-
-                    PriceData::create([
-                        'nama_varian' => trim($nama_varian, '" '),
-                        'kuantitas'   => $kuantitas,
-                        'satuan'      => $satuan,
-                        'harga'       => (float)$harga,
-                        'tahun'       => (int)$tahun,
-                        'bulan'       => $bulan,
-                        'minggu'      => $minggu,
-                    ]);
-
-                    $count++;
-                    if ($count % 1000 === 0) {
-                        $this->command->info("Telah mengimpor $count data...");
-                    }
-                }
+            // Pastikan kolom lengkap
+            if (count($row) !== count($header)) {
+                continue;
             }
 
-            DB::commit();
-            $this->command->info("----------------------------------------");
-            $this->command->info("BERHASIL! Total $count data masuk ke database.");
-            $this->command->info("----------------------------------------");
+            $data = array_combine($header, $row);
 
-        } catch (\Exception $e) {
-            DB::rollBack();
-            $this->command->error("Error: " . $e->getMessage());
+            // ===============================
+            // MAPPING SESUAI DATASET KAMU
+            // ===============================
+            $namaVarian = trim($data['Patokan Varian']);
+            $kuantitas  = trim($data['Kuantitas']);
+            $satuan     = trim($data['Satuan']);
+            $hargaRaw   = trim($data['Harga']);
+            $waktuFull  = trim($data['Waktu_Full']); // 2020_Januari_M1
+
+            // Validasi minimal
+            if ($namaVarian === '' || $hargaRaw === '') {
+                continue;
+            }
+
+            // Parse harga (aman untuk 14625.0)
+            $harga = (float) str_replace(',', '', $hargaRaw);
+
+            // Parse waktu: 2020_Januari_M1
+            try {
+                [$tahun, $bulan] = explode('_', $waktuFull);
+
+                $tanggal = Carbon::createFromDate(
+                    (int) $tahun,
+                    $this->convertBulan($bulan),
+                    1
+                );
+            } catch (\Throwable $e) {
+                continue;
+            }
+
+            // ===============================
+            // MASTER KOMODITAS (DIMENSI)
+            // ===============================
+            $komoditas = MasterKomoditas::firstOrCreate(
+                [
+                    'nama_komoditas' => $namaVarian,
+                    'satuan' => $satuan,
+                    'kuantitas' => $kuantitas,
+                ],
+                [
+                    'nama_varian' => $namaVarian,
+                ]
+            );
+
+            // ===============================
+            // PRICE DATA (TIME SERIES)
+            // ===============================
+            PriceData::create([
+                'komoditas_id' => $komoditas->id,
+                'tanggal' => $tanggal,
+                'harga' => $harga,
+            ]);
         }
 
-        fclose($file);
+        fclose($handle);
+    }
+
+    private function convertBulan(string $bulan): int
+    {
+        return match (strtolower($bulan)) {
+            'januari'   => 1,
+            'februari'  => 2,
+            'maret'     => 3,
+            'april'     => 4,
+            'mei'       => 5,
+            'juni'      => 6,
+            'juli'      => 7,
+            'agustus'   => 8,
+            'september' => 9,
+            'oktober'   => 10,
+            'november'  => 11,
+            'desember'  => 12,
+            default     => 1,
+        };
     }
 }

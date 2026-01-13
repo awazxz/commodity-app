@@ -2,38 +2,61 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\MasterKomoditas;
+
 
 class PriceData extends Model
 {
     use HasFactory;
 
     /**
-     * Nama tabel yang terkait dengan model.
-     * Secara default Laravel akan menganggap nama tabelnya 'price_data'
+     * Nama tabel di database
      */
     protected $table = 'price_data';
 
     /**
-     * Atribut yang dapat diisi secara massal (Mass Assignable).
-     * Sesuaikan dengan kolom yang kita buat di file migration.
+     * Kolom yang boleh diisi secara mass assignment
+     * (harus sesuai dengan migration baru)
      */
     protected $fillable = [
-        'nama_varian',
-        'kuantitas',
-        'satuan',
+        'komoditas_id',
+        'tanggal',
         'harga',
-        'tahun',
-        'bulan',
-        'minggu',
     ];
 
     /**
-     * Jika Anda ingin memformat harga secara otomatis saat ditampilkan
-     * Anda bisa menambahkan accessor (opsional)
+     * Cast otomatis tipe data
      */
-    public function getHargaFormattedAttribute()
+    protected $casts = [
+        'tanggal' => 'date',
+        'harga'   => 'float',
+    ];
+
+    /**
+     * Relasi ke master komoditas
+     * price_data.komoditas_id -> master_komoditas.id
+     */
+    public function komoditas()
+    {
+        return $this->belongsTo(MasterKomoditas::class, 'komoditas_id');
+    }
+
+    /**
+     * Scope khusus untuk kebutuhan forecasting (Prophet)
+     * Menghasilkan format: ds, y
+     */
+    public function scopeForForecast($query)
+    {
+        return $query->selectRaw('tanggal as ds, harga as y')
+                     ->orderBy('tanggal');
+    }
+
+    /**
+     * Accessor opsional untuk format harga (UI)
+     */
+    public function getHargaFormattedAttribute(): string
     {
         return 'Rp ' . number_format($this->harga, 0, ',', '.');
     }

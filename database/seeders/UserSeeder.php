@@ -8,20 +8,39 @@ use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
+        // Bersihkan tabel user dulu (opsional tapi aman)
+        User::truncate();
+
+        // =========================
+        // ADMIN
+        // =========================
         User::create([
-            'name' => 'Admin',
-            'email' => 'admin@mail.com',
+            'name'     => 'Admin',
+            'email'    => 'admin@commodity.test',
             'password' => Hash::make('admin123'),
-            'role' => 'admin',
+            'role'     => 'admin',
         ]);
 
+        // =========================
+        // OPERATOR
+        // =========================
         User::create([
-            'name' => 'User',
-            'email' => 'user@mail.com',
+            'name'     => 'Operator',
+            'email'    => 'operator@commodity.test',
+            'password' => Hash::make('operator123'),
+            'role'     => 'operator',
+        ]);
+
+        // =========================
+        // USER BIASA
+        // =========================
+        User::create([
+            'name'     => 'User',
+            'email'    => 'user@commodity.test',
             'password' => Hash::make('user123'),
-            'role' => 'user',
+            'role'     => 'user',
         ]);
     }
 }

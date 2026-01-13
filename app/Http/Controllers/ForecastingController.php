@@ -3,6 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\PriceData;
+use App\Models\MasterKomoditas;
+use Illuminate\Support\Facades\Http;
 
 class ForecastingController extends Controller
 {
@@ -15,7 +18,7 @@ class ForecastingController extends Controller
     }
 
     /**
-     * Submit filter (commodity saja untuk public user)
+     * Submit filter (commodity saja)
      */
     public function predict(Request $request)
     {
@@ -27,160 +30,172 @@ class ForecastingController extends Controller
     }
 
     /**
-     * Core logic (SINGLE SOURCE OF TRUTH)
+     * ==============================
+     * CORE LOGIC DASHBOARD
+     * ==============================
      */
     private function processForecasting(Request $request)
     {
-        // ================= INPUT DASAR =================
-        $selectedCommodity = $request->input('commodity', 'Beras Premium');
-
-        // ================= PARAMETER PROPHET (WAJIB ADA, MESKI UI DIHAPUS) =================
-        // Dipakai oleh hidden input di Blade
-        $cpScale = (float) $request->input('changepoint_prior_scale', 0.05);
-        $seasonScale = (float) $request->input('seasonality_prior_scale', 10);
+        // ================= PARAMETER PROPHET (WAJIB SELALU ADA) =================
+        $cpScale          = (float) $request->input('changepoint_prior_scale', 0.05);
+        $seasonScale     = (float) $request->input('seasonality_prior_scale', 10);
         $seasonalityMode = $request->input('seasonality_mode', 'additive');
+        $weeklyActive    = $request->input('weekly', 'off') === 'on';
+        $yearlyActive    = $request->input('yearly', 'off') === 'on';
 
-        // checkbox → default off jika tidak dikirim
-        $weeklyActive = $request->input('weekly', 'off') === 'on';
-        $yearlyActive = $request->input('yearly', 'off') === 'on';
+        $selectedCommodity = $request->input('commodity', null);
 
-        // ================= DATA SOURCE (MOCK / NANTI PROPHET) =================
-        $data = $this->getMockData($selectedCommodity);
+        // ================= MAPPING KOMODITAS =================
+        $komoditas = MasterKomoditas::when($selectedCommodity, function ($q) use ($selectedCommodity) {
+                $q->where('nama_komoditas', $selectedCommodity);
+            })
+            ->first();
 
-        // ================= CONFIDENCE INTERVAL (DAILY) =================
-        $upperBand = [];
-        $lowerBand = [];
+        // ================= DATA REAL DARI DB =================
+        if ($komoditas) {
+            $records = PriceData::where('komoditas_id', $komoditas->id)
+                ->orderBy('tanggal')
+                ->get();
 
-        foreach ($data['forecastData'] as $value) {
-            if ($value === null) {
-                $upperBand[] = null;
-                $lowerBand[] = null;
-            } else {
-                // simulasi confidence interval ±5%
-                $upperBand[] = round($value * 1.05);
-                $lowerBand[] = round($value * 0.95);
+            if ($records->count() >= 2) {
+                return $this->buildViewFromDatabase(
+                    $records,
+                    $komoditas->nama_komoditas,
+                    $cpScale,
+                    $seasonScale,
+                    $seasonalityMode,
+                    $weeklyActive,
+                    $yearlyActive
+                );
             }
         }
 
-        // ================= WEEKLY AGGREGATION =================
-        $weeklyLabels   = [];
-        $weeklyForecast = [];
-        $weeklyUpper    = [];
-        $weeklyLower    = [];
+        // ================= FALLBACK MOCK =================
+        return $this->buildViewFromMock(
+            $selectedCommodity,
+            $cpScale,
+            $seasonScale,
+            $seasonalityMode,
+            $weeklyActive,
+            $yearlyActive
+        );
+    }
 
-        $weekIndex = 1;
-        foreach ($data['forecastData'] as $i => $value) {
-            if ($value !== null) {
-                $weeklyLabels[]   = 'Minggu ' . $weekIndex;
-                $weeklyForecast[] = $value;
-                $weeklyUpper[]    = $upperBand[$i];
-                $weeklyLower[]    = $lowerBand[$i];
-                $weekIndex++;
-            }
+    /**
+     * ==============================
+     * BUILD VIEW FROM DATABASE
+     * ==============================
+     */
+    private function buildViewFromDatabase(
+        $records,
+        $commodityName,
+        $cpScale,
+        $seasonScale,
+        $seasonalityMode,
+        $weeklyActive,
+        $yearlyActive
+    ) {
+        $labels = [];
+        $actual = [];
+
+        foreach ($records as $row) {
+            $labels[] = $row->tanggal->format('M Y');
+            $actual[] = $row->harga;
         }
 
-        // ================= SUMMARY SEMUA KOMODITAS (TABEL PUBLIK) =================
-        $commoditySummary = [];
-
-        foreach (['Beras Premium', 'Cabai Merah', 'Minyak Goreng'] as $commodity) {
-            $mock = $this->getMockData($commodity);
-
-            $lastActual   = collect($mock['actualData'])->filter()->last();
-            $lastForecast = collect($mock['forecastData'])->filter()->last();
-
-            // klasifikasi tren sederhana (bisa diganti statistik CI overlap)
-            $trend = 'Stabil';
-            if ($lastForecast > $lastActual * 1.02) {
-                $trend = 'Naik';
-            } elseif ($lastForecast < $lastActual * 0.98) {
-                $trend = 'Turun';
-            }
-
-            $commoditySummary[] = [
-                'commodity' => $commodity,
-                'actual'    => $lastActual,
-                'forecast'  => $lastForecast,
-                'trend'     => $trend
-            ];
-        }
-
-        // ================= RETURN VIEW =================
         return view('dashboard.index', [
-            // header & filter
-            'selectedCommodity' => $selectedCommodity,
+            'selectedCommodity' => $commodityName,
 
-            // PARAMETER PROPHET (UNTUK HIDDEN INPUT)
+            // PROPHET PARAM (WAJIB)
             'cpScale'           => $cpScale,
             'seasonScale'       => $seasonScale,
             'seasonalityMode'   => $seasonalityMode,
             'weeklyActive'      => $weeklyActive,
             'yearlyActive'      => $yearlyActive,
 
-            // metric cards
-            'avgPrice'  => $data['avgPrice'],
-            'maxPrice'  => $data['maxPrice'],
-            'startDate' => $data['startDate'],
-            'endDate'   => $data['endDate'],
-            'trendDir'  => ucfirst($data['trendDir']),
+            // METRIC
+            'avgPrice'  => round(collect($actual)->avg()),
+            'maxPrice'  => max($actual),
+            'startDate' => $records->first()->tanggal->format('Y-m-d'),
+            'endDate'   => $records->last()->tanggal->format('Y-m-d'),
+            'trendDir'  => 'Belum diforecast',
 
-            // chart utama
-            'chartLabels'  => $data['chartLabels'],
-            'actualData'   => $data['actualData'],
-            'forecastData' => $data['forecastData'],
+            // CHART
+            'chartLabels'  => $labels,
+            'actualData'   => $actual,
+            'forecastData' => array_fill(0, count($actual), null),
 
-            // interval harian
-            'upperBand' => $upperBand,
-            'lowerBand' => $lowerBand,
-
-            // weekly chart
-            'weeklyLabels'   => $weeklyLabels,
-            'weeklyForecast' => $weeklyForecast,
-            'weeklyUpper'    => $weeklyUpper,
-            'weeklyLower'    => $weeklyLower,
-
-            // tabel publik
-            'commoditySummary' => $commoditySummary
+            // PLACEHOLDER
+            'upperBand' => [],
+            'lowerBand' => [],
+            'weeklyLabels' => [],
+            'weeklyForecast' => [],
+            'weeklyUpper' => [],
+            'weeklyLower' => [],
+            'commoditySummary' => []
         ]);
     }
 
     /**
-     * MOCK DATA SOURCE
-     * (GANTI DENGAN ENGINE PROPHET / DATABASE)
+     * ==============================
+     * BUILD VIEW FROM MOCK
+     * ==============================
+     */
+    private function buildViewFromMock(
+        $commodity,
+        $cpScale,
+        $seasonScale,
+        $seasonalityMode,
+        $weeklyActive,
+        $yearlyActive
+    ) {
+        $data = $this->getMockData($commodity);
+
+        return view('dashboard.index', [
+            'selectedCommodity' => $commodity,
+
+            // PROPHET PARAM (WAJIB)
+            'cpScale'           => $cpScale,
+            'seasonScale'       => $seasonScale,
+            'seasonalityMode'   => $seasonalityMode,
+            'weeklyActive'      => $weeklyActive,
+            'yearlyActive'      => $yearlyActive,
+
+            // METRIC
+            'avgPrice'     => $data['avgPrice'],
+            'maxPrice'     => $data['maxPrice'],
+            'startDate'    => $data['startDate'],
+            'endDate'      => $data['endDate'],
+            'trendDir'     => ucfirst($data['trendDir']),
+
+            // CHART
+            'chartLabels'  => $data['chartLabels'],
+            'actualData'   => $data['actualData'],
+            'forecastData' => $data['forecastData'],
+
+            // PLACEHOLDER
+            'upperBand' => [],
+            'lowerBand' => [],
+            'weeklyLabels' => [],
+            'weeklyForecast' => [],
+            'weeklyUpper' => [],
+            'weeklyLower' => [],
+            'commoditySummary' => []
+        ]);
+    }
+
+    /**
+     * ==============================
+     * MOCK DATA
+     * ==============================
      */
     private function getMockData($commodity)
     {
-        if ($commodity === 'Cabai Merah') {
-            return [
-                'avgPrice'     => 45000,
-                'maxPrice'     => 62000,
-                'startDate'    => '01 Jan 2024',
-                'endDate'      => '23 Des 2025',
-                'trendDir'     => 'fluktuatif',
-                'chartLabels'  => ['M1','M2','M3','M4','F1','F2'],
-                'actualData'   => [42000,58000,41000,45000,null,null],
-                'forecastData' => [null,null,null,45000,49000,55000]
-            ];
-        }
-
-        if ($commodity === 'Minyak Goreng') {
-            return [
-                'avgPrice'     => 18500,
-                'maxPrice'     => 20000,
-                'startDate'    => '01 Jan 2024',
-                'endDate'      => '23 Des 2025',
-                'trendDir'     => 'menaik',
-                'chartLabels'  => ['Okt','Nov','Des','Jan(F)','Feb(F)'],
-                'actualData'   => [17500,18000,19000,null,null],
-                'forecastData' => [null,null,19000,19500,20200]
-            ];
-        }
-
-        // Default: Beras Premium
         return [
             'avgPrice'     => 14500,
             'maxPrice'     => 15800,
-            'startDate'    => '01 Jan 2024',
-            'endDate'      => '23 Des 2025',
+            'startDate'    => '2024-01-01',
+            'endDate'      => '2025-12-23',
             'trendDir'     => 'stabil',
             'chartLabels'  => ['Jan','Feb','Mar','Apr','Mei','Jun(F)'],
             'actualData'   => [14200,14500,14800,14600,14700,null],

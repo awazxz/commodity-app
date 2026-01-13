@@ -7,27 +7,20 @@ use Illuminate\Http\Request;
 
 class CheckRole
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
-     * @param  mixed ...$roles
-     * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
-     */
     public function handle(Request $request, Closure $next, ...$roles)
     {
-        if (!auth()->check()) {
-            return redirect('login');
-        }
-
         $user = auth()->user();
 
-        // cek role langsung karena sekarang role adalah string
-        if (in_array($user->role, $roles)) {
-            return $next($request);
+        // Auth sudah ditangani middleware 'auth'
+        if (!$user) {
+            abort(401);
         }
 
-        return abort(403, 'Anda tidak memiliki hak akses ke halaman ini.');
+        // Role tidak sesuai
+        if (!in_array($user->role, $roles)) {
+            abort(403, 'Anda tidak memiliki hak akses ke halaman ini.');
+        }
+
+        return $next($request);
     }
 }
