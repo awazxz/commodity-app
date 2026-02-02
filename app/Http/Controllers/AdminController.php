@@ -47,13 +47,13 @@ class AdminController extends Controller
         // Initialize Variables
         $users = [];
         $allData = [];
-        $latestData = [];
+        $latestData = collect();
         $actualData = [];
         $chartLabels = [];
         $forecastData = [];
         $lowerBand = [];
         $upperBand = [];
-        $dataIssues = [];
+        $dataIssues = collect();
 
         // Weekly/Monthly/Yearly aggregated data
         $weeklyLabels = [];
@@ -75,24 +75,20 @@ class AdminController extends Controller
         $yearlyUpper = [];
 
         try {
-            // Tab Users: Load all users
+            // Tab Users: Load all users with pagination
             if ($currentTab === 'users') {
-                $users = User::orderBy('created_at', 'desc')->get();
+                $users = User::orderBy('created_at', 'desc')->paginate(10);
             }
 
-            // Tab Manage: Load data management related info
+            // Tab Manage: Load data management related info with pagination
             if ($currentTab === 'manage') {
-                // Get all data for selected commodity (for table display)
-                $allData = CommodityPrice::where('commodity_name', $selectedCommodity)
+                // Get all data for selected commodity with pagination (for table display)
+                $latestData = CommodityPrice::where('commodity_name', $selectedCommodity)
                     ->orderBy('date', 'desc')
-                    ->limit(100) // Limit untuk performa
-                    ->get();
+                    ->paginate(10);
 
-                // Latest data untuk display
-                $latestData = $allData;
-
-                // Scan data quality issues
-                $dataIssues = $this->scanDataQuality($selectedCommodity);
+                // Scan data quality issues with pagination
+                $dataIssues = $this->scanDataQualityPaginated($selectedCommodity, $request);
             }
 
             // Main Query: Get historical data for chart
@@ -117,8 +113,8 @@ class AdminController extends Controller
                 for ($i = 1; $i <= 7; $i++) {
                     $forecastVal = $lastVal + ($i * rand(-50, 100));
                     $forecastData[] = $forecastVal;
-                    $lowerBand[] = $forecastVal * 0.95; // 5% lower
-                    $upperBand[] = $forecastVal * 1.05; // 5% upper
+                    $lowerBand[] = $forecastVal * 0.95;
+                    $upperBand[] = $forecastVal * 1.05;
                     $chartLabels[] = Carbon::parse($lastDate)->addDays($i)->format('d/m');
                 }
 
@@ -169,8 +165,8 @@ class AdminController extends Controller
             $lowerBand = array_map(fn($v) => $v * 0.95, $forecastData);
             $upperBand = array_map(fn($v) => $v * 1.05, $forecastData);
             
-            if ($currentTab === 'manage' && empty($allData)) {
-                $latestData = collect([
+            if ($currentTab === 'manage' && (empty($allData) || $latestData->isEmpty())) {
+                $fallbackData = collect([
                     (object)[
                         'id' => 1, 
                         'commodity_name' => $selectedCommodity, 
@@ -184,7 +180,16 @@ class AdminController extends Controller
                         'price' => 14500
                     ],
                 ]);
-                $allData = $latestData;
+                
+                $latestData = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $fallbackData,
+                    $fallbackData->count(),
+                    10,
+                    1,
+                    ['path' => $request->url(), 'query' => $request->query()]
+                );
+                
+                $allData = $fallbackData;
             }
         }
 
@@ -256,7 +261,88 @@ class AdminController extends Controller
     // ========================================
 
     /**
-     * Scan data quality issues (Outliers & Missing Values)
+     * Scan data quality issues (Outliers & Missing Values) with pagination
+     */
+    private function scanDataQualityPaginated($commodity, $request)
+    {
+        $data = CommodityPrice::where('commodity_name', $commodity)
+            ->orderBy('date', 'asc')
+            ->get();
+
+        if ($data->isEmpty()) {
+            return new \Illuminate\Pagination\LengthAwarePaginator(
+                collect([]),
+                0,
+                8,
+                1,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        }
+
+        // Get valid prices for statistical calculation
+        $prices = $data->pluck('price')->filter()->toArray();
+        
+        if (count($prices) < 4) {
+            return new \Illuminate\Pagination\LengthAwarePaginator(
+                collect([]),
+                0,
+                8,
+                1,
+                ['path' => $request->url(), 'query' => $request->query()]
+            );
+        }
+
+        // Calculate IQR for Outlier Detection
+        sort($prices);
+        $q1 = $prices[floor(count($prices) * 0.25)];
+        $q3 = $prices[floor(count($prices) * 0.75)];
+        $iqr = $q3 - $q1;
+        $lowerBound = $q1 - (1.5 * $iqr);
+        $upperBound = $q3 + (1.5 * $iqr);
+
+        $issues = [];
+        foreach ($data as $item) {
+            // Check Missing/Zero Values
+            if (is_null($item->price) || $item->price <= 0) {
+                $issues[] = (object)[
+                    'date' => $item->date,
+                    'issue' => 'Missing Value',
+                    'value' => 0,
+                    'status' => 'Perlu Diisi (Imputation)'
+                ];
+            } 
+            // Check Outliers
+            elseif ($item->price < $lowerBound || $item->price > $upperBound) {
+                $status = $item->price > $upperBound ? 'Terlalu Tinggi' : 'Terlalu Rendah';
+                $issues[] = (object)[
+                    'date' => $item->date,
+                    'issue' => 'Outlier',
+                    'value' => $item->price,
+                    'status' => $status
+                ];
+            }
+        }
+
+        // Convert to paginator
+        $issuesCollection = collect($issues);
+        $perPage = 8;
+        $currentPage = $request->input('page', 1);
+        $currentItems = $issuesCollection->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+        return new \Illuminate\Pagination\LengthAwarePaginator(
+            $currentItems,
+            $issuesCollection->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => $request->url(),
+                'query' => array_merge($request->query(), ['tab' => 'manage'])
+            ]
+        );
+    }
+
+    /**
+     * Scan data quality issues (Non-paginated version for backward compatibility)
      */
     private function scanDataQuality($commodity)
     {
@@ -274,7 +360,7 @@ class AdminController extends Controller
         $prices = $data->pluck('price')->filter()->toArray();
         
         if (count($prices) < 4) {
-            return []; // Not enough data for statistical analysis
+            return [];
         }
 
         // Calculate IQR for Outlier Detection
@@ -399,7 +485,7 @@ class AdminController extends Controller
             return redirect()->back()->with('error', 'Gagal membersihkan data: ' . $e->getMessage());
         }
     }
-
+    
     // ========================================
     // DATA MANAGEMENT (CRUD)
     // ========================================
@@ -467,6 +553,53 @@ class AdminController extends Controller
     }
 
     /**
+     * Update commodity price data
+     */
+    public function updateData(Request $request, $id)
+    {
+        $request->validate([
+            'commodity' => 'required|string',
+            'date' => 'required|date',
+            'price' => 'required|numeric|min:0'
+        ]);
+
+        try {
+            $data = CommodityPrice::findOrFail($id);
+            
+            $data->update([
+                'commodity_name' => $request->commodity,
+                'date' => $request->date,
+                'price' => $request->price,
+                'updated_at' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data berhasil diperbarui!',
+                'data' => [
+                    'id' => $data->id,
+                    'commodity' => $data->commodity_name,
+                    'date' => $data->date,
+                    'price' => $data->price
+                ]
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data tidak ditemukan.'
+            ], 404);
+
+        } catch (\Exception $e) {
+            Log::error('Update Data Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memperbarui data: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
      * Delete commodity price data
      */
     public function deleteData($id)
@@ -483,6 +616,35 @@ class AdminController extends Controller
             Log::error('Delete Data Error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal menghapus data.');
         }
+    }
+
+    /**
+     * Download CSV Template
+     */
+    public function downloadTemplate()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="template_data_komoditas.csv"',
+        ];
+
+        $columns = ['tanggal', 'komoditas', 'harga'];
+        $sampleData = [
+            ['2026-01-01', 'Beras Premium', '14500'],
+            ['2026-01-02', 'Beras Premium', '14600'],
+            ['2026-01-03', 'Cabai Merah', '85000'],
+        ];
+
+        $callback = function() use ($columns, $sampleData) {
+            $file = fopen('php://output', 'w');
+            fputcsv($file, $columns);
+            foreach ($sampleData as $row) {
+                fputcsv($file, $row);
+            }
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 
     // ========================================
@@ -505,7 +667,7 @@ class AdminController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'role' => 'user' // Default role
+                'role' => 'user'
             ]);
 
             return redirect()
@@ -517,6 +679,72 @@ class AdminController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat pengguna: ' . $e->getMessage());
         }
     }
+    /**
+ * Update user data
+ */
+public function updateUser(Request $request, $id)
+{
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'email' => 'required|string|email|max:255',
+        'role' => 'required|in:user,operator,admin'
+    ]);
+
+    try {
+        // Prevent changing own role
+        if (auth()->id() == $id && $request->role !== auth()->user()->role) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak dapat mengubah role Anda sendiri!'
+            ], 403);
+        }
+
+        $user = User::findOrFail($id);
+        
+        // Check if email is unique (excluding current user)
+        $emailExists = User::where('email', $request->email)
+            ->where('id', '!=', $id)
+            ->exists();
+            
+        if ($emailExists) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Email sudah digunakan oleh pengguna lain!'
+            ], 422);
+        }
+        
+        $user->update([
+            'name' => $request->name,
+            'email' => $request->email,
+            'role' => $request->role,
+            'updated_at' => now()
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data pengguna berhasil diperbarui!',
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role
+            ]
+        ]);
+
+    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Pengguna tidak ditemukan.'
+        ], 404);
+
+    } catch (\Exception $e) {
+        Log::error('Update User Error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal memperbarui data pengguna: ' . $e->getMessage()
+        ], 500);
+    }
+}
 
     /**
      * Delete user

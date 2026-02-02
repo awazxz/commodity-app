@@ -1,345 +1,213 @@
 @extends('layouts.app') 
 
 @section('content')
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+<div id="real-content">
 <style>
-    body, div, h2, h3, h4, p, span, table, button, select, input {
-        font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif !important;
-        font-style: normal !important;
+    /* Reset & Typography Standar */
+    .dashboard-container {
+        font-family: 'Inter', sans-serif;
     }
 
-    .font-clean { font-weight: 400 !important; }
-    .font-medium-clean { font-weight: 600 !important; }
-    .tracking-widest { letter-spacing: 0.12em !important; }
-
-    .card-custom {
+    /* Style Kartu identik dengan komoditas.blade.php */
+    .card-standard {
         background: white;
-        border-radius: 12px;
-        border: 1px solid #e2e8f0;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border-radius: 0.5rem; /* rounded-lg */
+        border: 1px solid #e5e7eb; /* border-gray-200 */
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
     }
 
-    .hover-card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .hover-card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.08);
-    }
-
+    /* Filter Button Standard */
     .filter-btn {
         padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        font-size: 10px;
+        border-radius: 0.375rem;
+        font-size: 0.75rem;
         font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        border: 1px solid #e2e8f0;
+        transition: all 0.2s;
+        border: 1px solid #d1d5db;
         background: white;
-        color: #64748b;
-        cursor: pointer;
+        color: #4b5563;
     }
 
     .filter-btn.active {
-        background: linear-gradient(135deg, #043277 0%, #0a469b 100%);
+        background: #2563eb; /* Blue-600 */
         color: white;
-        border-color: #043277;
-        box-shadow: 0 4px 12px rgba(4, 50, 119, 0.3);
-        transform: translateY(-1px);
+        border-color: #2563eb;
     }
 
-    .filter-btn:hover:not(.active) {
-        background: #f8fafc;
-        border-color: #cbd5e1;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-
-    .filter-btn:active {
-        transform: translateY(0);
-    }
-
+    /* Badge Insight identik dengan Status Laporan */
     .insight-badge {
-        padding: 0.35rem 0.85rem;
+        padding: 0.25rem 0.625rem;
         border-radius: 9999px;
-        font-size: 9px;
-        font-weight: 600;
+        font-size: 10px;
+        font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.05em;
-        transition: all 0.2s ease;
-        display: inline-block;
     }
 
-    .insight-badge:hover {
-        transform: scale(1.05);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    }
+    .insight-naik { background: #fee2e2; color: #991b1b; } /* Red-100 & 800 */
+    .insight-turun { background: #dcfce7; color: #166534; } /* Green-100 & 800 */
+    .insight-stabil { background: #f3f4f6; color: #1f2937; } /* Gray-100 & 800 */
 
-    .insight-naik {
-        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-        color: #991b1b;
-        border: 1px solid #fca5a5;
-    }
-
-    .insight-turun {
-        background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-        color: #065f46;
-        border: 1px solid #6ee7b7;
-    }
-
-    .insight-stabil {
-        background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
-        color: #3730a3;
-        border: 1px solid #a5b4fc;
-    }
-
-    .overflow-x-auto::-webkit-scrollbar {
-        height: 8px;
-    }
-
-    .overflow-x-auto::-webkit-scrollbar-track {
-        background: #f1f5f9;
-        border-radius: 10px;
-    }
-
-    .overflow-x-auto::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 10px;
-        transition: background 0.3s ease;
-    }
-
-    .overflow-x-auto::-webkit-scrollbar-thumb:hover {
-        background: #94a3b8;
-    }
-
-    @keyframes fadeIn {
-        from { 
-            opacity: 0; 
-            transform: translateY(10px); 
-        }
-        to { 
-            opacity: 1; 
-            transform: translateY(0); 
-        }
-    }
-
-    @keyframes slideIn {
-        from {
-            opacity: 0;
-            transform: translateX(-10px);
-        }
-        to {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    .animate-fade-in {
-        animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .animate-slide-in {
-        animation: slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    #skeleton-overlay {
-        transition: opacity 0.3s ease-in-out;
-    }
-
-    #real-content {
-        transition: all 0.3s ease-in-out;
-    }
-
-    canvas {
-        image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
-    }
+    [x-cloak] { display: none !important; }
 </style>
-
-<div id="skeleton-overlay" class="hidden space-y-4">
-    <div class="h-16 bg-slate-200 animate-pulse rounded-xl"></div>
-    <div class="h-[400px] bg-slate-200 animate-pulse rounded-2xl"></div>
+</div>
+<div id="skeleton-overlay" class="hidden fixed inset-0 bg-white/50 z-50 flex items-center justify-center opacity-0">
+    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
 </div>
 
-<div id="real-content" class="space-y-5 transition-all duration-500 font-clean">
+<div class="dashboard-container space-y-6 animate-fade-in">
 
-{{-- HEADER & FILTER KOMODITAS --}}
-<div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-    <div class="flex flex-col md:flex-row justify-between items-center gap-4">
-        <div class="flex items-center gap-4">
-            <div class="bg-[#043277] p-2.5 rounded-lg text-white shadow-lg shadow-blue-900/20">
-                <i class="fas fa-chart-line text-xl"></i>
-            </div>
-            <div>
-                <h2 class="text-lg font-medium-clean text-[#043277] tracking-tighter uppercase leading-none mt-1">
-                    Sistem Analisis Prediksi Harga Komoditas
-                </h2>
-                <p class="text-[9px] text-slate-400 font-medium-clean uppercase tracking-widest mt-1">
-                    Peramalan Berbasis Data • Dasbor Publik
-                </p>
-            </div>
-        </div>
-        <button onclick="window.print()" class="bg-[#58a832] hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium-clean text-[9px] uppercase tracking-widest shadow-sm flex items-center gap-2">
-            <i class="fas fa-print"></i> Cetak Laporan
-        </button>
-    </div>
-
-    <form action="{{ route('predict') }}" method="POST" id="mainForm" class="mt-6 pt-5 border-t border-slate-100">
-        @csrf
-        <div class="grid grid-cols-12 gap-4">
-            <div class="col-span-12 md:col-span-4">
-                <label class="text-[9px] font-medium-clean text-slate-400 uppercase mb-1.5 block tracking-widest">
-                    Pilih Komoditas
-                </label>
-                <select name="commodity" onchange="handleCommodityChange()" class="w-full bg-slate-50 border border-slate-200 rounded-lg py-2 px-3 text-xs font-medium-clean text-[#043277]">
-                    <option value="Beras Premium" {{ $selectedCommodity == 'Beras Premium' ? 'selected' : '' }}>Beras Premium</option>
-                    <option value="Cabai Merah" {{ $selectedCommodity == 'Cabai Merah' ? 'selected' : '' }}>Cabai Merah</option>
-                    <option value="Minyak Goreng" {{ $selectedCommodity == 'Minyak Goreng' ? 'selected' : '' }}>Minyak Goreng</option>
-                </select>
-            </div>
-
-            <div class="col-span-12 md:col-span-8">
-                <label class="text-[9px] font-medium-clean text-slate-400 uppercase mb-1.5 block tracking-widest">
-                    Rentang Waktu Historis
-                </label>
-                <div class="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border">
-                    <input type="date" name="start_date" value="{{ $startDate }}" onchange="triggerSubmit()" class="bg-transparent text-[10px] p-1.5 outline-none flex-1">
-                    <span class="text-slate-300 text-xs">—</span>
-                    <input type="date" name="end_date" value="{{ $endDate }}" onchange="triggerSubmit()" class="bg-transparent text-[10px] p-1.5 outline-none flex-1">
+    {{-- HEADER SECTION --}}
+    <div class="card-standard p-6">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="bg-blue-600 p-3 rounded-lg text-white shadow-md">
+                    <i class="fas fa-chart-line text-xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 leading-none">
+                        Sistem Analisis Prediksi Harga Komoditas
+                    </h2>
+                    <p class="text-xs text-gray-500 font-medium uppercase tracking-wider mt-1.5">
+                        Provinsi Riau • Peramalan Berbasis Data Real-time
+                    </p>
                 </div>
             </div>
         </div>
 
-        <input type="hidden" name="changepoint_prior_scale" value="{{ $cpScale }}">
-        <input type="hidden" name="seasonality_prior_scale" value="{{ $seasonScale }}">
-        <input type="hidden" name="seasonality_mode" value="{{ $seasonalityMode }}">
-        <input type="hidden" name="weekly" value="{{ $weeklyActive ? 'on' : 'off' }}">
-        <input type="hidden" name="yearly" value="{{ $yearlyActive ? 'on' : 'off' }}">
-    </form>
-</div>
+        {{-- FILTER FORM --}}
+        <form action="{{ route('predict') }}" method="POST" id="mainForm" class="mt-6 pt-6 border-t border-gray-100">
+            @csrf
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                <div class="md:col-span-4">
+                    <label class="text-xs font-semibold text-gray-700 uppercase mb-2 block tracking-tight">
+                        Komoditas Terpilih
+                    </label>
+                    <select name="commodity" onchange="handleCommodityChange()" 
+                            class="w-full bg-gray-50 border border-gray-300 rounded-md py-2 px-3 text-sm font-medium text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                        <option value="Beras Premium" {{ $selectedCommodity == 'Beras Premium' ? 'selected' : '' }}>Beras Premium</option>
+                        <option value="Cabai Merah" {{ $selectedCommodity == 'Cabai Merah' ? 'selected' : '' }}>Cabai Merah</option>
+                        <option value="Minyak Goreng" {{ $selectedCommodity == 'Minyak Goreng' ? 'selected' : '' }}>Minyak Goreng</option>
+                    </select>
+                </div>
 
-{{-- METRIC CARDS --}}
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div class="card-custom hover-card p-4">
-        <p class="text-[8px] uppercase text-slate-400 tracking-widest">Rata-rata Harga</p>
-        <p class="text-lg font-medium-clean text-[#043277]">
-            Rp {{ number_format($avgPrice,0,',','.') }}
-        </p>
+                <div class="md:col-span-8">
+                    <label class="text-xs font-semibold text-gray-700 uppercase mb-2 block tracking-tight">
+                        Rentang Waktu Analisis Historis
+                    </label>
+                    <div class="flex items-center gap-3 bg-gray-50 p-1.5 rounded-md border border-gray-300">
+                        <input type="date" name="start_date" value="{{ $startDate }}" onchange="triggerSubmit()" 
+                               class="bg-transparent text-sm p-1 outline-none flex-1 font-medium">
+                        <span class="text-gray-400 font-bold">→</span>
+                        <input type="date" name="end_date" value="{{ $endDate }}" onchange="triggerSubmit()" 
+                               class="bg-transparent text-sm p-1 outline-none flex-1 font-medium">
+                    </div>
+                </div>
+            </div>
+            {{-- Hidden Inputs --}}
+            <input type="hidden" name="changepoint_prior_scale" value="{{ $cpScale }}">
+            <input type="hidden" name="seasonality_prior_scale" value="{{ $seasonScale }}">
+            <input type="hidden" name="seasonality_mode" value="{{ $seasonalityMode }}">
+            <input type="hidden" name="weekly" value="{{ $weeklyActive ? 'on' : 'off' }}">
+            <input type="hidden" name="yearly" value="{{ $yearlyActive ? 'on' : 'off' }}">
+        </form>
     </div>
 
-    <div class="card-custom hover-card p-4">
-        <p class="text-[8px] uppercase text-red-400 tracking-widest">Harga Tertinggi</p>
-        <p class="text-lg font-medium-clean text-red-600">
-            Rp {{ number_format($maxPrice,0,',','.') }}
-        </p>
-    </div>
+    {{-- METRIC CARDS --}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card-standard p-5">
+            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">Rata-rata Harga</p>
+            <p class="text-xl font-bold text-gray-900">Rp {{ number_format($avgPrice,0,',','.') }}</p>
+        </div>
 
-    <div class="card-custom hover-card p-4">
-        <p class="text-[8px] uppercase text-slate-400 tracking-widest">Cakupan Data</p>
-        <p class="text-xs text-slate-600">
-            {{ $startDate }}<br>{{ $endDate }}
-        </p>
-    </div>
+        <div class="card-standard p-5">
+            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">Harga Tertinggi</p>
+            <p class="text-xl font-bold text-red-600">Rp {{ number_format($maxPrice,0,',','.') }}</p>
+        </div>
 
-    <div class="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white">
-        <p class="text-[8px] uppercase text-white/80 tracking-widest">Proyeksi Tren</p>
-        <p class="text-xs font-bold uppercase">
-            {{ $trendDir }}
-        </p>
-    </div>
-</div>
+        <div class="card-standard p-5">
+            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">Status Data</p>
+            <div class="flex items-center gap-2">
+                <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
+                <p class="text-sm font-semibold text-gray-700">Aktif & Terverifikasi</p>
+            </div>
+        </div>
 
-{{-- GRAFIK UTAMA DENGAN FILTER PERIODE --}}
-<div class="card-custom overflow-hidden">
-    <div class="px-5 py-4 border-b bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-            <h3 class="text-[10px] font-medium-clean uppercase tracking-widest text-[#043277]">
-                Grafik Tren Harga & Proyeksi
-            </h3>
-            <p class="text-[9px] text-slate-400 mt-1">
-                Komoditas: <span class="font-medium-clean text-blue-600">{{ $selectedCommodity }}</span> • Visualisasi data historis dan prediksi
+        <div class="bg-blue-600 rounded-lg p-5 text-white shadow-lg">
+            <p class="text-[10px] uppercase text-blue-100 font-bold tracking-wider mb-2">Arah Tren</p>
+            <p class="text-sm font-bold uppercase flex items-center gap-2">
+                <i class="fas {{ str_contains(strtolower($trendDir), 'naik') ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down' }}"></i>
+                {{ $trendDir }}
             </p>
         </div>
+    </div>
 
-        <div class="flex gap-2 flex-wrap">
-            <button onclick="changeChartPeriod('daily')" class="filter-btn active" id="btn-daily">
-                Harian
-            </button>
-            <button onclick="changeChartPeriod('weekly')" class="filter-btn" id="btn-weekly">
-                Mingguan
-            </button>
-            <button onclick="changeChartPeriod('monthly')" class="filter-btn" id="btn-monthly">
-                Bulanan
-            </button>
-            <button onclick="changeChartPeriod('yearly')" class="filter-btn" id="btn-yearly">
-                Tahunan
-            </button>
+    {{-- CHART SECTION --}}
+    <div class="card-standard overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row justify-between items-center gap-4">
+            <div>
+                <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">Visualisasi Tren & Proyeksi</h3>
+                <p class="text-xs text-gray-500">Menampilkan data historis vs hasil algoritma Prophet</p>
+            </div>
+
+            <div class="flex bg-white border border-gray-300 p-1 rounded-md shadow-sm">
+                <button onclick="changeChartPeriod('daily')" class="filter-btn active" id="btn-daily">Harian</button>
+                <button onclick="changeChartPeriod('weekly')" class="filter-btn border-none" id="btn-weekly">Mingguan</button>
+                <button onclick="changeChartPeriod('monthly')" class="filter-btn border-none" id="btn-monthly">Bulanan</button>
+                <button onclick="changeChartPeriod('yearly')" class="filter-btn border-none" id="btn-yearly">Tahunan</button>
+            </div>
         </div>
+        
+        <div class="p-6 h-[450px]">
+            <canvas id="mainChart"></canvas>
+        </div>
+    </div>
+
+    {{-- INSIGHT TABLE --}}
+    <div class="card-standard overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">Ringkasan Analisis <span id="selectedPeriodText" class="text-blue-600">Harian</span></h3>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="text-[11px] font-bold text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
+                        <th class="px-6 py-4">Periode</th>
+                        <th class="px-6 py-4 text-right">Harga Aktual</th>
+                        <th class="px-6 py-4 text-right">Harga Prediksi</th>
+                        <th class="px-6 py-4 text-right">Selisih</th>
+                        <th class="px-6 py-4 text-center">Indikator</th>
+                    </tr>
+                </thead>
+                <tbody class="text-sm text-gray-700 divide-y divide-gray-100" id="insightTableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+
+    <!-- <div class="card-standard p-6 border-l-4 border-l-blue-600">
+        <div class="flex items-center gap-3 mb-3">
+            <h4 class="text-sm font-bold text-gray-900 uppercase">Interpretasi Model Prophet</h4>
+        </div>
+        <p class="text-sm text-gray-600 leading-relaxed">
+            Berdasarkan analisis data historis untuk komoditas <strong>{{ $selectedCommodity }}</strong>, model mendeteksi pola musiman dan tren jangka panjang. Hasil proyeksi ini dimaksudkan sebagai alat bantu dalam pengambilan kebijakan stabilisasi pasokan dan harga di wilayah Provinsi Riau.
+        </p>
+    </div> -->
+    {{-- Analisis Deskriptif --}}
+<div class="card-standard p-6 border-l-4 border-l-blue-600">
+    <div class="flex items-center gap-3 mb-3">
+        <h4 class="text-sm font-bold text-gray-900 uppercase">Interpretasi Model Prophet</h4>
     </div>
     
-    <div class="p-6 h-[500px]">
-        <canvas id="mainChart"></canvas>
-    </div>
-</div>
-
-{{-- TABEL INSIGHT PROYEKSI --}}
-<div class="card-custom overflow-hidden">
-    <div class="px-5 py-4 border-b bg-slate-50/50">
-        <div class="flex items-center gap-2 mb-1">
-            <i class="fas fa-table text-[#043277] text-xs"></i>
-            <h3 class="text-[10px] font-medium-clean text-[#043277] uppercase tracking-widest">
-                Ringkasan Proyeksi & Analisis Tren
-            </h3>
-        </div>
-        <p class="text-[9px] text-slate-400">
-            Data proyeksi berdasarkan periode waktu terpilih: <strong id="selectedPeriodText">Harian</strong>
-        </p>
-    </div>
-
-    <div class="overflow-x-auto">
-        <table class="w-full text-left font-clean" id="insightTable">
-            <thead>
-                <tr class="text-[9px] font-medium-clean text-slate-400 uppercase bg-white border-b border-slate-100">
-                    <th class="px-6 py-4">Tanggal/Periode</th>
-                    <th class="px-6 py-4 text-right">Harga Aktual</th>
-                    <th class="px-6 py-4 text-right">Harga Prediksi</th>
-                    <th class="px-6 py-4 text-right">Selisih</th>
-                    <th class="px-6 py-4 text-center">Insight Tren</th>
-                </tr>
-            </thead>
-            <tbody class="text-[11px] font-medium-clean text-slate-600" id="insightTableBody">
-                <!-- Data akan diisi oleh JavaScript -->
-            </tbody>
-        </table>
-    </div>
-</div>
-
-{{-- KESIMPULAN ANALISIS --}}
-<div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-    <div class="flex items-center gap-3 mb-4">
-        <div class="w-1 h-6 bg-blue-600 rounded-full"></div>
-        <h4 class="text-[11px] text-[#043277] font-bold uppercase tracking-widest">
-            Kesimpulan Analisis
-        </h4>
-    </div>
-
-    <div class="bg-blue-50/50 border-l-4 border-blue-500 p-6 rounded-r-xl">
-        <p class="text-xs text-slate-700 leading-relaxed">
-            Berdasarkan hasil pemodelan statistik menggunakan algoritma
-            <strong>Prophet</strong>, pergerakan harga komoditas <strong>{{ $selectedCommodity }}</strong> 
-            menunjukkan kecenderungan tren yang relatif konsisten pada berbagai horizon waktu.
-            Sistem ini menganalisis pola historis dan proyeksi masa depan untuk membantu dalam 
-            pengambilan keputusan terkait stabilitas harga komoditas di Provinsi Riau.
-        </p>
-    </div>
+    <p id="dynamic-analysis" class="text-sm text-gray-600 leading-relaxed">
+        Berdasarkan analisis data historis untuk komoditas <strong>{{ $selectedCommodity }}</strong>, 
+        <span id="analysis-text">model sedang memproses tren terbaru...</span>
+    </p>
 </div>
 
 </div>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 /* =========================================================
@@ -475,8 +343,8 @@ function initializeChart() {
                     color: '#043277',
                     font: {
                         size: 16,
-                        weight: '700',
-                        family: 'Inter'
+                        weight: '600',
+                        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                     },
                     padding: {
                         top: 15,
@@ -493,8 +361,8 @@ function initializeChart() {
                         padding: 18,
                         font: {
                             size: 11,
-                            weight: '600',
-                            family: 'Inter'
+                            weight: '500',
+                            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                         },
                         color: '#64748b',
                         usePointStyle: true,
@@ -515,13 +383,13 @@ function initializeChart() {
                     usePointStyle: true,
                     titleFont: {
                         size: 12,
-                        weight: '700',
-                        family: 'Inter'
+                        weight: '600',
+                        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                     },
                     bodyFont: {
                         size: 11,
-                        weight: '500',
-                        family: 'Inter'
+                        weight: '400',
+                        family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                     },
                     displayColors: true,
                     callbacks: {
@@ -561,8 +429,8 @@ function initializeChart() {
                         color: '#94a3b8',
                         font: { 
                             size: 11,
-                            weight: '500',
-                            family: 'Inter'
+                            weight: '400',
+                            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                         },
                         padding: 10,
                         callback: value => 'Rp ' + value.toLocaleString('id-ID')
@@ -579,8 +447,8 @@ function initializeChart() {
                         color: '#94a3b8',
                         font: { 
                             size: 10,
-                            weight: '500',
-                            family: 'Inter'
+                            weight: '400',
+                            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
                         },
                         maxRotation: 45,
                         minRotation: 0,
@@ -742,6 +610,38 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeChart();
     updateInsightTable();
 });
+
+// analisis deskriptif
+function generateDescription(period, data) {
+    const commodity = "{{ $selectedCommodity }}";
+    const labels = data.labels;
+    const forecast = data.forecast;
+    
+    
+    if (forecast.length < 2) return `Data untuk ${commodity} belum mencukupi untuk analisis tren.`;
+
+    const firstVal = forecast[0];
+    const lastVal = forecast[forecast.length - 1];
+    const diff = lastVal - firstVal;
+    const percentChange = ((diff / firstVal) * 100).toFixed(1);
+    
+    let trendDesc = "";
+    let recommendation = "";
+
+    // Logika Penentuan Tren
+    if (diff > 0) {
+        trendDesc = `menunjukkan tren **peningkatan** sekitar ${percentChange}%`;
+        recommendation = "Perlu waspada terhadap potensi kenaikan harga di pasar.";
+    } else if (diff < 0) {
+        trendDesc = `menunjukkan tren **penurunan** sekitar ${Math.abs(percentChange)}%`;
+        recommendation = "Kondisi ini mengindikasikan pasokan yang cenderung stabil atau meningkat.";
+    } else {
+        trendDesc = "cenderung **stabil** tanpa perubahan signifikan";
+        recommendation = "Terus pantau perkembangan harga harian.";
+    }
+
+    return `Berdasarkan analisis model Prophet pada periode **${period}**, harga <strong>${commodity}</strong> ${trendDesc}. ${recommendation}`;
+}
 </script>
 
 @endsection
