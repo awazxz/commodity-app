@@ -13,3 +13,12 @@ npm-debug.log
 yarn-error.log
 /.idea
 /.vscode
+
+# Python Backend
+python-backend/venv/
+python-backend/__pycache__/
+python-backend/*.pyc
+python-backend/uploads/*
+!python-backend/uploads/.gitkeep
+python-backend/.env
+python-backend/*.csv

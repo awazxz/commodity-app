@@ -20,8 +20,10 @@ class MasterKomoditas extends Model
         'kuantitas',
     ];
 
-    public function prices()
+   // TAMBAHKAN INI
+    public function priceData()
     {
+        // Ganti 'komoditas_id' dengan nama kolom foreign key di tabel price_data kamu
         return $this->hasMany(PriceData::class, 'komoditas_id');
     }
 }

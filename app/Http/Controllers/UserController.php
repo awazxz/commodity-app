@@ -3,11 +3,20 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-// Pastikan memanggil ForecastingController
 use App\Http\Controllers\ForecastingController;
 
 class UserController extends Controller
 {
+    /**
+     * Halaman Dashboard/Analisis untuk User
+     * Menampilkan grafik dan forecasting
+     */
+    public function index(Request $request)
+    {
+        // Gunakan logika yang sama dengan forecasting
+        return app(ForecastingController::class)->index($request);
+    }
+
     /**
      * Menampilkan Landing Page dengan Grafik untuk User
      */

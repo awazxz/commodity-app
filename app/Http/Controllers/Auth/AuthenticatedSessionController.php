@@ -22,25 +22,15 @@ class AuthenticatedSessionController extends Controller
 
     /**
      * Menangani proses login.
+     * Semua role langsung ke Beranda (Laporan Komoditas)
      */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
         $request->session()->regenerate();
 
-        $user = Auth::user();
-
-        // Redirect berdasarkan role
-        if ($user->isAdmin()) {
-            return redirect()->intended(route('admin.dashboard'));
-        }
-
-        if ($user->isOperator()) {
-            return redirect()->intended(route('operator.dashboard'));
-        }
-
-        // User biasa
-        return redirect()->intended(route('user.dashboard'));
+        // ⭐ SEMUA ROLE REDIRECT KE BERANDA
+        return redirect()->intended(route('laporan.komoditas.index'));
     }
 
     /**
@@ -53,7 +43,6 @@ class AuthenticatedSessionController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        //  INI FIX UTAMANYA
         return redirect()->route('login');
     }
 }

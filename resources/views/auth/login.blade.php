@@ -3,16 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Otentikasi User - BPS Provinsi Riau</title>
+    <title>Login - SIGMAPRO | BPS Provinsi Riau</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-            letter-spacing: -0.01em;
+        * {
+            font-family: 'Inter', sans-serif;
         }
-        .tracking-bps { letter-spacing: 0.15em; }
-        input { transition: all 0.2s ease; }
+        
+        body {
+            letter-spacing: 0.01em;
+        }
+          /* Arial Bold Italic untuk Header BPS */
+        .font-arial-bold-italic {
+            font-family: Arial, Helvetica, sans-serif !important;
+            font-weight: bold !important;
+            font-style: italic !important;
+        }
+        
+        input { 
+            transition: all 0.2s ease; 
+        }
+        
         /* Memastikan footer tidak tergeser pada layar kecil */
         @media (max-height: 700px) {
             main { padding-top: 1rem; padding-bottom: 1rem; }
@@ -20,109 +34,140 @@
         }
     </style>
 </head>
-<body class="bg-[#F4F7FA] min-h-screen flex flex-col">
+<body class="bg-[#F5F5F5] min-h-screen flex flex-col">
 
-    <nav class="bg-[#00337C] py-2.5 px-6 flex items-center shadow-lg border-b-2 border-[#FFA500]">
-        <div class="flex items-center space-x-3">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/28/Lambang_Badan_Pusat_Statistik_%28BPS%29_Indonesia.svg" alt="Logo BPS" class="h-9">
-            <div class="border-l border-white/20 pl-3 text-white">
-                <h1 class="font-extrabold text-[15px] leading-tight uppercase tracking-tight">Badan Pusat Statistik</h1>
-                <p class="text-[10px] font-medium opacity-90 uppercase tracking-bps text-[#FFA500]">Provinsi Riau</p>
-            </div>
+    <!-- Header Navigation -->
+    <nav class="bg-[#00337C] py-3 px-6 shadow-md">
+        <div class="flex items-center space-x-4">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/2/28/Lambang_Badan_Pusat_Statistik_%28BPS%29_Indonesia.svg" 
+                 alt="Logo BPS" 
+                 class="h-12">
+                <div class="border-l border-white/20 pl-4 hidden md:block">
+                        <p class="text-white font-arial-bold-italic text-[17px] uppercase leading-tight tracking-tight">Badan Pusat Statistik</p>
+                        <p class="text-white font-arial-bold-italic text-[13px] uppercase tracking-[0.15em]">Provinsi Riau</p>
+                </div>
         </div>
     </nav>
 
-    <main class="flex-grow flex items-center justify-center px-4 py-6">
-        <div class="w-full max-w-[370px]"> 
-            <div class="login-card bg-white p-8 rounded-[40px] shadow-[0_20px_60px_rgba(0,51,124,0.08)] border border-gray-100">
+    <!-- Main Content -->
+    <main class="flex-grow flex items-center justify-center px-4 py-8">
+        <div class="w-full max-w-md"> 
+            <div class="login-card bg-white p-10 rounded-lg shadow-lg">
                 
-                <div class="flex justify-center mb-5">
-                    <div class="bg-[#F0F7FF] p-4 rounded-2xl ring-4 ring-[#F0F7FF]/50">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 11C12 12.6569 10.6569 14 9 14C7.34315 14 6 12.6569 6 11C6 7.13401 9.13401 4 13 4C16.866 4 20 7.13401 20 11C20 11.4142 19.6569 11.75 19.25 11.75C18.8431 11.75 18.5 11.4142 18.5 11C18.5 7.96243 16.0376 5.5 13 5.5C9.96243 5.5 7.5 7.96243 7.5 11C7.5 11.8284 8.17157 12.5 9 12.5C9.82843 12.5 10.5 11.8284 10.5 11V10C10.5 9.17157 11.1716 8.5 12 8.5C12.8284 8.5 13.5 9.17157 13.5 10V14.5M15 11V16M15 19.5C15 20.3284 14.3284 21 13.5 21C12.6716 21 12 20.3284 12 19.5" stroke="#00337C" stroke-width="1.8" stroke-linecap="round"/>
-                            <path d="M5 14.5C5 17.5 7 20 10 20M19 14.5C19 17.5 17 20 14 20" stroke="#00337C" stroke-width="1.8" stroke-linecap="round"/>
+                <!-- Icon Header with Custom Image -->
+                <div class="flex justify-center mb-6">
+                    <img src="{{ asset('images/chartlogo.png') }}" 
+                         alt="SIGMAPRO Logo" 
+                         class="w-20 h-20 object-contain"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <!-- Fallback SVG icon jika gambar tidak ditemukan -->
+                    <svg style="display:none;" width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M3 3v18h18" stroke="#00337C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M18 17l-5-5-3 3-4-4" stroke="#00337C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="18" cy="17" r="1.5" fill="#00337C"/>
+                        <circle cx="13" cy="12" r="1.5" fill="#00337C"/>
+                        <circle cx="10" cy="15" r="1.5" fill="#00337C"/>
+                        <circle cx="6" cy="11" r="1.5" fill="#00337C"/>
+                    </svg>
+                </div>
+               
+                <!-- Title -->
+                <div class="text-center mb-8">
+                    <h1 class="text-2xl font-bold text-[#00337C] mb-1">SIGMAPRO</h1>
+                    <p class="text-base font-semibold text-gray-700 mb-2">Sistem Informasi Harga & Prediksi Komoditas</p>
+                    <p class="text-gray-600 text-sm">Silakan masuk dengan akun BPS Anda</p>
+                </div>
+                
+                <!-- Error Message (uncomment when using Laravel blade) -->
+                @if ($errors->any())
+                <div class="mb-6 p-4 rounded-md bg-red-50 border border-red-200">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-red-500 mt-0.5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
                         </svg>
+                        <div>
+                            <p class="text-sm font-bold text-red-700">Login gagal</p>
+                            <p class="text-sm text-red-600 mt-1">Email atau kata sandi yang Anda masukkan tidak valid.</p>
+                        </div>
                     </div>
                 </div>
+                @endif
 
-                <div class="text-center mb-7">
-                    <h2 class="text-[22px] font-black text-slate-800 uppercase tracking-tight leading-none">Otentikasi User</h2>
-                    <p class="text-slate-400 text-[10px] font-bold mt-2 uppercase tracking-bps italic">Sistem Analisis Prediksi</p>
-                </div>
-                
-                @if ($errors->any())
-                        <div class="mb-5 px-4 py-3 rounded-2xl bg-red-50 border border-red-200">
-                            <div class="flex items-start space-x-3">
-                                <svg class="w-5 h-5 text-red-500 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                        d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3L13.73 4c-.77-1.33-2.69-1.33-3.46 0L3.34 16c-.77 1.33.19 3 1.73 3z" />
-                                </svg>
-                                <div>
-                                    <p class="text-xs font-bold text-red-600 uppercase tracking-wide">
-                                        Login Gagal
-                                    </p>
-                                    <p class="text-[11px] text-red-600 mt-1 font-medium leading-relaxed">
-                                        Email atau kata sandi yang Anda masukkan tidak valid.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    @endif
-
-
+                <!-- Login Form -->
                 <form method="POST" action="{{ route('login') }}" class="space-y-5">
                     @csrf
+                    
+                    <!-- Email Field -->
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-2 ml-1 tracking-widest">Alamat Email</label>
-                        <div class="relative group">
-                            <div class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 group-focus-within:text-[#00337C]">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206" />
                                 </svg>
                             </div>
-                            <input type="email" name="email" value="{{ old('email') }}" required autofocus
-                                class="w-full pl-11 pr-4 py-3.5 bg-[#F8FAFC] border border-slate-200 rounded-2xl focus:bg-white focus:border-[#00337C] focus:ring-4 focus:ring-blue-50 outline-none text-sm font-medium text-slate-700 placeholder:text-slate-300"
-                                placeholder="nama@bps.go.id">
+                            <input type="email" 
+                                   name="email" 
+                                   value="{{ old('email') }}" 
+                                   required 
+                                   autofocus
+                                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:border-[#00337C] focus:ring-2 focus:ring-[#00337C]/20 outline-none text-sm"
+                                   placeholder="nama@bps.go.id">
                         </div>
                     </div>
 
+                    <!-- Password Field -->
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-500 uppercase mb-2 ml-1 tracking-widest">Sandi</label>
-                        <div class="relative group">
-                            <div class="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 group-focus-within:text-[#00337C]">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Kata sandi</label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
                             </div>
-                            <input type="password" name="password" required
-                                class="w-full pl-11 pr-4 py-3.5 bg-[#F8FAFC] border border-slate-200 rounded-2xl focus:bg-white focus:border-[#00337C] focus:ring-4 focus:ring-blue-50 outline-none text-sm font-medium text-slate-700 placeholder:text-slate-300"
-                                placeholder="••••••••">
+                            <input type="password" 
+                                   name="password" 
+                                   required
+                                   class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:border-[#00337C] focus:ring-2 focus:ring-[#00337C]/20 outline-none text-sm"
+                                   placeholder="Masukkan kata sandi">
                         </div>
                     </div>
 
-                    <div class="flex items-center px-1">
-                        <input id="remember_me" type="checkbox" name="remember" class="w-4 h-4 rounded border-slate-300 text-[#00337C] focus:ring-[#00337C]">
-                        <label for="remember_me" class="ml-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-tight cursor-pointer">Tetap Login</label>
+                    <!-- Remember Me -->
+                    <div class="flex items-center">
+                        <input id="remember_me" 
+                               type="checkbox" 
+                               name="remember" 
+                               class="w-4 h-4 rounded border-gray-300 text-[#00337C] focus:ring-[#00337C]">
+                        <label for="remember_me" class="ml-2 text-sm text-gray-700 cursor-pointer">Ingat saya</label>
                     </div>
 
+                    <!-- Submit Button -->
                     <div class="pt-2">
-                        <button type="submit" class="w-full bg-[#00337C] text-white font-extrabold py-4 rounded-2xl hover:bg-[#002861] active:scale-[0.98] transition-all uppercase tracking-[0.15em] shadow-lg shadow-blue-900/10 text-xs">
-                            Masuk Ke Sistem
+                        <button type="submit" 
+                                class="w-full bg-[#00337C] text-white font-semibold py-3 rounded-md hover:bg-[#002861] active:scale-[0.99] transition-all text-sm shadow-md">
+                            Masuk
                         </button>
                     </div>
                 </form>
+
+                <!-- Help Link -->
+                <div class="mt-6 text-center">
+                    <p class="text-sm text-gray-600">
+                        Lupa kata sandi? 
+                        <a href="#" class="text-[#00337C] font-semibold hover:underline">Hubungi admin</a>
+                    </p>
+                </div>
             </div>
-            
-            <p class="text-center mt-5 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                Butuh Bantuan? <a href="#" class="text-[#00337C] hover:underline decoration-2 underline-offset-4">Hubungi IT Support</a>
-            </p>
         </div>
     </main>
 
-    <footer class="bg-white border-t border-slate-200 py-5 mt-auto">
-        <div class="max-w-7xl mx-auto px-8 text-center">
-            <p class="text-slate-500 text-[10px] font-bold uppercase tracking-[0.25em]">
-                © 2026 Badan Pusat Statistik - Provinsi Riau
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 py-4 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center">
+            <p class="text-gray-600 text-xs">
+                © 2026 Badan Pusat Statistik Provinsi Riau
             </p>
         </div>
     </footer>

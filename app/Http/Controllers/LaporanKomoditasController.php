@@ -4,106 +4,116 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\Komoditas; 
+use App\Models\PriceData;
+use App\Models\MasterKomoditas;
+use App\Models\PriceForecast; 
+use Carbon\Carbon;
 
 class LaporanKomoditasController extends Controller
 {
     /**
-     * Menampilkan halaman laporan utama dengan filter dan pagination
+     * Menampilkan halaman laporan utama
      */
     public function index(Request $request)
     {
-        $tanggal = $request->tanggal;
+        // Ambil filter dari request
+        $tahun = $request->tahun ?? date('Y');
+        $bulan = $request->bulan;
+        $minggu = $request->minggu;
         $komoditas_id = $request->komoditas_id;
 
-        // Ambil daftar komoditas untuk dropdown filter
-        $daftarKomoditas = DB::table('master_komoditas')
-            ->select('id', 'nama_komoditas', 'nama_varian')
-            ->orderBy('nama_komoditas')
-            ->get();
+        // 1. Ambil daftar komoditas untuk dropdown filter
+        $daftarKomoditas = MasterKomoditas::orderBy('nama_komoditas')->get();
 
-        // Ambil Query dasar
-        $query = $this->getQueryLaporan($tanggal, $komoditas_id);
-
-        // Untuk Analisis Deskriptif, kita butuh semua data tanpa pagination
+        // 2. Query Utama Laporan dengan Filter Periodik
+        $query = $this->getQueryLaporan($tahun, $bulan, $minggu, $komoditas_id);
+        
+        // Ambil semua data untuk perhitungan statistik/analisis
         $allDataForAnalisis = (clone $query)->get();
         $analisis = $this->analisisDeskriptif($allDataForAnalisis);
-
-        // Untuk tabel, kita gunakan pagination (10 data per halaman)
+        
+        // Paginate data untuk tabel (Gunakan withQueryString agar filter tidak hilang saat ganti halaman)
         $data = $query->paginate(10)->withQueryString();
 
-        return view('laporan.komoditas', compact('data', 'tanggal', 'komoditas_id', 'daftarKomoditas', 'analisis'));
+        return view('laporan.komoditas', compact(
+            'data', 
+            'daftarKomoditas', 
+            'analisis'
+        ));
     }
 
     /**
-     * Menampilkan halaman untuk cetak laporan (Tanpa Pagination)
+     * Query yang sudah diperbaiki untuk mendukung Filter Tahun, Bulan, dan Minggu
      */
-    public function cetak(Request $request)
+    private function getQueryLaporan($tahun, $bulan = null, $minggu = null, $komoditas_id = null)
     {
-        $tanggal = $request->tanggal;
-        $komoditas_id = $request->komoditas_id;
-
-        $data = $this->getQueryLaporan($tanggal, $komoditas_id)->get();
-        $analisis = $this->analisisDeskriptif($data);
-
-        return view('laporan.cetak', compact('data', 'tanggal', 'analisis'));
-    }
-
-    /**
-     * Query pusat untuk mengambil data laporan
-     */
-    private function getQueryLaporan($tanggal = null, $komoditas_id = null)
-    {
-        $query = DB::table('price_data')
-            ->join('master_komoditas', 'price_data.komoditas_id', '=', 'master_komoditas.id')
+        $query = DB::table('master_komoditas')
+            // Join ke data aktual
+            ->leftJoin('price_data', 'master_komoditas.id', '=', 'price_data.komoditas_id')
+            // Join ke data prediksi berdasarkan komoditas dan tanggal yang sama
             ->leftJoin('price_forecasts', function($join) {
-                $join->on('price_data.komoditas_id', '=', 'price_forecasts.komoditas_id')
+                $join->on('master_komoditas.id', '=', 'price_forecasts.komoditas_id')
                      ->on('price_data.tanggal', '=', 'price_forecasts.tanggal');
             })
             ->select(
-                'price_data.tanggal',
+                'master_komoditas.id as id_komoditas',
                 'master_komoditas.nama_komoditas',
                 'master_komoditas.nama_varian',
+                'price_data.tanggal',
                 'price_data.harga as harga_aktual',
-                'price_forecasts.yhat as harga_prediksi' // yhat berasal dari model Prophet
+                'price_forecasts.yhat as harga_prediksi'
             );
 
-        // Tambahkan Filter jika ada
-        if ($tanggal) {
-            $query->whereDate('price_data.tanggal', $tanggal);
+        // --- Logic Filter ---
+
+        // 1. Filter Tahun (Wajib ada)
+        $query->whereYear('price_data.tanggal', $tahun);
+
+        // 2. Filter Bulan (Opsional)
+        if ($bulan) {
+            $query->whereMonth('price_data.tanggal', $bulan);
         }
 
-        if ($komoditas_id) {
-            $query->where('price_data.komoditas_id', $komoditas_id);
+        // 3. Filter Minggu (Opsional)
+        // Menggunakan formula: Minggu ke = (Hari - 1) / 7 + 1
+        if ($minggu) {
+            $query->whereRaw('FLOOR((DAY(price_data.tanggal) - 1) / 7) + 1 = ?', [$minggu]);
         }
+
+        // 4. Filter Komoditas (Opsional)
+        if ($komoditas_id) {
+            $query->where('master_komoditas.id', $komoditas_id);
+        }
+
+        // Hapus data yang tidak punya tanggal aktual (pembersihan hasil left join)
+        $query->whereNotNull('price_data.tanggal');
 
         return $query->orderBy('price_data.tanggal', 'desc');
     }
 
     /**
-     * Menghitung statistik sederhana dari data
+     * Analisis Deskriptif (Tetap sama, memastikan data valid)
      */
     private function analisisDeskriptif($data)
     {
-        $naik = 0;
-        $turun = 0;
-        $stabil = 0;
+        $naik = 0; $turun = 0; $stabil = 0;
 
         foreach ($data as $item) {
-            $h_prediksi = $item->harga_prediksi ?? 0;
-            $h_aktual = $item->harga_aktual ?? 0;
+            $aktual = (float) ($item->harga_aktual ?? 0);
+            $prediksi = (float) ($item->harga_prediksi ?? 0);
 
-            if ($h_prediksi > $h_aktual) {
-                $naik++;
-            } elseif ($h_prediksi < $h_aktual && $h_prediksi > 0) {
-                $turun++;
-            } else {
-                $stabil++;
+            if ($aktual > 0 && $prediksi > 0) {
+                if ($prediksi > $aktual) {
+                    $naik++;
+                } elseif ($prediksi < $aktual) {
+                    $turun++;
+                } else {
+                    $stabil++;
+                }
             }
         }
 
         return [
-            'total' => $data->count(),
             'naik' => $naik,
             'turun' => $turun,
             'stabil' => $stabil,
@@ -113,16 +123,25 @@ class LaporanKomoditasController extends Controller
 
     private function generateKesimpulan($naik, $turun, $stabil)
     {
-        if ($naik == 0 && $turun == 0 && $stabil == 0) {
-            return "Belum ada data tersedia untuk periode ini.";
-        }
+        if ($naik == 0 && $turun == 0 && $stabil == 0) return "Data tidak tersedia.";
+        if ($naik > $turun) return "Tren harga cenderung mengalami kenaikan.";
+        if ($turun > $naik) return "Tren harga cenderung mengalami penurunan.";
+        return "Harga cenderung stabil.";
+    }
 
-        if ($naik > $turun) {
-            return "Tren menunjukkan potensi kenaikan harga pada mayoritas komoditas terpilih.";
-        } elseif ($turun > $naik) {
-            return "Sebagian besar komoditas diprediksi mengalami penurunan harga.";
-        }
+    /**
+     * Cetak Laporan (Disesuaikan agar filter ikut terbawa)
+     */
+    public function cetak(Request $request)
+    {
+        $tahun = $request->tahun ?? date('Y');
+        $bulan = $request->bulan;
+        $minggu = $request->minggu;
+        $komoditas_id = $request->komoditas_id;
+        
+        $data = $this->getQueryLaporan($tahun, $bulan, $minggu, $komoditas_id)->get();
+        $analisis = $this->analisisDeskriptif($data);
 
-        return "Harga komoditas cenderung stabil pada periode yang dipilih.";
+        return view('laporan.cetak', compact('data', 'analisis'));
     }
 }

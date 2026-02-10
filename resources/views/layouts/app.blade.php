@@ -23,6 +23,13 @@
             -moz-osx-font-smoothing: grayscale;
         }
 
+        /* Arial Bold Italic untuk Header BPS */
+        .font-arial-bold-italic {
+            font-family: Arial, Helvetica, sans-serif !important;
+            font-weight: bold !important;
+            font-style: italic !important;
+        }
+
         /* Styling Navigasi Aktif */
         .nav-link-active {
             background-color: rgba(255, 255, 255, 0.08);
@@ -36,7 +43,7 @@
         }
     </style>
 </head>
-{{-- Background disamakan dengan bg-gray-50 dari komoditas.blade.php --}}
+
 <body class="bg-gray-50 min-h-screen flex flex-col">
 
     <nav class="bg-[#00337C] shadow-md border-b-2 border-[#FFA500] sticky top-0 z-50">
@@ -47,24 +54,23 @@
                 <div class="flex items-center space-x-4">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/2/28/Lambang_Badan_Pusat_Statistik_%28BPS%29_Indonesia.svg" alt="Logo BPS" class="h-10">
                     <div class="border-l border-white/20 pl-4 hidden md:block">
-                        <h1 class="text-white font-extrabold text-sm uppercase leading-tight tracking-tight">Badan Pusat Statistik</h1>
-                        <p class="text-[#FFA500] text-[10px] font-bold uppercase tracking-[0.15em]">Provinsi Riau</p>
+                        <p class="text-white font-arial-bold-italic text-[17px] uppercase leading-tight tracking-tight">Badan Pusat Statistik</p>
+                        <p class="text-white font-arial-bold-italic text-[13px] uppercase tracking-[0.15em]">Provinsi Riau</p>
                     </div>
                 </div>
 
                 {{-- NAV MENU --}}
                 @auth
                 <div class="hidden md:flex items-center space-x-1">
-                    <a href="{{ route('dashboard') }}"
-                       class="text-white/80 px-4 py-[22px] text-[11px] font-bold uppercase tracking-widest hover:text-white hover:bg-white/5 transition-standard
-                       {{ request()->routeIs('dashboard') ? 'nav-link-active' : '' }}">
-                        Beranda
-                    </a>
-
                     <a href="{{ route('laporan.komoditas.index') }}"
                        class="text-white/80 px-4 py-[22px] text-[11px] font-bold uppercase tracking-widest hover:text-white hover:bg-white/5 transition-standard
                        {{ request()->routeIs('laporan.komoditas.*') ? 'nav-link-active' : '' }}">
-                        Laporan
+                        Beranda
+                    </a>
+                    <a href="{{ route('dashboard') }}"
+                       class="text-white/80 px-4 py-[22px] text-[11px] font-bold uppercase tracking-widest hover:text-white hover:bg-white/5 transition-standard
+                       {{ request()->routeIs('dashboard') ? 'nav-link-active' : '' }}">
+                        Analisis
                     </a>
 
                     @if(auth()->user()->isAdmin() || auth()->user()->isOperator())
@@ -79,7 +85,7 @@
                         <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}"
                            class="text-white/80 px-4 py-[22px] text-[11px] font-bold uppercase tracking-widest hover:text-white hover:bg-white/5 transition-standard
                            {{ request()->get('tab') == 'users' ? 'nav-link-active' : '' }}">
-                            User Control
+                            Manajemen Pengguna
                         </a>
                     @endif
                 </div>
@@ -130,7 +136,7 @@
         <div class="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
 
             @if(session('success'))
-                <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-800 text-xs font-bold rounded-r-lg shadow-sm flex items-center">
+                <div class="mb-6 p-4 bg-green-50 border-l-4 border-green-500 text-green-800 text-xs font-bold rounded-lg shadow-sm flex items-center">
                     <i class="fas fa-check-circle mr-3 text-green-500 text-lg"></i>
                     {{ session('success') }}
                 </div>

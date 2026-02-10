@@ -14,13 +14,12 @@ class DashboardController extends Controller
             abort(403, 'Role belum ditentukan.');
         }
 
-        // Redirect berdasarkan role
+        // Redirect ke halaman Analisis berdasarkan role
         return match ($user->role) {
             'admin'    => redirect()->route('admin.dashboard'),
             'operator' => redirect()->route('operator.dashboard'),
-            'user'     => redirect()->route('user.dashboard'), // Ini akan ke Beranda
+            'user'     => redirect()->route('user.dashboard'), 
             default    => abort(403, 'Role tidak dikenali.'),
-            
         };
     }
 }

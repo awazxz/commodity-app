@@ -38,6 +38,7 @@ class PriceData extends Model
      * Relasi ke master komoditas
      * price_data.komoditas_id -> master_komoditas.id
      */
+
     public function komoditas()
     {
         return $this->belongsTo(MasterKomoditas::class, 'komoditas_id');

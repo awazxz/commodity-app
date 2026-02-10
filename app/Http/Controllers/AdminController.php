@@ -19,7 +19,12 @@ class AdminController extends Controller
     {
         return $this->processForecasting($request);
     }
-
+    
+    public function beranda()
+    {
+        return redirect()->route('laporan.komoditas.index');
+    }
+    
     /**
      * Process forecasting/prediction
      */
@@ -48,11 +53,6 @@ class AdminController extends Controller
         $users = [];
         $allData = [];
         $latestData = collect();
-        $actualData = [];
-        $chartLabels = [];
-        $forecastData = [];
-        $lowerBand = [];
-        $upperBand = [];
         $dataIssues = collect();
 
         // Weekly/Monthly/Yearly aggregated data
@@ -73,6 +73,10 @@ class AdminController extends Controller
         $yearlyForecast = [];
         $yearlyLower = [];
         $yearlyUpper = [];
+
+        // Initialize temp arrays for aggregation
+        $actualData = [];
+        $forecastData = [];
 
         try {
             // Tab Users: Load all users with pagination
@@ -102,9 +106,6 @@ class AdminController extends Controller
             if ($dbData->isNotEmpty()) {
                 // Actual Data
                 $actualData = $dbData->pluck('price')->toArray();
-                $chartLabels = $dbData->map(function($d) {
-                    return Carbon::parse($d->date)->format('d/m');
-                })->toArray();
                 
                 // Generate Simple Forecast (7 days ahead)
                 $lastVal = end($actualData);
@@ -113,9 +114,6 @@ class AdminController extends Controller
                 for ($i = 1; $i <= 7; $i++) {
                     $forecastVal = $lastVal + ($i * rand(-50, 100));
                     $forecastData[] = $forecastVal;
-                    $lowerBand[] = $forecastVal * 0.95;
-                    $upperBand[] = $forecastVal * 1.05;
-                    $chartLabels[] = Carbon::parse($lastDate)->addDays($i)->format('d/m');
                 }
 
                 // Aggregate Weekly Data
@@ -160,10 +158,18 @@ class AdminController extends Controller
             
             // Fallback Data
             $actualData = [14200, 14350, 14250, 14400, 14600, 14500, 14750];
-            $chartLabels = ["27/12", "28/12", "29/12", "30/12", "31/12", "01/01", "02/01"];
             $forecastData = [14800, 14950, 15100, 15000, 15250, 15400, 15550];
-            $lowerBand = array_map(fn($v) => $v * 0.95, $forecastData);
-            $upperBand = array_map(fn($v) => $v * 1.05, $forecastData);
+            
+            // Generate fallback aggregations
+            $this->aggregateWeeklyData(
+                $actualData, 
+                $forecastData, 
+                $weeklyLabels, 
+                $weeklyActual, 
+                $weeklyForecast,
+                $weeklyLower,
+                $weeklyUpper
+            );
             
             if ($currentTab === 'manage' && (empty($allData) || $latestData->isEmpty())) {
                 $fallbackData = collect([
@@ -224,11 +230,6 @@ class AdminController extends Controller
             'startDate',
             'endDate',
             'trendDir',
-            'actualData',
-            'chartLabels',
-            'forecastData',
-            'lowerBand',
-            'upperBand',
             'avgPrice',
             'maxPrice',
             'cpScale',
@@ -659,7 +660,8 @@ class AdminController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8'
+            'password' => 'required|string|min:8',
+            'role' => 'required|in:user,operator,admin'
         ]);
 
         try {
@@ -667,7 +669,7 @@ class AdminController extends Controller
                 'name' => $request->name,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
-                'role' => 'user'
+                'role' => $request->role
             ]);
 
             return redirect()
@@ -679,72 +681,73 @@ class AdminController extends Controller
             return redirect()->back()->with('error', 'Gagal membuat pengguna: ' . $e->getMessage());
         }
     }
+    
     /**
- * Update user data
- */
-public function updateUser(Request $request, $id)
-{
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'email' => 'required|string|email|max:255',
-        'role' => 'required|in:user,operator,admin'
-    ]);
+     * Update user data
+     */
+    public function updateUser(Request $request, $id)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|string|email|max:255',
+            'role' => 'required|in:user,operator,admin'
+        ]);
 
-    try {
-        // Prevent changing own role
-        if (auth()->id() == $id && $request->role !== auth()->user()->role) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Tidak dapat mengubah role Anda sendiri!'
-            ], 403);
-        }
+        try {
+            // Prevent changing own role
+            if (auth()->id() == $id && $request->role !== auth()->user()->role) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Tidak dapat mengubah role Anda sendiri!'
+                ], 403);
+            }
 
-        $user = User::findOrFail($id);
-        
-        // Check if email is unique (excluding current user)
-        $emailExists = User::where('email', $request->email)
-            ->where('id', '!=', $id)
-            ->exists();
+            $user = User::findOrFail($id);
             
-        if ($emailExists) {
+            // Check if email is unique (excluding current user)
+            $emailExists = User::where('email', $request->email)
+                ->where('id', '!=', $id)
+                ->exists();
+                
+            if ($emailExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email sudah digunakan oleh pengguna lain!'
+                ], 422);
+            }
+            
+            $user->update([
+                'name' => $request->name,
+                'email' => $request->email,
+                'role' => $request->role,
+                'updated_at' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data pengguna berhasil diperbarui!',
+                'data' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'role' => $user->role
+                ]
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Email sudah digunakan oleh pengguna lain!'
-            ], 422);
+                'message' => 'Pengguna tidak ditemukan.'
+            ], 404);
+
+        } catch (\Exception $e) {
+            Log::error('Update User Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal memperbarui data pengguna: ' . $e->getMessage()
+            ], 500);
         }
-        
-        $user->update([
-            'name' => $request->name,
-            'email' => $request->email,
-            'role' => $request->role,
-            'updated_at' => now()
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Data pengguna berhasil diperbarui!',
-            'data' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role
-            ]
-        ]);
-
-    } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Pengguna tidak ditemukan.'
-        ], 404);
-
-    } catch (\Exception $e) {
-        Log::error('Update User Error: ' . $e->getMessage());
-        return response()->json([
-            'success' => false,
-            'message' => 'Gagal memperbarui data pengguna: ' . $e->getMessage()
-        ], 500);
     }
-}
 
     /**
      * Delete user
@@ -794,6 +797,10 @@ public function updateUser(Request $request, $id)
                     $forecastAgg[] = round($avgForecast);
                     $lower[] = round($avgForecast * 0.95);
                     $upper[] = round($avgForecast * 1.05);
+                } else {
+                    $forecastAgg[] = null;
+                    $lower[] = null;
+                    $upper[] = null;
                 }
             }
         }
@@ -819,6 +826,10 @@ public function updateUser(Request $request, $id)
                     $forecastAgg[] = round($avgForecast);
                     $lower[] = round($avgForecast * 0.97);
                     $upper[] = round($avgForecast * 1.03);
+                } else {
+                    $forecastAgg[] = null;
+                    $lower[] = null;
+                    $upper[] = null;
                 }
             }
         }
@@ -844,6 +855,10 @@ public function updateUser(Request $request, $id)
                     $forecastAgg[] = round($avgForecast);
                     $lower[] = round($avgForecast * 0.98);
                     $upper[] = round($avgForecast * 1.02);
+                } else {
+                    $forecastAgg[] = null;
+                    $lower[] = null;
+                    $upper[] = null;
                 }
             }
         }

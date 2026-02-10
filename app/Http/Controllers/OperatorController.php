@@ -39,20 +39,16 @@ class OperatorController extends Controller
         // Request Parameters
         $currentTab = $request->query('tab', $request->input('tab', 'insight')); 
         $selectedCommodity = $request->input('commodity', 'Beras Premium');
-        $startDate = $request->input('start_date', Carbon::now()->subDays(30)->format('Y-m-d'));
+        $startDate = $request->input('start_date', Carbon::now()->subMonths(3)->format('Y-m-d'));
         $endDate = $request->input('end_date', Carbon::now()->format('Y-m-d'));
 
         // Initialize Variables
         $allData = [];
         $latestData = collect();
         $actualData = [];
-        $chartLabels = [];
-        $forecastData = [];
-        $lowerBand = [];
-        $upperBand = [];
         $dataIssues = collect();
 
-        // Weekly/Monthly/Yearly aggregated data
+        // Weekly/Monthly/Yearly aggregated data (REMOVED daily data)
         $weeklyLabels = [];
         $weeklyActual = [];
         $weeklyForecast = [];
@@ -90,27 +86,37 @@ class OperatorController extends Controller
                 ->get();
 
             if ($dbData->isNotEmpty()) {
-                $actualData = $dbData->pluck('price')->toArray();
-                $chartLabels = $dbData->map(function($d) {
-                    return Carbon::parse($d->date)->format('d/m');
+                // Get all dates and prices
+                $dates = $dbData->pluck('date')->map(function($d) {
+                    return Carbon::parse($d);
                 })->toArray();
                 
-                // Generate Simple Forecast
-                $lastVal = end($actualData);
-                $lastDate = $dbData->last()->date;
+                $prices = $dbData->pluck('price')->toArray();
                 
-                for ($i = 1; $i <= 7; $i++) {
-                    $forecastVal = $lastVal + ($i * rand(-50, 100));
-                    $forecastData[] = $forecastVal;
-                    $lowerBand[] = $forecastVal * 0.95;
-                    $upperBand[] = $forecastVal * 1.05;
-                    $chartLabels[] = Carbon::parse($lastDate)->addDays($i)->format('d/m');
+                // Generate forecast for next 4 weeks
+                $lastDate = end($dates);
+                $lastPrice = end($prices);
+                
+                $forecastDates = [];
+                $forecastPrices = [];
+                
+                for ($i = 1; $i <= 28; $i++) { // 4 weeks forecast
+                    $forecastDates[] = Carbon::parse($lastDate)->addDays($i);
+                    $trend = $i * rand(50, 150); // Simple upward trend with randomness
+                    $forecastPrices[] = $lastPrice + $trend;
                 }
 
-                // Aggregate data
-                $this->aggregateWeeklyData($actualData, $forecastData, $weeklyLabels, $weeklyActual, $weeklyForecast, $weeklyLower, $weeklyUpper);
-                $this->aggregateMonthlyData($actualData, $forecastData, $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper);
-                $this->aggregateYearlyData($actualData, $forecastData, $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper);
+                // Combine actual and forecast data
+                $allDates = array_merge($dates, $forecastDates);
+                $allPrices = array_merge($prices, $forecastPrices);
+                
+                // Generate aggregated data
+                $this->aggregateWeeklyData($allDates, $prices, $forecastPrices, $weeklyLabels, $weeklyActual, $weeklyForecast, $weeklyLower, $weeklyUpper);
+                $this->aggregateMonthlyData($allDates, $prices, $forecastPrices, $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper);
+                $this->aggregateYearlyData($allDates, $prices, $forecastPrices, $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper);
+
+                // For statistics
+                $actualData = $prices;
 
             } else {
                 throw new \Exception("Tidak ada data untuk periode yang dipilih");
@@ -119,12 +125,29 @@ class OperatorController extends Controller
         } catch (\Exception $e) {
             Log::warning("Menggunakan data fallback: " . $e->getMessage());
             
-            // Fallback Data
-            $actualData = [14200, 14350, 14250, 14400, 14600, 14500, 14750];
-            $chartLabels = ["27/12", "28/12", "29/12", "30/12", "31/12", "01/01", "02/01"];
-            $forecastData = [14800, 14950, 15100, 15000, 15250, 15400, 15550];
-            $lowerBand = array_map(fn($v) => $v * 0.95, $forecastData);
-            $upperBand = array_map(fn($v) => $v * 1.05, $forecastData);
+            // Fallback Data - Generate sample weekly data
+            $actualData = [14200, 14350, 14250, 14400, 14600, 14500, 14750, 14800, 14900, 15000, 15100, 15200];
+            
+            // Generate weekly data from fallback
+            $weeklyLabels = ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4', 'Minggu 5', 'Minggu 6'];
+            $weeklyActual = [14250, 14500, 14750, 14900, 15100, 15200];
+            $weeklyForecast = [15300, 15500, 15700, 15900, 16100, 16300];
+            $weeklyLower = array_map(fn($v) => round($v * 0.95), $weeklyForecast);
+            $weeklyUpper = array_map(fn($v) => round($v * 1.05), $weeklyForecast);
+            
+            // Generate monthly data from fallback
+            $monthlyLabels = ['Bulan 1', 'Bulan 2', 'Bulan 3'];
+            $monthlyActual = [14400, 14800, 15150];
+            $monthlyForecast = [15600, 16000, 16400];
+            $monthlyLower = array_map(fn($v) => round($v * 0.97), $monthlyForecast);
+            $monthlyUpper = array_map(fn($v) => round($v * 1.03), $monthlyForecast);
+            
+            // Generate yearly data from fallback
+            $yearlyLabels = ['Tahun 1'];
+            $yearlyActual = [14800];
+            $yearlyForecast = [16000];
+            $yearlyLower = [15680];
+            $yearlyUpper = [16320];
             
             if ($currentTab === 'manage' && $latestData->isEmpty()) {
                 $fallbackData = collect([
@@ -143,12 +166,23 @@ class OperatorController extends Controller
         $countData = count($actualData);
         $avgPrice = $countData > 0 ? array_sum($actualData) / $countData : 0;
         $maxPrice = $countData > 0 ? max($actualData) : 0;
-        $trendDir = (count($forecastData) > 0 && end($forecastData) >= (end($actualData) ?: 0)) ? 'Naik' : 'Turun';
+        
+        // Determine trend based on weekly forecast
+        $trendDir = 'Stabil';
+        if (!empty($weeklyForecast) && !empty($weeklyActual)) {
+            $lastActual = end($weeklyActual);
+            $lastForecast = end($weeklyForecast);
+            if ($lastForecast > $lastActual * 1.02) {
+                $trendDir = 'Naik';
+            } elseif ($lastForecast < $lastActual * 0.98) {
+                $trendDir = 'Turun';
+            }
+        }
 
         // Prophet Parameters
         $cpScale = $request->input('changepoint_prior_scale', 0.05);
         $seasonScale = $request->input('seasonality_prior_scale', 10);
-        $seasonalityMode = $request->input('seasonality_mode', 'multiplicative');
+        $seasonMode = $request->input('seasonality_mode', 'multiplicative');
         $weeklySeason = $request->input('weekly_seasonality') === 'true';
         $yearlySeason = $request->input('yearly_seasonality') === 'true';
 
@@ -158,9 +192,9 @@ class OperatorController extends Controller
 
         return view('operator_dashboard', compact(
             'role', 'username', 'email', 'currentTab', 'allData', 'latestData', 'dataIssues',
-            'selectedCommodity', 'startDate', 'endDate', 'trendDir', 'actualData', 'chartLabels',
-            'forecastData', 'lowerBand', 'upperBand', 'avgPrice', 'maxPrice', 'cpScale',
-            'seasonScale', 'seasonalityMode', 'weeklySeason', 'yearlySeason', 'mape', 'rSquared',
+            'selectedCommodity', 'startDate', 'endDate', 'trendDir', 'actualData',
+            'avgPrice', 'maxPrice', 'cpScale',
+            'seasonScale', 'seasonMode', 'weeklySeason', 'yearlySeason', 'mape', 'rSquared',
             'weeklyLabels', 'weeklyActual', 'weeklyForecast', 'weeklyLower', 'weeklyUpper',
             'monthlyLabels', 'monthlyActual', 'monthlyForecast', 'monthlyLower', 'monthlyUpper',
             'yearlyLabels', 'yearlyActual', 'yearlyForecast', 'yearlyLower', 'yearlyUpper'
@@ -363,66 +397,182 @@ class OperatorController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    // Aggregation Helpers
-    private function aggregateWeeklyData($actual, $forecast, &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper)
+    // Aggregation Helpers - IMPROVED for weekly data
+    
+    /**
+     * Aggregate data by week
+     * Groups data into weeks and calculates average prices
+     */
+    private function aggregateWeeklyData($dates, $actualPrices, $forecastPrices, &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper)
     {
-        $step = 7;
-        for ($i = 0; $i < count($actual); $i += $step) {
-            $weekActual = array_slice($actual, $i, $step);
-            $weekForecast = array_slice($forecast, $i, min($step, count($forecast) - $i));
+        $weekGroups = [];
+        $actualCount = count($actualPrices);
+        
+        // Group actual data by week
+        foreach ($dates as $index => $date) {
+            $weekNumber = $date->weekOfYear;
+            $year = $date->year;
+            $key = "{$year}-W{$weekNumber}";
             
-            if (!empty($weekActual)) {
-                $labels[] = 'Minggu ' . (floor($i / $step) + 1);
-                $actualAgg[] = round(array_sum($weekActual) / count($weekActual));
-                
-                if (!empty($weekForecast)) {
-                    $avgForecast = array_sum($weekForecast) / count($weekForecast);
-                    $forecastAgg[] = round($avgForecast);
-                    $lower[] = round($avgForecast * 0.95);
-                    $upper[] = round($avgForecast * 1.05);
-                }
+            if (!isset($weekGroups[$key])) {
+                $weekGroups[$key] = [
+                    'label' => 'Minggu ' . $weekNumber,
+                    'actualPrices' => [],
+                    'forecastPrices' => [],
+                    'date' => $date
+                ];
+            }
+            
+            // Add actual price if within actual data range
+            if ($index < $actualCount) {
+                $weekGroups[$key]['actualPrices'][] = $actualPrices[$index];
+            }
+            
+            // Add forecast price if available
+            $forecastIndex = $index - $actualCount;
+            if ($forecastIndex >= 0 && $forecastIndex < count($forecastPrices)) {
+                $weekGroups[$key]['forecastPrices'][] = $forecastPrices[$forecastIndex];
+            }
+        }
+        
+        // Calculate averages for each week
+        foreach ($weekGroups as $week) {
+            $labels[] = $week['label'];
+            
+            // Actual average
+            if (!empty($week['actualPrices'])) {
+                $actualAgg[] = round(array_sum($week['actualPrices']) / count($week['actualPrices']));
+            } else {
+                $actualAgg[] = null;
+            }
+            
+            // Forecast average
+            if (!empty($week['forecastPrices'])) {
+                $avgForecast = array_sum($week['forecastPrices']) / count($week['forecastPrices']);
+                $forecastAgg[] = round($avgForecast);
+                $lower[] = round($avgForecast * 0.95);
+                $upper[] = round($avgForecast * 1.05);
+            } else {
+                $forecastAgg[] = null;
+                $lower[] = null;
+                $upper[] = null;
             }
         }
     }
 
-    private function aggregateMonthlyData($actual, $forecast, &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper)
+    /**
+     * Aggregate data by month
+     * Groups data into months and calculates average prices
+     */
+    private function aggregateMonthlyData($dates, $actualPrices, $forecastPrices, &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper)
     {
-        $step = 30;
-        for ($i = 0; $i < count($actual); $i += $step) {
-            $monthActual = array_slice($actual, $i, $step);
-            $monthForecast = array_slice($forecast, $i, min($step, count($forecast) - $i));
+        $monthGroups = [];
+        $actualCount = count($actualPrices);
+        
+        // Group data by month
+        foreach ($dates as $index => $date) {
+            $monthKey = $date->format('Y-m');
+            $monthLabel = $date->format('M Y');
             
-            if (!empty($monthActual)) {
-                $labels[] = 'Bulan ' . (floor($i / $step) + 1);
-                $actualAgg[] = round(array_sum($monthActual) / count($monthActual));
-                
-                if (!empty($monthForecast)) {
-                    $avgForecast = array_sum($monthForecast) / count($monthForecast);
-                    $forecastAgg[] = round($avgForecast);
-                    $lower[] = round($avgForecast * 0.97);
-                    $upper[] = round($avgForecast * 1.03);
-                }
+            if (!isset($monthGroups[$monthKey])) {
+                $monthGroups[$monthKey] = [
+                    'label' => $monthLabel,
+                    'actualPrices' => [],
+                    'forecastPrices' => []
+                ];
+            }
+            
+            // Add actual price if within actual data range
+            if ($index < $actualCount) {
+                $monthGroups[$monthKey]['actualPrices'][] = $actualPrices[$index];
+            }
+            
+            // Add forecast price if available
+            $forecastIndex = $index - $actualCount;
+            if ($forecastIndex >= 0 && $forecastIndex < count($forecastPrices)) {
+                $monthGroups[$monthKey]['forecastPrices'][] = $forecastPrices[$forecastIndex];
+            }
+        }
+        
+        // Calculate averages for each month
+        foreach ($monthGroups as $month) {
+            $labels[] = $month['label'];
+            
+            // Actual average
+            if (!empty($month['actualPrices'])) {
+                $actualAgg[] = round(array_sum($month['actualPrices']) / count($month['actualPrices']));
+            } else {
+                $actualAgg[] = null;
+            }
+            
+            // Forecast average
+            if (!empty($month['forecastPrices'])) {
+                $avgForecast = array_sum($month['forecastPrices']) / count($month['forecastPrices']);
+                $forecastAgg[] = round($avgForecast);
+                $lower[] = round($avgForecast * 0.97);
+                $upper[] = round($avgForecast * 1.03);
+            } else {
+                $forecastAgg[] = null;
+                $lower[] = null;
+                $upper[] = null;
             }
         }
     }
 
-    private function aggregateYearlyData($actual, $forecast, &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper)
+    /**
+     * Aggregate data by year
+     * Groups data into years and calculates average prices
+     */
+    private function aggregateYearlyData($dates, $actualPrices, $forecastPrices, &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper)
     {
-        $step = 365;
-        for ($i = 0; $i < count($actual); $i += $step) {
-            $yearActual = array_slice($actual, $i, $step);
-            $yearForecast = array_slice($forecast, $i, min($step, count($forecast) - $i));
+        $yearGroups = [];
+        $actualCount = count($actualPrices);
+        
+        // Group data by year
+        foreach ($dates as $index => $date) {
+            $year = $date->year;
             
-            if (!empty($yearActual)) {
-                $labels[] = 'Tahun ' . (floor($i / $step) + 1);
-                $actualAgg[] = round(array_sum($yearActual) / count($yearActual));
-                
-                if (!empty($yearForecast)) {
-                    $avgForecast = array_sum($yearForecast) / count($yearForecast);
-                    $forecastAgg[] = round($avgForecast);
-                    $lower[] = round($avgForecast * 0.98);
-                    $upper[] = round($avgForecast * 1.02);
-                }
+            if (!isset($yearGroups[$year])) {
+                $yearGroups[$year] = [
+                    'label' => "Tahun {$year}",
+                    'actualPrices' => [],
+                    'forecastPrices' => []
+                ];
+            }
+            
+            // Add actual price if within actual data range
+            if ($index < $actualCount) {
+                $yearGroups[$year]['actualPrices'][] = $actualPrices[$index];
+            }
+            
+            // Add forecast price if available
+            $forecastIndex = $index - $actualCount;
+            if ($forecastIndex >= 0 && $forecastIndex < count($forecastPrices)) {
+                $yearGroups[$year]['forecastPrices'][] = $forecastPrices[$forecastIndex];
+            }
+        }
+        
+        // Calculate averages for each year
+        foreach ($yearGroups as $year) {
+            $labels[] = $year['label'];
+            
+            // Actual average
+            if (!empty($year['actualPrices'])) {
+                $actualAgg[] = round(array_sum($year['actualPrices']) / count($year['actualPrices']));
+            } else {
+                $actualAgg[] = null;
+            }
+            
+            // Forecast average
+            if (!empty($year['forecastPrices'])) {
+                $avgForecast = array_sum($year['forecastPrices']) / count($year['forecastPrices']);
+                $forecastAgg[] = round($avgForecast);
+                $lower[] = round($avgForecast * 0.98);
+                $upper[] = round($avgForecast * 1.02);
+            } else {
+                $forecastAgg[] = null;
+                $lower[] = null;
+                $upper[] = null;
             }
         }
     }

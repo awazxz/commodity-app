@@ -188,11 +188,14 @@
             <p class="text-xl font-bold text-red-600">Rp {{ number_format($maxPrice ?? 0,0,',','.') }}</p>
         </div>
 
-        <div class="card-standard hover-card p-5">
-            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">Status Data</p>
+         <div class="card-standard p-5">
+            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">Periode Data</p>
             <div class="flex items-center gap-2">
-                <span class="h-2 w-2 bg-green-500 rounded-full animate-pulse"></span>
-                <p class="text-sm font-semibold text-gray-700">Aktif & Terverifikasi</p>
+                <p class="text-sm font-semibold text-gray-900">
+                    {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }} 
+                    <span class="text-gray-400 mx-1">→</span> 
+                    {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+                </p>
             </div>
         </div>
 
@@ -205,110 +208,6 @@
         </div>
     </div>
 
-    {{-- LAYOUT GRAFIK & HYPERPARAMETER --}}
-    <!-- <div class="grid grid-cols-12 gap-5"> -->
-        
-        {{-- HYPERPARAMETER SETTINGS --}}
-        <!-- <div class="col-span-12 lg:col-span-4 space-y-4">
-            <div class="card-standard p-5">
-                <h4 class="text-sm font-bold text-gray-900 uppercase tracking-tight mb-6 pb-3 border-b border-gray-100">
-                    Pengaturan Hyperparameter
-                </h4>
-                <div class="space-y-6">
-                    {{-- Changepoint Prior Scale --}}
-                    <div>
-                        <div class="flex justify-between mb-2">
-                            <span class="text-xs text-gray-500 font-semibold uppercase">Changepoint Prior</span>
-                            <span class="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded" id="cp_display">{{ $cpScale }}</span>
-                        </div>
-                        <input type="range" min="0.001" max="0.5" step="0.001" value="{{ $cpScale }}" class="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer" oninput="updateVal('hidden_cp', 'cp_display', this.value)">
-                        <p class="text-[9px] text-gray-400 mt-1">Fleksibilitas perubahan tren</p>
-                    </div>
-
-                    {{-- Seasonality Prior Scale --}}
-                    <div>
-                        <div class="flex justify-between mb-2">
-                            <span class="text-xs text-gray-500 font-semibold uppercase">Seasonality Prior</span>
-                            <span class="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded" id="season_display">{{ $seasonScale ?? 10 }}</span>
-                        </div>
-                        <input type="range" min="0.01" max="10" step="0.01" value="{{ $seasonScale ?? 10 }}" class="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer" oninput="updateVal('hidden_season', 'season_display', this.value)">
-                        <p class="text-[9px] text-gray-400 mt-1">Kekuatan pola musiman</p>
-                    </div>
-
-                    {{-- Seasonality Mode --}}
-                    <div>
-                        <label class="text-xs text-gray-500 font-semibold uppercase mb-2 block">Mode Musiman</label>
-                        <select onchange="document.getElementById('hidden_mode').value = this.value" class="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 text-xs text-gray-600 font-medium outline-none">
-                            <option value="multiplicative" {{ ($seasonMode ?? '') == 'multiplicative' ? 'selected' : '' }}>Multiplikatif</option>
-                            <option value="additive" {{ ($seasonMode ?? '') == 'additive' ? 'selected' : '' }}>Aditif</option>
-                        </select>
-                        <p class="text-[9px] text-gray-400 mt-1">Metode penerapan musiman</p>
-                    </div>
-
-                    {{-- Komponen Musiman --}}
-                    <div class="space-y-2 pt-2 border-t border-gray-100">
-                        <label class="text-xs text-gray-500 font-semibold uppercase block mb-2">Komponen Musiman</label>
-                        <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-100">
-                            <span class="text-xs text-gray-500 font-medium uppercase">Mingguan</span>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" {{ ($weeklySeason ?? false) ? 'checked' : '' }} onchange="document.getElementById('hidden_weekly').value = this.checked" class="sr-only peer">
-                                <div class="w-7 h-4 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3"></div>
-                            </label>
-                        </div>
-                        <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-100">
-                            <span class="text-xs text-gray-500 font-medium uppercase">Tahunan</span>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox" {{ ($yearlySeason ?? false) ? 'checked' : '' }} onchange="document.getElementById('hidden_yearly').value = this.checked" class="sr-only peer">
-                                <div class="w-7 h-4 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-3"></div>
-                            </label>
-                        </div>
-                    </div>
-
-                    <button type="button" onclick="triggerSubmit()" class="w-full bg-blue-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all shadow-sm">
-                        Perbarui Prediksi
-                    </button>
-                </div>
-            </div>
-
-            {{-- STATISTIK --}}
-            <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg shadow-lg p-5 text-white">
-                <h4 class="text-xs font-bold uppercase tracking-wider mb-4 opacity-90">
-                    Ringkasan Statistik
-                </h4>
-                <div class="space-y-4">
-                    <div class="flex justify-between items-end border-b border-white/10 pb-2">
-                        <span class="text-[10px] opacity-70 font-semibold uppercase">MAPE (Akurasi)</span>
-                        <span class="text-sm font-bold">{{ number_format($mape ?? 0, 2) }}%</span>
-                    </div>
-                    <div class="flex justify-between items-end border-b border-white/10 pb-2">
-                        <span class="text-[10px] opacity-70 font-semibold uppercase">Skor R-Squared</span>
-                        <span class="text-sm font-bold">{{ number_format($rSquared ?? 0, 3) }}</span>
-                    </div>
-                </div>
-            </div>
-        </div> -->
-
-        {{-- GRAFIK UTAMA DENGAN FILTER --}}
-        <!-- <div class="col-span-12 lg:col-span-8 card-standard overflow-hidden">
-            <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row justify-between items-center gap-4">
-                <div>
-                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">Visualisasi Tren & Proyeksi</h3>
-                    <p class="text-xs text-gray-500">Menampilkan data historis vs hasil algoritma Prophet</p>
-                </div>
-
-                <div class="flex bg-white border border-gray-300 p-1 rounded-md shadow-sm">
-                    <button onclick="changeChartPeriod('daily')" class="filter-btn active" id="btn-daily">Harian</button>
-                    <button onclick="changeChartPeriod('weekly')" class="filter-btn border-none" id="btn-weekly">Mingguan</button>
-                    <button onclick="changeChartPeriod('monthly')" class="filter-btn border-none" id="btn-monthly">Bulanan</button>
-                    <button onclick="changeChartPeriod('yearly')" class="filter-btn border-none" id="btn-yearly">Tahunan</button>
-                </div>
-            </div>
-            
-            <div class="p-6 h-[450px]">
-                <canvas id="mainChart"></canvas>
-            </div>
-        </div>
-    </div> -->
     {{-- LAYOUT GRAFIK & HYPERPARAMETER - IMPROVED VERSION --}}
 <div class="grid grid-cols-12 gap-5">
     
@@ -401,8 +300,7 @@
             </div>
 
             <div class="flex bg-white border border-gray-300 p-1 rounded-md shadow-sm">
-                <button onclick="changeChartPeriod('daily')" class="filter-btn active" id="btn-daily">Harian</button>
-                <button onclick="changeChartPeriod('weekly')" class="filter-btn border-none" id="btn-weekly">Mingguan</button>
+                <button onclick="changeChartPeriod('weekly')" class="filter-btn active" id="btn-weekly">Mingguan</button>
                 <button onclick="changeChartPeriod('monthly')" class="filter-btn border-none" id="btn-monthly">Bulanan</button>
                 <button onclick="changeChartPeriod('yearly')" class="filter-btn border-none" id="btn-yearly">Tahunan</button>
             </div>
@@ -418,7 +316,7 @@
     {{-- TABEL INSIGHT PROYEKSI --}}
     <div class="card-standard overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">Ringkasan Analisis <span id="selectedPeriodText" class="text-blue-600">Harian</span></h3>
+            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">Ringkasan Analisis <span id="selectedPeriodText" class="text-blue-600">Mingguan</span></h3>
         </div>
 
         <div class="overflow-x-auto custom-scrollbar">
@@ -439,16 +337,17 @@
         </div>
     </div>
 
-    {{-- KESIMPULAN ANALISIS --}}
+     {{-- Analisis Deskriptif --}}
     <div class="card-standard p-6 border-l-4 border-l-blue-600">
         <div class="flex items-center gap-3 mb-3">
             <h4 class="text-sm font-bold text-gray-900 uppercase">Interpretasi Model Prophet</h4>
-        </div>
-        <p class="text-sm text-gray-600 leading-relaxed">
-            Berdasarkan analisis data historis untuk komoditas <strong>{{ $selectedCommodity }}</strong>, 
-            model mendeteksi pola musiman dan tren jangka panjang. Hasil proyeksi ini dimaksudkan sebagai alat bantu dalam pengambilan kebijakan stabilisasi pasokan dan harga di wilayah Provinsi Riau.
-        </p>
     </div>
+    
+    <p id="dynamic-analysis" class="text-sm text-gray-600 leading-relaxed">
+        Berdasarkan analisis data historis untuk komoditas <strong>{{ $selectedCommodity }}</strong>, 
+        <span id="analysis-text">model sedang memproses tren terbaru...</span>
+    </p>
+</div>
 
 @endif
 
@@ -802,13 +701,6 @@
    DATA INITIALIZATION
    ========================================================= */
 const chartData = {
-    daily: {
-        labels: {!! json_encode($chartLabels ?? []) !!},
-        actual: {!! json_encode($actualData ?? []) !!},
-        forecast: {!! json_encode($forecastData ?? []) !!},
-        lower: {!! json_encode($lowerBand ?? []) !!},
-        upper: {!! json_encode($upperBand ?? []) !!}
-    },
     weekly: {
         labels: {!! json_encode($weeklyLabels ?? []) !!},
         actual: {!! json_encode($weeklyActual ?? []) !!},
@@ -832,7 +724,7 @@ const chartData = {
     }
 };
 
-let currentPeriod = 'daily';
+let currentPeriod = 'weekly'; // Changed default from 'daily' to 'weekly'
 let mainChart = null;
 
 /* =========================================================
@@ -1029,7 +921,6 @@ function changeChartPeriod(period) {
     document.getElementById(`btn-${period}`).classList.add('active');
     
     const periodText = {
-        'daily': 'Harian',
         'weekly': 'Mingguan',
         'monthly': 'Bulanan',
         'yearly': 'Tahunan'
