@@ -1,0 +1,238 @@
+"""
+Prophet Forecasting Model for Commodity Price Prediction
+"""
+
+from prophet import Prophet
+import pandas as pd
+import numpy as np
+from datetime import datetime
+import warnings
+import traceback
+warnings.filterwarnings('ignore')
+
+
+class CommodityForecastModel:
+    """
+    Forecasting model menggunakan Facebook Prophet
+    dengan support custom hyperparameters
+    """
+    
+    def __init__(
+        self,
+        changepoint_prior_scale=0.05,
+        seasonality_prior_scale=10,
+        seasonality_mode='multiplicative',
+        weekly_seasonality=False,
+        yearly_seasonality=True,
+        daily_seasonality=False
+    ):
+        """
+        Initialize forecasting model dengan hyperparameters
+        
+        Parameters:
+        -----------
+        changepoint_prior_scale : float (default=0.05)
+            Mengontrol seberapa fleksibel trend bisa berubah
+            - Nilai kecil (0.001-0.05): trend lebih smooth, kurang sensitif
+            - Nilai besar (0.1-0.5): trend lebih fleksibel, lebih sensitif
+            
+        seasonality_prior_scale : float (default=10)
+            Mengontrol kekuatan pola musiman
+            - Nilai kecil (0.01-1): pola musiman lemah
+            - Nilai besar (10-50): pola musiman kuat
+            
+        seasonality_mode : str (default='multiplicative')
+            Mode pola musiman
+            - 'additive': efek musiman tetap sepanjang waktu
+            - 'multiplicative': efek musiman proporsional dengan level tren
+            
+        weekly_seasonality : bool (default=False)
+            Aktifkan pola musiman mingguan
+            
+        yearly_seasonality : bool (default=True)
+            Aktifkan pola musiman tahunan
+            
+        daily_seasonality : bool (default=False)
+            Aktifkan pola musiman harian
+        """
+        self.model = None
+        self.forecast = None
+        self.history = None
+        
+        # Store hyperparameters
+        self.changepoint_prior_scale = changepoint_prior_scale
+        self.seasonality_prior_scale = seasonality_prior_scale
+        self.seasonality_mode = seasonality_mode
+        self.weekly_seasonality = weekly_seasonality
+        self.yearly_seasonality = yearly_seasonality
+        self.daily_seasonality = daily_seasonality
+        
+        print(f"📊 Prophet model initialized with:")
+        print(f"   changepoint_prior_scale = {changepoint_prior_scale}")
+        print(f"   seasonality_prior_scale = {seasonality_prior_scale}")
+        print(f"   seasonality_mode = {seasonality_mode}")
+        print(f"   weekly_seasonality = {weekly_seasonality}")
+        print(f"   yearly_seasonality = {yearly_seasonality}")
+    
+    def train(self, historical_data):
+        """
+        Train Prophet model dengan data historis
+        
+        Parameters:
+        -----------
+        historical_data : pd.DataFrame
+            DataFrame dengan kolom 'ds' (date) dan 'y' (price)
+        
+        Returns:
+        --------
+        bool : True jika training berhasil
+        """
+        try:
+            if historical_data.empty:
+                print("❌ Error: Historical data is empty")
+                return False
+            
+            # Prepare data
+            self.history = historical_data.copy()
+            self.history = self.history[['ds', 'y']]
+            
+            print(f"📈 Training Prophet model with {len(self.history)} data points...")
+            
+            # Initialize Prophet dengan hyperparameters
+            self.model = Prophet(
+                changepoint_prior_scale=self.changepoint_prior_scale,
+                seasonality_prior_scale=self.seasonality_prior_scale,
+                seasonality_mode=self.seasonality_mode,
+                weekly_seasonality=self.weekly_seasonality,
+                yearly_seasonality=self.yearly_seasonality,
+                daily_seasonality=self.daily_seasonality,
+                interval_width=0.95  # 95% confidence interval
+            )
+            
+            # Fit model
+            self.model.fit(self.history)
+            
+            print("✅ Model training completed successfully")
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error during model training: {str(e)}")
+            traceback.print_exc()
+            return False
+    
+    def predict(self, periods=30, freq='D'):
+        """
+        Generate forecast predictions
+        
+        Parameters:
+        -----------
+        periods : int (default=30)
+            Number of periods to forecast
+        freq : str (default='D')
+            Frequency: 'D' (daily), 'W' (weekly), 'M' (monthly)
+        
+        Returns:
+        --------
+        pd.DataFrame : Forecast results dengan kolom:
+            - ds: tanggal
+            - yhat: prediksi harga
+            - yhat_lower: batas bawah
+            - yhat_upper: batas atas
+            - trend: tren
+        """
+        try:
+            if self.model is None:
+                print("❌ Error: Model has not been trained yet")
+                return pd.DataFrame()
+            
+            # Create future dataframe
+            future = self.model.make_future_dataframe(
+                periods=periods,
+                freq=freq,
+                include_history=False
+            )
+            
+            # Generate forecast
+            self.forecast = self.model.predict(future)
+            
+            print(f"✅ Generated forecast for {len(self.forecast)} periods")
+            
+            # Return relevant columns
+            return self.forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper', 'trend']]
+            
+        except Exception as e:
+            print(f"❌ Error during prediction: {str(e)}")
+            traceback.print_exc()
+            return pd.DataFrame()
+    
+    def get_model_metrics(self):
+        """
+        Calculate model performance metrics
+        
+        Returns:
+        --------
+        dict : Dictionary berisi metrics:
+            - mape: Mean Absolute Percentage Error
+            - rmse: Root Mean Square Error
+            - mae: Mean Absolute Error
+            - coverage: Confidence interval coverage
+        """
+        try:
+            if self.model is None or self.history is None:
+                return {
+                    'mape': 0,
+                    'rmse': 0,
+                    'mae': 0,
+                    'coverage': 0.95
+                }
+            
+            # Make prediction on historical data
+            forecast_hist = self.model.predict(self.history)
+            
+            # Get actual values
+            y_true = self.history['y'].values
+            y_pred = forecast_hist['yhat'].values
+            
+            # Calculate MAPE (Mean Absolute Percentage Error)
+            mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+            
+            # Calculate RMSE (Root Mean Square Error)
+            rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+            
+            # Calculate MAE (Mean Absolute Error)
+            mae = np.mean(np.abs(y_true - y_pred))
+            
+            # Calculate coverage (percentage of actuals within prediction intervals)
+            lower = forecast_hist['yhat_lower'].values
+            upper = forecast_hist['yhat_upper'].values
+            coverage = np.mean((y_true >= lower) & (y_true <= upper))
+            
+            metrics = {
+                'mape': round(float(mape), 2),
+                'rmse': round(float(rmse), 3),
+                'mae': round(float(mae), 2),
+                'coverage': round(float(coverage), 3)
+            }
+            
+            print(f"📊 Model Metrics:")
+            print(f"   MAPE: {metrics['mape']}%")
+            print(f"   RMSE: {metrics['rmse']}")
+            print(f"   MAE: {metrics['mae']}")
+            print(f"   Coverage: {metrics['coverage']}")
+            
+            return metrics
+            
+        except Exception as e:
+            print(f"❌ Error calculating metrics: {str(e)}")
+            return {
+                'mape': 0,
+                'rmse': 0,
+                'mae': 0,
+                'coverage': 0.95
+            }
+    
+    def evaluate(self):
+        """
+        Alias untuk get_model_metrics() untuk backward compatibility
+        """
+        return self.get_model_metrics()
