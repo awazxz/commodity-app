@@ -21,12 +21,12 @@ engine = create_engine(f'mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}
 # ======================================================
 DATASET_PATH = r'C:\laragon\www\FORECASTING\commodity-backend\laravel-api\database\seeders\csv\testing_data.csv'
 
-print("📂 Membaca dataset...")
+print(" Membaca dataset...")
 df = pd.read_csv(DATASET_PATH)
 df.columns = df.columns.str.strip().str.lower()
 
-print(f"✅ Dataset dibaca: {len(df)} baris")
-print(f"📋 Kolom: {list(df.columns)}")
+print(f" Dataset dibaca: {len(df)} baris")
+print(f" Kolom: {list(df.columns)}")
 print(df.head())
 
 # Ambil daftar komoditas dari database
@@ -83,11 +83,11 @@ for index, row in df.iterrows():
         errors.append(f"Row {index+2}: {str(e)}")
         skipped += 1
 
-print(f"\n✅ SELESAI!")
+print(f"\n SELESAI!")
 print(f"   Inserted/Updated : {inserted}")
 print(f"   Skipped          : {skipped}")
 
 if errors[:10]:
-    print(f"\n⚠️  Sample errors:")
+    print(f"\n  Sample errors:")
     for err in errors[:10]:
         print(f"   {err}")

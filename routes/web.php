@@ -8,7 +8,9 @@ use App\Http\Controllers\OperatorController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\LaporanKomoditasController;
+use App\Http\Controllers\ManajemenDataController;
 use App\Http\Controllers\Admin\DatasetController;
+use App\Http\Controllers\LanguageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,114 +20,102 @@ use App\Http\Controllers\Admin\DatasetController;
 
 // 1. PUBLIC ROUTES
 Route::get('/', function () {
-    // Jika user sudah login, langsung ke beranda
     if (auth()->check()) {
         return redirect()->route('laporan.komoditas.index');
     }
-    // Jika belum login, tampilkan halaman welcome
     return view('welcome');
 })->name('home');
 
-// 2. AUTHENTICATED ROUTES (Wajib Login)
+// Contact admin (public)
+Route::get('/contact-admin', function () {
+    return view('layouts.contact-admin');
+})->name('contact.admin');
+
+// 2. AUTHENTICATED ROUTES
 Route::middleware('auth')->group(function () {
 
-    /**
-     * Dashboard Redirector - Analisis (role-based)
-     */
-    Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->name('dashboard');
+    // ── LANGUAGE SWITCHER ────────────────────────────────────────
+    Route::post('/language/switch', [LanguageController::class, 'switch'])->name('language.switch');
 
-    /**
-     * Global Forecasting Prediction
-     */
-    Route::post('/predict', [ForecastingController::class, 'predict'])
-        ->name('predict');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    /**
-     * Fitur Laporan Komoditas - BERANDA
-     */
-    Route::get('/laporan-komoditas', [LaporanKomoditasController::class, 'index'])
-        ->name('laporan.komoditas.index');
-        
-    Route::get('/laporan-komoditas/cetak', [LaporanKomoditasController::class, 'cetak'])
-        ->name('laporan.komoditas.cetak');
+    Route::get('/laporan-komoditas',       [LaporanKomoditasController::class, 'index'])->name('laporan.komoditas.index');
+    Route::get('/laporan-komoditas/cetak', [LaporanKomoditasController::class, 'cetak'])->name('laporan.komoditas.cetak');
 
-
-    // 3. USER ROLE ROUTES
+    // ── USER ROLE ────────────────────────────────────────────────
     Route::prefix('user')->name('user.')->group(function () {
-        
-        // Halaman Dashboard User (untuk Analisis)
-        Route::get('/dashboard', [UserController::class, 'index'])
-            ->name('dashboard');
-        
-        /**
-         * Fitur Olah Data (Grafik & Forecast)
-         */
-        Route::get('/olah-data', [ForecastingController::class, 'index'])
-            ->name('olah-data');
+        Route::get('/dashboard', [UserController::class, 'index'])->name('dashboard');
 
-        // Endpoints API Internal untuk Forecasting
-        Route::get('/forecast/data/{komoditas}', [ForecastingController::class, 'historical'])
-            ->name('forecast.data');
+        // ✅ Analisis & Prediksi (UserController baru)
+        Route::get('/analisis', [UserController::class, 'analisis'])->name('analisis');
 
-        Route::post('/forecast/run/{komoditas}', [ForecastingController::class, 'run'])
-            ->name('forecast.run');
+        // Legacy routes (tetap dipertahankan agar tidak breaking)
+        Route::get('/olah-data', [ForecastingController::class, 'index'])->name('olah-data');
+        Route::get('/forecast/data/{komoditas}',   [ForecastingController::class, 'historical'])->name('forecast.data');
+        Route::post('/forecast/run/{komoditas}',   [ForecastingController::class, 'run'])->name('forecast.run');
+        Route::get('/forecast/result/{komoditas}', [ForecastingController::class, 'result'])->name('forecast.result');
+    });
 
-        Route::get('/forecast/result/{komoditas}', [ForecastingController::class, 'result'])
-            ->name('forecast.result');
-    }); // Penutup Group User
-
-    // 4. ADMIN ROLE ROUTES
+    // ── ADMIN ROLE ───────────────────────────────────────────────
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
-        
-        // Dashboard & Predict (untuk Analisis)
+
         Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
-        Route::post('/predict', [AdminController::class, 'predict'])->name('predict');
-        
-        // Data Management (CRUD)
-        Route::controller(AdminController::class)->group(function () {
-            Route::post('/store-data', 'storeData')->name('storeData');
-            Route::put('/update-data/{id}', 'updateData')->name('updateData');
-            Route::delete('/delete-data/{id}', 'deleteData')->name('deleteData');
-            Route::post('/clean-data', 'cleanData')->name('cleanData');
-            
-            // User Management
-            Route::post('/users', 'storeUser')->name('storeUser');
-            Route::put('/update-user/{id}', 'updateUser')->name('updateUser');
-            Route::delete('/users/{id}', 'deleteUser')->name('deleteUser');
+        Route::match(['GET', 'POST'], '/predict', [AdminController::class, 'predict'])->name('predict');
+
+        Route::post('/store-data',         [AdminController::class, 'storeData'])->name('storeData');
+        Route::put('/update-data/{id}',    [AdminController::class, 'updateData'])->name('updateData');
+        Route::delete('/delete-data/{id}', [AdminController::class, 'deleteData'])->name('deleteData');
+        Route::post('/clean-data',         [AdminController::class, 'cleanData'])->name('cleanData');
+
+        Route::post('/store-user',         [AdminController::class, 'storeUser'])->name('storeUser');
+        Route::put('/update-user/{id}',    [AdminController::class, 'updateUser'])->name('updateUser');
+        Route::delete('/delete-user/{id}', [AdminController::class, 'deleteUser'])->name('deleteUser');
+
+        Route::prefix('manajemen-data')->name('manajemen-data.')->group(function () {
+            Route::get('/',                  [ManajemenDataController::class, 'index'])->name('index');
+            Route::post('/store-manual',     [ManajemenDataController::class, 'storeManual'])->name('store-manual');
+            Route::post('/upload-csv',       [ManajemenDataController::class, 'uploadCsv'])->name('upload-csv');
+            Route::get('/download-template', [ManajemenDataController::class, 'downloadTemplate'])->name('download-template');
+            Route::post('/detect-outliers',  [ManajemenDataController::class, 'detectOutliers'])->name('detect-outliers');
+            Route::post('/delete-outliers',  [ManajemenDataController::class, 'deleteOutliers'])->name('delete-outliers');
+            Route::post('/fill-missing',     [ManajemenDataController::class, 'fillMissingValues'])->name('fill-missing');
+            Route::post('/mark-cleaned',     [ManajemenDataController::class, 'markAsCleaned'])->name('mark-cleaned');
+            Route::delete('/delete/{id}',    [ManajemenDataController::class, 'deleteData'])->name('delete');
         });
 
-        // Download Template
-        Route::get('/download-template', [DatasetController::class, 'downloadTemplate'])->name('downloadTemplate');
+        Route::get('/download-template-dataset', [DatasetController::class, 'downloadTemplate'])->name('downloadTemplate');
     });
 
-    // 5. OPERATOR ROLE ROUTES
+    // ── OPERATOR ROLE ─────────────────────────────────────────────
     Route::middleware('role:operator')->prefix('operator')->name('operator.')->group(function () {
-        
-        // Dashboard & Predict (untuk Analisis)
         Route::get('/dashboard', [OperatorController::class, 'index'])->name('dashboard');
-        Route::post('/predict', [OperatorController::class, 'predict'])->name('predict');
+        Route::match(['GET', 'POST'], '/predict', [OperatorController::class, 'predict'])->name('predict');
+        Route::post('/store-data',         [OperatorController::class, 'storeData'])->name('storeData');
+        Route::put('/update-data/{id}',    [OperatorController::class, 'updateData'])->name('updateData');
+        Route::delete('/delete-data/{id}', [OperatorController::class, 'deleteData'])->name('deleteData');
+        Route::post('/clean-data',         [OperatorController::class, 'cleanData'])->name('cleanData');
+        Route::get('/download-template',   [DatasetController::class, 'downloadTemplate'])->name('downloadTemplate');
 
-        // Data Management (CRUD)
-        Route::controller(OperatorController::class)->group(function () {
-            Route::post('/store-data', 'storeData')->name('storeData');
-            Route::put('/update-data/{id}', 'updateData')->name('updateData');
-            Route::delete('/delete-data/{id}', 'deleteData')->name('deleteData');
-            Route::post('/clean-data', 'cleanData')->name('cleanData');
+        // ── MANAJEMEN DATA (mirrored from admin) ─────────────────
+        Route::prefix('manajemen-data')->name('manajemen-data.')->group(function () {
+            Route::get('/',                  [ManajemenDataController::class, 'index'])->name('index');
+            Route::post('/store-manual',     [ManajemenDataController::class, 'storeManual'])->name('store-manual');
+            Route::post('/upload-csv',       [ManajemenDataController::class, 'uploadCsv'])->name('upload-csv');
+            Route::get('/download-template', [ManajemenDataController::class, 'downloadTemplate'])->name('download-template');
+            Route::post('/detect-outliers',  [ManajemenDataController::class, 'detectOutliers'])->name('detect-outliers');
+            Route::post('/delete-outliers',  [ManajemenDataController::class, 'deleteOutliers'])->name('delete-outliers');
+            Route::post('/fill-missing',     [ManajemenDataController::class, 'fillMissingValues'])->name('fill-missing');
+            Route::post('/mark-cleaned',     [ManajemenDataController::class, 'markAsCleaned'])->name('mark-cleaned');
+            Route::delete('/delete/{id}',    [ManajemenDataController::class, 'deleteData'])->name('delete');
         });
-
-        // Download Template
-        Route::get('/download-template', [DatasetController::class, 'downloadTemplate'])->name('downloadTemplate');
     });
 
-    // 6. PROFILE ROUTES
+    // ── PROFILE ───────────────────────────────────────────────────
     Route::controller(ProfileController::class)->group(function () {
-        Route::get('/profile', 'edit')->name('profile.edit');
-        Route::patch('/profile', 'update')->name('profile.update');
+        Route::get('/profile',    'edit')->name('profile.edit');
+        Route::patch('/profile',  'update')->name('profile.update');
         Route::delete('/profile', 'destroy')->name('profile.destroy');
     });
+});
 
-}); // Penutup middleware auth
-
-// 7. AUTHENTICATION
 require __DIR__.'/auth.php';

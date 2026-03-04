@@ -4,144 +4,175 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\PriceData;
 use App\Models\MasterKomoditas;
-use App\Models\PriceForecast; 
 use Carbon\Carbon;
 
 class LaporanKomoditasController extends Controller
 {
-    /**
-     * Menampilkan halaman laporan utama
-     */
     public function index(Request $request)
     {
-        // Ambil filter dari request
-        $tahun = $request->tahun ?? date('Y');
-        $bulan = $request->bulan;
-        $minggu = $request->minggu;
+        // 1. Ambil list tahun dari kedua tabel untuk dropdown filter
+        $tahunAktual   = DB::table('price_data')->selectRaw('YEAR(tanggal) as tahun')->distinct()->pluck('tahun');
+        $tahunForecast = DB::table('price_forecasts')->selectRaw('YEAR(tanggal) as tahun')->distinct()->pluck('tahun');
+
+        $tahunTersedia = $tahunAktual->merge($tahunForecast)->unique()->sortDesc()->values();
+
+        $tahunMax = $tahunTersedia->first() ?? date('Y');
+        $tahunMin = $tahunTersedia->last()  ?? date('Y') - 5;
+
+        // 2. Tangkap filter dari Request
+        $tahun        = $request->tahun        ?? $tahunMax;
+        $bulan        = $request->bulan;
+        $minggu       = $request->minggu;
         $komoditas_id = $request->komoditas_id;
 
-        // 1. Ambil daftar komoditas untuk dropdown filter
+        // 3. Ambil daftar komoditas untuk dropdown
         $daftarKomoditas = MasterKomoditas::orderBy('nama_komoditas')->get();
 
-        // 2. Query Utama Laporan dengan Filter Periodik
+        // 4. Jalankan Query Utama
         $query = $this->getQueryLaporan($tahun, $bulan, $minggu, $komoditas_id);
-        
-        // Ambil semua data untuk perhitungan statistik/analisis
+
+        // Kloning query untuk Ringkasan Analisis (sebelum dipaginasi)
         $allDataForAnalisis = (clone $query)->get();
-        $analisis = $this->analisisDeskriptif($allDataForAnalisis);
-        
-        // Paginate data untuk tabel (Gunakan withQueryString agar filter tidak hilang saat ganti halaman)
-        $data = $query->paginate(10)->withQueryString();
+        $analisis           = $this->analisisDeskriptif($allDataForAnalisis);
+
+        // Ambil data dengan pagination
+        $data = $query->paginate(15)->withQueryString();
 
         return view('laporan.komoditas', compact(
-            'data', 
-            'daftarKomoditas', 
-            'analisis'
+            'data',
+            'daftarKomoditas',
+            'analisis',
+            'tahunTersedia',
+            'tahun',
+            'tahunMax',
+            'tahunMin'
         ));
     }
 
-    /**
-     * Query yang sudah diperbaiki untuk mendukung Filter Tahun, Bulan, dan Minggu
-     */
+    // =========================================================
+    // QUERY UTAMA
+    // Fix duplikat: gunakan subquery GROUP BY pada price_data
+    // dan price_forecasts sebelum di-JOIN
+    // =========================================================
     private function getQueryLaporan($tahun, $bulan = null, $minggu = null, $komoditas_id = null)
     {
-        $query = DB::table('master_komoditas')
-            // Join ke data aktual
-            ->leftJoin('price_data', 'master_komoditas.id', '=', 'price_data.komoditas_id')
-            // Join ke data prediksi berdasarkan komoditas dan tanggal yang sama
-            ->leftJoin('price_forecasts', function($join) {
-                $join->on('master_komoditas.id', '=', 'price_forecasts.komoditas_id')
-                     ->on('price_data.tanggal', '=', 'price_forecasts.tanggal');
-            })
+        $tahun = (int) $tahun;
+
+        // Subquery price_data: rata-rata harga per (komoditas_id, tanggal)
+        // untuk menghilangkan duplikat baris pada tanggal yang sama
+        $pdSub = "
+            SELECT komoditas_id, tanggal, AVG(harga) as harga
+            FROM price_data
+            WHERE YEAR(tanggal) = {$tahun}
+            GROUP BY komoditas_id, tanggal
+        ";
+
+        // Subquery price_forecasts: 1 baris per (komoditas_id, tanggal)
+        $pfSub = "
+            SELECT komoditas_id, tanggal,
+                   AVG(harga_prediksi) as harga_prediksi,
+                   AVG(harga_lower)    as harga_lower,
+                   AVG(harga_upper)    as harga_upper
+            FROM price_forecasts
+            WHERE YEAR(tanggal) = {$tahun}
+            GROUP BY komoditas_id, tanggal
+        ";
+
+        // Subquery tanggal unik gabungan dari kedua tabel
+        $distinctSql = "
+            SELECT DISTINCT komoditas_id, tanggal
+            FROM (
+                SELECT komoditas_id, tanggal FROM price_data      WHERE YEAR(tanggal) = {$tahun}
+                UNION
+                SELECT komoditas_id, tanggal FROM price_forecasts WHERE YEAR(tanggal) = {$tahun}
+            ) as _union_raw
+        ";
+
+        $query = DB::table(DB::raw("({$distinctSql}) as all_dates"))
             ->select(
-                'master_komoditas.id as id_komoditas',
-                'master_komoditas.nama_komoditas',
-                'master_komoditas.nama_varian',
-                'price_data.tanggal',
-                'price_data.harga as harga_aktual',
-                'price_forecasts.yhat as harga_prediksi'
-            );
+                'all_dates.komoditas_id',
+                'mk.nama_komoditas',
+                'mk.nama_varian',
+                'all_dates.tanggal',
+                'pd_agg.harga               as harga_aktual',
+                DB::raw('pf_agg.harga_prediksi  as harga_prediksi'),
+                DB::raw('pf_agg.harga_lower     as harga_lower'),
+                DB::raw('pf_agg.harga_upper     as harga_upper')
+            )
+            ->join('master_komoditas as mk', 'all_dates.komoditas_id', '=', 'mk.id')
+            ->leftJoin(DB::raw("({$pdSub}) as pd_agg"), function ($join) {
+                $join->on('all_dates.komoditas_id', '=', 'pd_agg.komoditas_id')
+                     ->on('all_dates.tanggal',      '=', 'pd_agg.tanggal');
+            })
+            ->leftJoin(DB::raw("({$pfSub}) as pf_agg"), function ($join) {
+                $join->on('all_dates.komoditas_id', '=', 'pf_agg.komoditas_id')
+                     ->on('all_dates.tanggal',      '=', 'pf_agg.tanggal');
+            });
 
-        // --- Logic Filter ---
-
-        // 1. Filter Tahun (Wajib ada)
-        $query->whereYear('price_data.tanggal', $tahun);
-
-        // 2. Filter Bulan (Opsional)
+        // ── Filter tambahan ──
         if ($bulan) {
-            $query->whereMonth('price_data.tanggal', $bulan);
+            $query->whereMonth('all_dates.tanggal', (int) $bulan);
         }
 
-        // 3. Filter Minggu (Opsional)
-        // Menggunakan formula: Minggu ke = (Hari - 1) / 7 + 1
         if ($minggu) {
-            $query->whereRaw('FLOOR((DAY(price_data.tanggal) - 1) / 7) + 1 = ?', [$minggu]);
+            $query->whereRaw('CEIL(DAY(all_dates.tanggal) / 7) = ?', [(int) $minggu]);
         }
 
-        // 4. Filter Komoditas (Opsional)
         if ($komoditas_id) {
-            $query->where('master_komoditas.id', $komoditas_id);
+            $query->where('all_dates.komoditas_id', (int) $komoditas_id);
         }
 
-        // Hapus data yang tidak punya tanggal aktual (pembersihan hasil left join)
-        $query->whereNotNull('price_data.tanggal');
-
-        return $query->orderBy('price_data.tanggal', 'desc');
+        return $query
+            ->orderBy('all_dates.tanggal', 'desc')
+            ->orderBy('mk.nama_komoditas', 'asc');
     }
 
-    /**
-     * Analisis Deskriptif (Tetap sama, memastikan data valid)
-     */
+    // =========================================================
+    // ANALISIS DESKRIPTIF
+    // =========================================================
     private function analisisDeskriptif($data)
     {
-        $naik = 0; $turun = 0; $stabil = 0;
-
-        foreach ($data as $item) {
-            $aktual = (float) ($item->harga_aktual ?? 0);
-            $prediksi = (float) ($item->harga_prediksi ?? 0);
-
-            if ($aktual > 0 && $prediksi > 0) {
-                if ($prediksi > $aktual) {
-                    $naik++;
-                } elseif ($prediksi < $aktual) {
-                    $turun++;
-                } else {
-                    $stabil++;
-                }
-            }
+        if ($data->isEmpty()) {
+            return [
+                'naik'       => 0,
+                'turun'      => 0,
+                'stabil'     => 0,
+                'kesimpulan' => 'Tidak ada data yang tersedia untuk periode yang dipilih.',
+            ];
         }
 
-        return [
-            'naik' => $naik,
-            'turun' => $turun,
-            'stabil' => $stabil,
-            'kesimpulan' => $this->generateKesimpulan($naik, $turun, $stabil)
-        ];
-    }
+        $naik = 0; $turun = 0; $stabil = 0;
 
-    private function generateKesimpulan($naik, $turun, $stabil)
-    {
-        if ($naik == 0 && $turun == 0 && $stabil == 0) return "Data tidak tersedia.";
-        if ($naik > $turun) return "Tren harga cenderung mengalami kenaikan.";
-        if ($turun > $naik) return "Tren harga cenderung mengalami penurunan.";
-        return "Harga cenderung stabil.";
-    }
+        foreach ($data as $row) {
+            $aktual   = (float) ($row->harga_aktual   ?? 0);
+            $prediksi = (float) ($row->harga_prediksi ?? 0);
 
-    /**
-     * Cetak Laporan (Disesuaikan agar filter ikut terbawa)
-     */
-    public function cetak(Request $request)
-    {
-        $tahun = $request->tahun ?? date('Y');
-        $bulan = $request->bulan;
-        $minggu = $request->minggu;
-        $komoditas_id = $request->komoditas_id;
-        
-        $data = $this->getQueryLaporan($tahun, $bulan, $minggu, $komoditas_id)->get();
-        $analisis = $this->analisisDeskriptif($data);
+            if ($aktual <= 0 || $prediksi <= 0) {
+                $stabil++;
+                continue;
+            }
 
-        return view('laporan.cetak', compact('data', 'analisis'));
+            $diff      = $prediksi - $aktual;
+            $threshold = $aktual * 0.001; // toleransi 0.1%
+
+            if ($diff > $threshold)      $naik++;
+            elseif ($diff < -$threshold) $turun++;
+            else                         $stabil++;
+        }
+
+        $total = $naik + $turun + $stabil;
+
+        if ($total === 0) {
+            $kesimpulan = 'Data belum mencukupi untuk melakukan analisis deskriptif.';
+        } elseif ($naik > $turun && $naik > $stabil) {
+            $kesimpulan = 'Sebagian besar komoditas diprediksi mengalami kenaikan harga. Mohon pantau ketersediaan stok di pasar.';
+        } elseif ($turun > $naik && $turun > $stabil) {
+            $kesimpulan = 'Tren harga menunjukkan penurunan pada mayoritas komoditas. Daya beli masyarakat diprediksi tetap terjaga.';
+        } else {
+            $kesimpulan = 'Secara keseluruhan, harga komoditas pada periode ini terpantau stabil.';
+        }
+
+        return compact('naik', 'turun', 'stabil', 'kesimpulan');
     }
 }

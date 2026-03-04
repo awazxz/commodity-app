@@ -2,219 +2,237 @@
 
 @section('content')
 <style>
-    body {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-    
-    .min-h-screen {
-        padding: 0 !important;
-        margin: 0 !important;
-    }
-    
-    .max-w-7xl {
-        max-width: 100vw !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
-        padding-top: 0.5rem !important;
-        margin: 0 !important;
-    }
-    
-    * {
-        margin-top: 0 !important;
-    }
-    
-    .mb-6:first-child {
-        margin-top: 0 !important;
-        padding-top: 0 !important;
-    }
+    body { margin: 0 !important; padding: 0 !important; }
+    .min-h-screen { padding: 0 !important; margin: 0 !important; }
+    .max-w-7xl { max-width: 100vw !important; padding-left: 1.5rem !important; padding-right: 1.5rem !important; padding-top: 0.5rem !important; margin: 0 !important; }
+    * { margin-top: 0 !important; }
+    select { margin-top: 0.25rem !important; }
+    tr.has-both { background-color: #f0fdf4; }
+    tr.only-forecast { background-color: #eff6ff; }
 
-    select {
-        margin-top: 0.25rem !important;
-    }
+    /* Dark mode overrides */
+    html.dark .bg-white { background-color: #1e2433 !important; }
+    html.dark .bg-gray-50 { background-color: #161d2e !important; }
+    html.dark .text-gray-800, html.dark .text-gray-900 { color: #f3f4f6 !important; }
+    html.dark .text-gray-500, html.dark .text-gray-600 { color: #9ca3af !important; }
+    html.dark .text-gray-700 { color: #d1d5db !important; }
+    html.dark .border-gray-200 { border-color: #2d3748 !important; }
+    html.dark table thead { background-color: #161d2e !important; }
+    html.dark table thead th { color: #6b7280 !important; }
+    html.dark table tbody tr:hover { background-color: rgba(255,255,255,0.03) !important; }
+    html.dark .shadow { box-shadow: 0 1px 3px rgba(0,0,0,0.4) !important; }
+    html.dark select, html.dark input { background-color: #2d3748 !important; border-color: #4a5568 !important; color: #e2e8f0 !important; }
+    html.dark tr.has-both { background-color: rgba(16, 185, 129, 0.08) !important; }
+    html.dark tr.only-forecast { background-color: rgba(59, 130, 246, 0.08) !important; }
 </style>
 
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        
+
+        {{-- Header --}}
         <div class="md:flex md:items-center md:justify-between mb-6">
             <div class="flex-1 min-w-0">
-                <h2 class="text-2xl font-bold leading-7 text-gray-800 sm:text-3xl sm:truncate">
-                    Laporan Harga Komoditas
+                <h2 class="text-2xl font-bold leading-7 text-gray-800 dark:text-gray-100 sm:text-3xl sm:truncate">
+                    {{ __('messages.laporan_harga') }}
                 </h2>
-                <p class="mt-1 text-sm text-gray-500">
-                    Analisis perbandingan harga aktual dan prediksi periode mingguan.
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {{ __('messages.analisis_deskriptif') }}
                 </p>
             </div>
             <div class="mt-4 flex md:mt-0 md:ml-4">
-                <a href="{{ route('laporan.komoditas.cetak', request()->all()) }}" target="_blank" 
+                <a href="{{ route('laporan.komoditas.cetak', request()->all()) }}" target="_blank"
                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                     <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
-                    Cetak Laporan
+                    {{ __('messages.cetak_laporan') }}
                 </a>
             </div>
         </div>
 
-        <div class="bg-white overflow-hidden shadow rounded-lg mb-8 border border-gray-200">
+        {{-- Ringkasan Analisis --}}
+        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg mb-8 border border-gray-200 dark:border-gray-700">
             <div class="px-4 py-5 sm:p-6">
-                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4 flex items-center">
-                    <span class="p-2 bg-blue-100 rounded-lg mr-3">
-                        <svg class="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+                    <span class="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg mr-3">
+                        <svg class="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                         </svg>
                     </span>
-                    Ringkasan Analisis Deskriptif
+                    {{ __('messages.ringkasan_analisis_desk') }}
                 </h3>
-                
+
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-6">
-                    <div class="px-4 py-5 bg-green-50 shadow-sm rounded-lg overflow-hidden border border-green-100">
-                        <dt class="text-sm font-medium text-green-800 truncate">Prediksi Naik</dt>
-                        <dd class="mt-1 text-3xl font-semibold text-green-900">{{ $analisis['naik'] }}</dd>
+                    <div class="px-4 py-5 bg-green-50 dark:bg-green-900/20 shadow-sm rounded-lg overflow-hidden border border-green-100 dark:border-green-800">
+                        <dt class="text-sm font-medium text-green-800 dark:text-green-300 truncate">{{ __('messages.prediksi_naik') }}</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-green-900 dark:text-green-200">{{ $analisis['naik'] }}</dd>
                     </div>
-                    <div class="px-4 py-5 bg-red-50 shadow-sm rounded-lg overflow-hidden border border-red-100">
-                        <dt class="text-sm font-medium text-red-800 truncate">Prediksi Turun</dt>
-                        <dd class="mt-1 text-3xl font-semibold text-red-900">{{ $analisis['turun'] }}</dd>
+                    <div class="px-4 py-5 bg-red-50 dark:bg-red-900/20 shadow-sm rounded-lg overflow-hidden border border-red-100 dark:border-red-800">
+                        <dt class="text-sm font-medium text-red-800 dark:text-red-300 truncate">{{ __('messages.prediksi_turun') }}</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-red-900 dark:text-red-200">{{ $analisis['turun'] }}</dd>
                     </div>
-                    <div class="px-4 py-5 bg-gray-50 shadow-sm rounded-lg overflow-hidden border border-gray-100">
-                        <dt class="text-sm font-medium text-gray-800 truncate">Harga Stabil</dt>
-                        <dd class="mt-1 text-3xl font-semibold text-gray-900">{{ $analisis['stabil'] }}</dd>
+                    <div class="px-4 py-5 bg-gray-50 dark:bg-gray-700/50 shadow-sm rounded-lg overflow-hidden border border-gray-100 dark:border-gray-700">
+                        <dt class="text-sm font-medium text-gray-800 dark:text-gray-300 truncate">{{ __('messages.harga_stabil') }}</dt>
+                        <dd class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">{{ $analisis['stabil'] }}</dd>
                     </div>
                 </div>
 
-                <div class="bg-blue-50 border-l-4 border-blue-400 p-4">
-                    <div class="flex">
-                        <div class="ml-3">
-                            <p class="text-sm text-blue-700 font-medium italic">
-                                {{ $analisis['kesimpulan'] }}
-                            </p>
-                        </div>
-                    </div>
+                <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-4">
+                    <p class="text-sm text-blue-700 dark:text-blue-300 font-medium italic">{{ $analisis['kesimpulan'] }}</p>
                 </div>
             </div>
         </div>
 
-        <div class="bg-white shadow rounded-lg mb-8 border border-gray-200">
+        {{-- Filter --}}
+        <div class="bg-white dark:bg-gray-800 shadow rounded-lg mb-8 border border-gray-200 dark:border-gray-700">
             <form action="{{ route('laporan.komoditas.index') }}" method="GET" class="p-6">
                 <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Komoditas</label>
-                        <select name="komoditas_id" class="block w-full border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border py-2 px-2 shadow-sm">
-                            <option value="">Semua Komoditas</option>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('messages.komoditas') }}</label>
+                        <select name="komoditas_id" class="mt-1 block w-full border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border py-2 px-2 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                            <option value="">{{ __('messages.semua_komoditas') }}</option>
                             @foreach($daftarKomoditas as $k)
                                 <option value="{{ $k->id }}" {{ request('komoditas_id') == $k->id ? 'selected' : '' }}>
-                                    {{ $k->nama_komoditas }}
+                                    {{ $k->nama_komoditas }}{{ $k->nama_varian ? ' - ' . $k->nama_varian : '' }}
                                 </option>
                             @endforeach
                         </select>
                     </div>
-
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Tahun</label>
-                        <select name="tahun" class="block w-full border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border py-2 px-2 shadow-sm">
-                            @for($i = date('Y'); $i >= date('Y')-3; $i--)
-                                <option value="{{ $i }}" {{ request('tahun', date('Y')) == $i ? 'selected' : '' }}>{{ $i }}</option>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('messages.tahun') }}</label>
+                        <select name="tahun" class="mt-1 block w-full border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border py-2 px-2 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                            @for($i = $tahunMax; $i >= $tahunMin; $i--)
+                                <option value="{{ $i }}" {{ $tahun == $i ? 'selected' : '' }}>{{ $i }}</option>
                             @endfor
                         </select>
                     </div>
-
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Bulan</label>
-                        <select name="bulan" class="block w-full border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border py-2 px-2 shadow-sm">
-                            <option value="">Semua Bulan</option>
-                            @foreach(['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'] as $idx => $namaBulan)
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('messages.bulan') }}</label>
+                        <select name="bulan" class="mt-1 block w-full border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border py-2 px-2 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                            <option value="">{{ __('messages.semua_bulan') }}</option>
+                            @foreach(['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'] as $idx => $namaBulan)
                                 <option value="{{ $idx + 1 }}" {{ request('bulan') == ($idx + 1) ? 'selected' : '' }}>{{ $namaBulan }}</option>
                             @endforeach
                         </select>
                     </div>
-
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">Minggu Ke-</label>
-                        <select name="minggu" class="block w-full border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border py-2 px-2 shadow-sm">
-                            <option value="">Semua Minggu</option>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('messages.minggu_ke') }}</label>
+                        <select name="minggu" class="mt-1 block w-full border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border py-2 px-2 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                            <option value="">{{ __('messages.semua_minggu') }}</option>
                             @foreach([1,2,3,4,5] as $w)
-                                <option value="{{ $w }}" {{ request('minggu') == $w ? 'selected' : '' }}>Minggu {{ $w }}</option>
+                                <option value="{{ $w }}" {{ request('minggu') == $w ? 'selected' : '' }}>{{ __('messages.minggu_ke') }} {{ $w }}</option>
                             @endforeach
                         </select>
                     </div>
-
                     <div class="flex items-end space-x-2">
                         <button type="submit" class="flex-1 inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
-                            Filter
+                            {{ __('messages.filter') }}
                         </button>
-                        <a href="{{ route('laporan.komoditas.index') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                            Reset
+                        <a href="{{ route('laporan.komoditas.index') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                            {{ __('messages.reset') }}
                         </a>
                     </div>
                 </div>
             </form>
         </div>
 
+        {{-- Legend --}}
+        <div class="flex items-center gap-4 mb-3 text-xs text-gray-500 dark:text-gray-400">
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700"></span> Aktual + Prediksi tersedia</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700"></span> Hanya Prediksi (masa depan)</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600"></span> Hanya Aktual</span>
+        </div>
+
+        {{-- Tabel --}}
         <div class="flex flex-col">
             <div class="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
                 <div class="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
-                    <div class="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg bg-white">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                    <div class="shadow overflow-hidden border-b border-gray-200 dark:border-gray-700 sm:rounded-lg bg-white dark:bg-gray-800">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Periode</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Komoditas & Varian</th>
-                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Harga Aktual</th>
-                                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Harga Prediksi</th>
-                                    <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Trend</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.periode') }}</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.komoditas_varian') }}</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.harga_aktual') }}</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.harga_prediksi') }}</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Batas Bawah</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Batas Atas</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.trend') }}</th>
                                 </tr>
                             </thead>
-                            <tbody class="bg-white divide-y divide-gray-200 text-sm">
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                                 @forelse($data as $item)
-                                <tr>
-                                    <td class="px-6 py-4 whitespace-nowrap text-gray-600">
-                                        <div class="font-medium text-gray-900">
-                                            Minggu {{ \Carbon\Carbon::parse($item->tanggal)->weekOfMonth }}, 
-                                            {{ \Carbon\Carbon::parse($item->tanggal)->translatedFormat('F') }}
+                                @php
+                                    $hasAktual   = !is_null($item->harga_aktual)   && $item->harga_aktual > 0;
+                                    $hasPrediksi = !is_null($item->harga_prediksi) && $item->harga_prediksi > 0;
+                                    $rowClass    = $hasAktual && $hasPrediksi ? 'has-both' : ($hasPrediksi ? 'only-forecast' : '');
+                                @endphp
+                                <tr class="{{ $rowClass }} hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="font-medium text-gray-900 dark:text-gray-100">
+                                            Minggu {{ \Carbon\Carbon::parse($item->tanggal)->weekOfMonth }},
+                                            {{ \Carbon\Carbon::parse($item->tanggal)->translatedFormat('F Y') }}
                                         </div>
-                                        <div class="text-xs text-gray-400">{{ $item->tanggal ? \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') : '' }}</div>
+                                        <div class="text-xs text-gray-400 dark:text-gray-500">{{ \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') }}</div>
                                     </td>
                                     <td class="px-6 py-4">
-                                        <div class="font-semibold text-gray-900">{{ $item->nama_komoditas }}</div>
-                                        <div class="text-xs text-gray-500">{{ $item->nama_varian }}</div>
+                                        <div class="font-semibold text-gray-900 dark:text-gray-100">{{ $item->nama_komoditas }}</div>
+                                        @if($item->nama_varian)
+                                            <div class="text-xs text-gray-500 dark:text-gray-400">{{ $item->nama_varian }}</div>
+                                        @endif
                                     </td>
-                                    <td class="px-6 py-4 text-right font-medium">
-                                        {{ $item->harga_aktual ? 'Rp ' . number_format($item->harga_aktual, 0, ',', '.') : '-' }}
-                                    </td>
-                                    <td class="px-6 py-4 text-right font-medium text-blue-600">
-                                        {{ $item->harga_prediksi ? 'Rp ' . number_format($item->harga_prediksi, 0, ',', '.') : '-' }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-center">
-                                        @php 
-                                            $aktual = (float)($item->harga_aktual ?? 0);
-                                            $prediksi = (float)($item->harga_prediksi ?? 0);
-                                            $diff = $prediksi - $aktual; 
-                                        @endphp
-
-                                        @if($aktual > 0 && $prediksi > 0)
-                                            @if($diff > 0)
-                                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">▲ Naik</span>
-                                            @elseif($diff < 0)
-                                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">▼ Turun</span>
-                                            @else
-                                                <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">● Stabil</span>
-                                            @endif
+                                    <td class="px-6 py-4 text-right font-medium text-gray-800 dark:text-gray-300">
+                                        @if($hasAktual)
+                                            Rp {{ number_format($item->harga_aktual, 0, ',', '.') }}
                                         @else
-                                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-50 text-gray-400">-</span>
+                                            <span class="text-gray-300 dark:text-gray-600">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 text-right font-medium text-blue-600 dark:text-blue-400">
+                                        @if($hasPrediksi)
+                                            Rp {{ number_format($item->harga_prediksi, 0, ',', '.') }}
+                                        @else
+                                            <span class="text-gray-300 dark:text-gray-600">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 text-right text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $item->harga_lower ? 'Rp ' . number_format($item->harga_lower, 0, ',', '.') : '-' }}
+                                    </td>
+                                    <td class="px-6 py-4 text-right text-xs text-gray-500 dark:text-gray-400">
+                                        {{ $item->harga_upper ? 'Rp ' . number_format($item->harga_upper, 0, ',', '.') : '-' }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center whitespace-nowrap">
+                                        @if($hasAktual && $hasPrediksi)
+                                            @php
+                                                $diff      = (float)$item->harga_prediksi - (float)$item->harga_aktual;
+                                                $threshold = (float)$item->harga_aktual * 0.01;
+                                            @endphp
+                                            @if($diff > $threshold)
+                                                <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">▲ {{ __('messages.naik') }}</span>
+                                            @elseif($diff < -$threshold)
+                                                <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">▼ {{ __('messages.turun') }}</span>
+                                            @else
+                                                <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">● {{ __('messages.stabil') }}</span>
+                                            @endif
+                                        @elseif($hasPrediksi)
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">🔮 Forecast</span>
+                                        @else
+                                            <span class="text-gray-300 dark:text-gray-600">-</span>
                                         @endif
                                     </td>
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 italic">Data tidak ditemukan untuk periode {{ request('minggu') ? 'Minggu ke-'.request('minggu') : '' }} {{ request('bulan') ? 'Bulan '.request('bulan') : '' }} {{ request('tahun') }}.</td>
+                                    <td colspan="7" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400 italic">
+                                        {{ __('messages.data_tidak_ditemukan') }}
+                                    </td>
                                 </tr>
                                 @endforelse
                             </tbody>
                         </table>
-                        
+
                         @if($data->hasPages())
-                        <div class="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+                        <div class="bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6">
                             {{ $data->appends(request()->all())->links() }}
                         </div>
                         @endif
@@ -222,7 +240,7 @@
                 </div>
             </div>
         </div>
-        
+
     </div>
 </div>
 @endsection

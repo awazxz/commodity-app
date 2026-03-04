@@ -4,207 +4,495 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\CommodityPrice;
-use Illuminate\Support\Facades\DB;
+use App\Models\MasterKomoditas;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 
 class OperatorController extends Controller
 {
-    /**
-     * Display operator dashboard
-     */
+    /** URL Flask dari .env — default localhost:5000 */
+    private string $flaskUrl;
+
+    public function __construct()
+    {
+        $this->flaskUrl = rtrim(env('FLASK_URL', 'http://localhost:5000'), '/');
+    }
+
     public function index(Request $request)
     {
         return $this->processForecasting($request);
     }
 
-    /**
-     * Process forecasting/prediction
-     */
     public function predict(Request $request)
     {
         return $this->processForecasting($request);
     }
 
-    /**
-     * Main processing logic for operator dashboard
-     */
+    // =========================================================
+    // MAIN FORECASTING PROCESSOR
+    // =========================================================
     private function processForecasting(Request $request)
     {
-        // User Info
-        $role = 'operator'; 
-        $username = auth()->user()->name ?? 'Operator BPS';
-        $email = auth()->user()->email ?? 'operator_riau@bps.go.id';
+        $role     = 'operator';
+        $username = auth()->user()->name  ?? 'Operator BPS';
+        $email    = auth()->user()->email ?? 'operator_riau@bps.go.id';
 
-        // Request Parameters
-        $currentTab = $request->query('tab', $request->input('tab', 'insight')); 
-        $selectedCommodity = $request->input('commodity', 'Beras Premium');
-        $startDate = $request->input('start_date', Carbon::now()->subMonths(3)->format('Y-m-d'));
-        $endDate = $request->input('end_date', Carbon::now()->format('Y-m-d'));
+        $currentTab = $request->query('tab', $request->input('tab', 'insight'));
+        $startDate  = $request->input('start_date', '2020-01-01');
+        $endDate    = $request->input('end_date', Carbon::now()->format('Y-m-d'));
 
-        // Initialize Variables
-        $allData = [];
+        // ── Hyperparameter ────────────────────────────────────
+        $cpScale       = (float)  $request->input('changepoint_prior_scale', 0.05);
+        $seasonScale   = (float)  $request->input('seasonality_prior_scale', 10);
+        $seasonMode    = (string) $request->input('seasonality_mode', 'multiplicative');
+        $weeklySeason  = $request->input('weekly_seasonality') === 'true';
+        $yearlySeason  = $request->input('yearly_seasonality') === 'true';
+        $forecastWeeks = max(1, min(52, (int) $request->input('forecast_weeks', 12)));
+
+        // ── Daftar komoditas ──────────────────────────────────
+        try {
+            $commodities = MasterKomoditas::orderBy('nama_komoditas')->get();
+        } catch (\Exception $e) {
+            Log::error('[OPERATOR] Gagal ambil master_komoditas: ' . $e->getMessage());
+            $commodities = collect();
+        }
+
+        // ✅ Baca komoditas_id dari GET atau POST
+        $selectedKomoditasId = (int) (
+            $request->query('komoditas_id')
+            ?? $request->input('komoditas_id')
+            ?? optional($commodities->first())->id
+        );
+
+        $selectedKomoditas = $commodities->first(fn($k) => (int) $k->id === $selectedKomoditasId);
+        $selectedCommodity = $selectedKomoditas
+            ? trim($selectedKomoditas->nama_komoditas . ' ' . ($selectedKomoditas->nama_varian ?? ''))
+            : 'Komoditas';
+
+        // ── Inisialisasi semua variabel output ─────────────────
+        $allData    = [];
         $latestData = collect();
         $actualData = [];
         $dataIssues = collect();
+        $mape       = 0.0;
+        $rSquared   = 0.0;
+        $trendDir   = 'Stabil';
+        $avgPrice   = 0;
+        $maxPrice   = 0;
+        $countData  = 0;
+        $usedFallback = false; // flag apakah pakai fallback PHP
 
-        // Weekly/Monthly/Yearly aggregated data (REMOVED daily data)
-        $weeklyLabels = [];
-        $weeklyActual = [];
-        $weeklyForecast = [];
-        $weeklyLower = [];
-        $weeklyUpper = [];
-        
-        $monthlyLabels = [];
-        $monthlyActual = [];
-        $monthlyForecast = [];
-        $monthlyLower = [];
-        $monthlyUpper = [];
-        
-        $yearlyLabels = [];
-        $yearlyActual = [];
-        $yearlyForecast = [];
-        $yearlyLower = [];
-        $yearlyUpper = [];
+        $weeklyLabels  = []; $weeklyActual  = []; $weeklyForecast  = []; $weeklyLower  = []; $weeklyUpper  = [];
+        $monthlyLabels = []; $monthlyActual = []; $monthlyForecast = []; $monthlyLower = []; $monthlyUpper = [];
+        $yearlyLabels  = []; $yearlyActual  = []; $yearlyForecast  = []; $yearlyLower  = []; $yearlyUpper  = [];
 
-        try {
-            // Tab Manage: Load data management with pagination
-            if ($currentTab === 'manage') {
-                $latestData = CommodityPrice::where('commodity_name', $selectedCommodity)
-                    ->orderBy('date', 'desc')
+        // ── Tab manage ────────────────────────────────────────
+        if ($currentTab === 'manage') {
+            try {
+                $latestData = CommodityPrice::where('komoditas_id', $selectedKomoditasId)
+                    ->orderBy('tanggal', 'desc')
                     ->paginate(10);
-
-                $dataIssues = $this->scanDataQualityPaginated($selectedCommodity, $request);
-            }
-
-            // Main Query: Get historical data for chart
-            $dbData = CommodityPrice::where('commodity_name', $selectedCommodity)
-                ->whereBetween('date', [$startDate, $endDate])
-                ->whereNotNull('price')
-                ->where('price', '>', 0)
-                ->orderBy('date', 'asc')
-                ->get();
-
-            if ($dbData->isNotEmpty()) {
-                // Get all dates and prices
-                $dates = $dbData->pluck('date')->map(function($d) {
-                    return Carbon::parse($d);
-                })->toArray();
-                
-                $prices = $dbData->pluck('price')->toArray();
-                
-                // Generate forecast for next 4 weeks
-                $lastDate = end($dates);
-                $lastPrice = end($prices);
-                
-                $forecastDates = [];
-                $forecastPrices = [];
-                
-                for ($i = 1; $i <= 28; $i++) { // 4 weeks forecast
-                    $forecastDates[] = Carbon::parse($lastDate)->addDays($i);
-                    $trend = $i * rand(50, 150); // Simple upward trend with randomness
-                    $forecastPrices[] = $lastPrice + $trend;
-                }
-
-                // Combine actual and forecast data
-                $allDates = array_merge($dates, $forecastDates);
-                $allPrices = array_merge($prices, $forecastPrices);
-                
-                // Generate aggregated data
-                $this->aggregateWeeklyData($allDates, $prices, $forecastPrices, $weeklyLabels, $weeklyActual, $weeklyForecast, $weeklyLower, $weeklyUpper);
-                $this->aggregateMonthlyData($allDates, $prices, $forecastPrices, $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper);
-                $this->aggregateYearlyData($allDates, $prices, $forecastPrices, $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper);
-
-                // For statistics
-                $actualData = $prices;
-
-            } else {
-                throw new \Exception("Tidak ada data untuk periode yang dipilih");
-            }
-
-        } catch (\Exception $e) {
-            Log::warning("Menggunakan data fallback: " . $e->getMessage());
-            
-            // Fallback Data - Generate sample weekly data
-            $actualData = [14200, 14350, 14250, 14400, 14600, 14500, 14750, 14800, 14900, 15000, 15100, 15200];
-            
-            // Generate weekly data from fallback
-            $weeklyLabels = ['Minggu 1', 'Minggu 2', 'Minggu 3', 'Minggu 4', 'Minggu 5', 'Minggu 6'];
-            $weeklyActual = [14250, 14500, 14750, 14900, 15100, 15200];
-            $weeklyForecast = [15300, 15500, 15700, 15900, 16100, 16300];
-            $weeklyLower = array_map(fn($v) => round($v * 0.95), $weeklyForecast);
-            $weeklyUpper = array_map(fn($v) => round($v * 1.05), $weeklyForecast);
-            
-            // Generate monthly data from fallback
-            $monthlyLabels = ['Bulan 1', 'Bulan 2', 'Bulan 3'];
-            $monthlyActual = [14400, 14800, 15150];
-            $monthlyForecast = [15600, 16000, 16400];
-            $monthlyLower = array_map(fn($v) => round($v * 0.97), $monthlyForecast);
-            $monthlyUpper = array_map(fn($v) => round($v * 1.03), $monthlyForecast);
-            
-            // Generate yearly data from fallback
-            $yearlyLabels = ['Tahun 1'];
-            $yearlyActual = [14800];
-            $yearlyForecast = [16000];
-            $yearlyLower = [15680];
-            $yearlyUpper = [16320];
-            
-            if ($currentTab === 'manage' && $latestData->isEmpty()) {
-                $fallbackData = collect([
-                    (object)['id' => 1, 'commodity_name' => $selectedCommodity, 'date' => Carbon::now()->format('Y-m-d'), 'price' => 14750],
-                    (object)['id' => 2, 'commodity_name' => $selectedCommodity, 'date' => Carbon::now()->subDay()->format('Y-m-d'), 'price' => 14500],
-                ]);
-                
+            } catch (\Exception $e) {
+                Log::error('[OPERATOR] latestData error: ' . $e->getMessage());
                 $latestData = new \Illuminate\Pagination\LengthAwarePaginator(
-                    $fallbackData, $fallbackData->count(), 10, 1,
+                    collect(), 0, 10, 1,
                     ['path' => $request->url(), 'query' => $request->query()]
                 );
             }
-        }
-
-        // Calculate Statistics
-        $countData = count($actualData);
-        $avgPrice = $countData > 0 ? array_sum($actualData) / $countData : 0;
-        $maxPrice = $countData > 0 ? max($actualData) : 0;
-        
-        // Determine trend based on weekly forecast
-        $trendDir = 'Stabil';
-        if (!empty($weeklyForecast) && !empty($weeklyActual)) {
-            $lastActual = end($weeklyActual);
-            $lastForecast = end($weeklyForecast);
-            if ($lastForecast > $lastActual * 1.02) {
-                $trendDir = 'Naik';
-            } elseif ($lastForecast < $lastActual * 0.98) {
-                $trendDir = 'Turun';
+            try {
+                $dataIssues = $this->scanDataQualityPaginated($selectedKomoditasId, $request);
+            } catch (\Exception $e) {
+                Log::error('[OPERATOR] scanDataQuality error: ' . $e->getMessage());
             }
         }
 
-        // Prophet Parameters
-        $cpScale = $request->input('changepoint_prior_scale', 0.05);
-        $seasonScale = $request->input('seasonality_prior_scale', 10);
-        $seasonMode = $request->input('seasonality_mode', 'multiplicative');
-        $weeklySeason = $request->input('weekly_seasonality') === 'true';
-        $yearlySeason = $request->input('yearly_seasonality') === 'true';
+        // ============================================================
+        // AMBIL DATA HISTORIS DARI DATABASE
+        // ============================================================
+        $prices = [];
+        $dates  = [];
 
-        // Model Metrics
-        $mape = rand(2, 5) + (rand(0, 99) / 100);
-        $rSquared = 0.85 + (rand(0, 10) / 100);
+        try {
+            $dbData = CommodityPrice::where('komoditas_id', $selectedKomoditasId)
+                ->whereBetween('tanggal', [$startDate, $endDate])
+                ->whereNotNull('harga')
+                ->where('harga', '>', 0)
+                ->orderBy('tanggal', 'asc')
+                ->get();
+
+            Log::info("[OPERATOR INSIGHT] komoditas_id={$selectedKomoditasId} | nama={$selectedCommodity} | count={$dbData->count()} | periode={$startDate} s/d {$endDate}");
+
+            if ($dbData->isNotEmpty()) {
+                $dates  = $dbData->pluck('tanggal')
+                                 ->map(fn($d) => Carbon::parse($d))
+                                 ->values()
+                                 ->toArray();
+
+                $prices = $dbData->pluck('harga')
+                                 ->map(fn($h) => (float) $h)
+                                 ->values()
+                                 ->toArray();
+            }
+        } catch (\Exception $e) {
+            Log::error('[OPERATOR INSIGHT] Gagal ambil price_data: ' . $e->getMessage());
+        }
+
+        // ============================================================
+        // FORECASTING — prioritas ke Flask Prophet, fallback ke PHP
+        // ============================================================
+        if (count($prices) >= 2) {
+
+            $actualData = $prices;
+            $countData  = count($prices);
+            $avgPrice   = array_sum($prices) / $countData;
+            $maxPrice   = max($prices);
+
+            // ── Coba panggil Flask Prophet ────────────────────
+            // Prophet butuh minimal 2 baris, tapi idealnya >= 30
+            // untuk data mingguan (± 30 minggu = 7 bulan)
+            $flaskResult = null;
+            if ($countData >= 10) {
+                $flaskResult = $this->callFlaskProphet(
+                    $selectedKomoditasId,
+                    $forecastWeeks,
+                    $cpScale,
+                    $seasonScale,
+                    $seasonMode,
+                    $weeklySeason,
+                    $yearlySeason
+                );
+            }
+
+            if ($flaskResult !== null) {
+                // ════════════════════════════════════════════
+                // ✅ GUNAKAN HASIL PROPHET DARI FLASK
+                // ════════════════════════════════════════════
+                Log::info("[OPERATOR PROPHET] Berhasil dapat hasil dari Flask Prophet");
+
+                $mape     = $flaskResult['mape'];
+                $rSquared = $flaskResult['r_squared'];
+                $trendDir = $flaskResult['trend_direction'] === 'increasing' ? 'Naik'
+                          : ($flaskResult['trend_direction'] === 'decreasing' ? 'Turun' : 'Stabil');
+
+                // Gabungkan data aktual + prediksi Prophet ke dalam chart
+                $this->buildChartFromProphet(
+                    $dates, $prices,
+                    $flaskResult['predictions'],
+                    $weeklyLabels,  $weeklyActual,  $weeklyForecast,  $weeklyLower,  $weeklyUpper,
+                    $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper,
+                    $yearlyLabels,  $yearlyActual,  $yearlyForecast,  $yearlyLower,  $yearlyUpper
+                );
+
+            } else {
+                // ════════════════════════════════════════════
+                // ⚠️ FALLBACK: Flask tidak tersedia / data < 10
+                // Gunakan kalkulasi PHP sederhana
+                // ════════════════════════════════════════════
+                $usedFallback = true;
+                Log::warning("[OPERATOR FALLBACK] Menggunakan kalkulasi PHP (Flask tidak tersedia atau data < 10 baris)");
+
+                $forecastDays = $forecastWeeks * 7;
+
+                [$forecastDates, $forecastPrices, $forecastLowers, $forecastUppers] =
+                    $this->simpleForecast($dates, $prices, $forecastDays);
+
+                [$mape, $rSquared] = $this->calculateMetricsFallback($prices, $dates);
+
+                $this->aggregateWeeklyData(
+                    $dates, $prices, $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+                    $weeklyLabels, $weeklyActual, $weeklyForecast, $weeklyLower, $weeklyUpper
+                );
+                $this->aggregateMonthlyData(
+                    $dates, $prices, $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+                    $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper
+                );
+                $this->aggregateYearlyData(
+                    $dates, $prices, $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+                    $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
+                );
+
+                // Arah tren dari monthly
+                $lastActual   = collect($monthlyActual)->filter()->last();
+                $lastForecast = collect($monthlyForecast)->filter()->last();
+                if ($lastForecast && $lastActual) {
+                    if ($lastForecast > $lastActual * 1.01)     $trendDir = 'Naik';
+                    elseif ($lastForecast < $lastActual * 0.99) $trendDir = 'Turun';
+                }
+            }
+
+        } else {
+            Log::warning("[OPERATOR INSIGHT] Data tidak cukup komoditas_id={$selectedKomoditasId} (count=" . count($prices) . ")");
+            $countData = count($prices);
+            $avgPrice  = count($prices) > 0 ? $prices[0] : 0;
+            $maxPrice  = count($prices) > 0 ? $prices[0] : 0;
+        }
 
         return view('operator_dashboard', compact(
             'role', 'username', 'email', 'currentTab', 'allData', 'latestData', 'dataIssues',
             'selectedCommodity', 'startDate', 'endDate', 'trendDir', 'actualData',
-            'avgPrice', 'maxPrice', 'cpScale',
-            'seasonScale', 'seasonMode', 'weeklySeason', 'yearlySeason', 'mape', 'rSquared',
-            'weeklyLabels', 'weeklyActual', 'weeklyForecast', 'weeklyLower', 'weeklyUpper',
+            'avgPrice', 'maxPrice', 'countData',
+            'cpScale', 'seasonScale', 'seasonMode', 'weeklySeason', 'yearlySeason', 'forecastWeeks',
+            'mape', 'rSquared',
+            'commodities', 'selectedKomoditasId',
+            'weeklyLabels',  'weeklyActual',  'weeklyForecast',  'weeklyLower',  'weeklyUpper',
             'monthlyLabels', 'monthlyActual', 'monthlyForecast', 'monthlyLower', 'monthlyUpper',
-            'yearlyLabels', 'yearlyActual', 'yearlyForecast', 'yearlyLower', 'yearlyUpper'
+            'yearlyLabels',  'yearlyActual',  'yearlyForecast',  'yearlyLower',  'yearlyUpper'
         ));
     }
 
-    // Data Quality Management
-    private function scanDataQualityPaginated($commodity, $request)
+    // =========================================================
+    // PANGGIL FLASK PROPHET API
+    // Mengirim request ke /api/forecast/predict-advanced
+    // dengan hyperparameter dari UI operator
+    // =========================================================
+    private function callFlaskProphet(
+        int    $komoditasId,
+        int    $forecastWeeks,
+        float  $cpScale,
+        float  $seasonScale,
+        string $seasonMode,
+        bool   $weeklySeason,
+        bool   $yearlySeason
+    ): ?array {
+        try {
+            $payload = [
+                'commodity_id'            => $komoditasId,
+                'periods'                 => $forecastWeeks * 7, // kirim dalam hari (frequency = D)
+                'frequency'               => 'W',               // data mingguan
+                'changepoint_prior_scale' => $cpScale,
+                'seasonality_prior_scale' => $seasonScale,
+                'seasonality_mode'        => $seasonMode,
+                'weekly_seasonality'      => $weeklySeason,
+                'yearly_seasonality'      => $yearlySeason,
+            ];
+
+            Log::info("[OPERATOR FLASK] Mengirim request ke Flask", $payload);
+
+            $response = Http::timeout(60)           // Prophet bisa lambat, beri 60 detik
+                ->connectTimeout(5)                  // koneksi max 5 detik
+                ->post("{$this->flaskUrl}/api/forecast/predict-advanced", $payload);
+
+            if (!$response->successful()) {
+                Log::warning("[OPERATOR FLASK] Response tidak sukses: HTTP {$response->status()} — " . $response->body());
+                return null;
+            }
+
+            $data = $response->json();
+
+            if (!($data['success'] ?? false)) {
+                Log::warning("[OPERATOR FLASK] Flask error: " . ($data['message'] ?? 'unknown'));
+                return null;
+            }
+
+            $modelMetrics = $data['data']['model_metrics'] ?? [];
+            $predictions  = $data['data']['predictions']   ?? [];
+
+            if (empty($predictions)) {
+                Log::warning("[OPERATOR FLASK] Prediksi kosong dari Flask");
+                return null;
+            }
+
+            // ── Hitung R² dari coverage (proxy) ──────────────
+            // Flask mengembalikan coverage (% aktual dalam CI)
+            // Kita konversi ke R²-like score untuk ditampilkan
+            $coverage  = $modelMetrics['coverage']  ?? 0.95;
+            $rSquared  = min(1.0, max(0.0, $coverage));
+
+            // Ambil MAPE — gunakan in_sample_mape jika CV tidak tersedia
+            $mape = $modelMetrics['mape'] ?? $modelMetrics['in_sample_mape'] ?? 0.0;
+
+            Log::info("[OPERATOR FLASK] Berhasil: " . count($predictions) . " prediksi | MAPE={$mape} | coverage={$coverage}");
+
+            return [
+                'predictions'     => $predictions,        // array [{date, predicted_price, lower_bound, upper_bound, trend}]
+                'mape'            => round((float) $mape, 2),
+                'r_squared'       => round((float) $rSquared, 4),
+                'trend_direction' => $data['data']['model_metrics']['trend_direction'] ?? 'stable',
+                'metrics'         => $modelMetrics,
+            ];
+
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::warning("[OPERATOR FLASK] Flask tidak bisa dihubungi: " . $e->getMessage());
+            return null;
+        } catch (\Exception $e) {
+            Log::error("[OPERATOR FLASK] Error tak terduga: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    // =========================================================
+    // BUILD CHART DATA DARI HASIL PROPHET
+    // Menggabungkan data aktual (dari DB) + prediksi (dari Flask)
+    // ke dalam format yang dibutuhkan chart
+    // =========================================================
+    private function buildChartFromProphet(
+        array $actualDates,
+        array $actualPrices,
+        array $predictions,   // dari Flask: [{date, predicted_price, lower_bound, upper_bound}]
+        &$weeklyLabels,  &$weeklyActual,  &$weeklyForecast,  &$weeklyLower,  &$weeklyUpper,
+        &$monthlyLabels, &$monthlyActual, &$monthlyForecast, &$monthlyLower, &$monthlyUpper,
+        &$yearlyLabels,  &$yearlyActual,  &$yearlyForecast,  &$yearlyLower,  &$yearlyUpper
+    ): void {
+        // Konversi predictions Flask → arrays berindeks
+        $forecastDates  = [];
+        $forecastPrices = [];
+        $forecastLowers = [];
+        $forecastUppers = [];
+
+        foreach ($predictions as $p) {
+            $forecastDates[]  = Carbon::parse($p['date']);
+            $forecastPrices[] = (int) round($p['predicted_price']);
+            $forecastLowers[] = (int) round($p['lower_bound']);
+            $forecastUppers[] = (int) round($p['upper_bound']);
+        }
+
+        // Gunakan aggregation yang sudah ada
+        $this->aggregateWeeklyData(
+            $actualDates, $actualPrices,
+            $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+            $weeklyLabels, $weeklyActual, $weeklyForecast, $weeklyLower, $weeklyUpper
+        );
+        $this->aggregateMonthlyData(
+            $actualDates, $actualPrices,
+            $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+            $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper
+        );
+        $this->aggregateYearlyData(
+            $actualDates, $actualPrices,
+            $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+            $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
+        );
+    }
+
+    // =========================================================
+    // FALLBACK FORECAST (PHP sederhana)
+    // Dipakai hanya jika Flask tidak tersedia
+    // Menggunakan moving average + linear trend
+    // =========================================================
+    private function simpleForecast(
+        array $dates,
+        array $prices,
+        int   $forecastDays
+    ): array {
+        $n         = count($prices);
+        $lastDate  = end($dates);
+        $lastDate  = $lastDate instanceof Carbon ? $lastDate : Carbon::parse($lastDate);
+        $lastPrice = end($prices);
+
+        // Moving average (window = min 4, max 12)
+        $maWindow = min(12, max(4, (int) floor($n * 0.2)));
+        $maSlice  = array_slice($prices, -$maWindow);
+        $maAvg    = array_sum($maSlice) / count($maSlice);
+
+        // Trend dari regresi linear sederhana pada 30% data terakhir
+        $trendWindow = max(4, (int) floor($n * 0.3));
+        $trendSlice  = array_slice($prices, -$trendWindow);
+        $trendCount  = count($trendSlice);
+        $sumX = 0; $sumY = 0; $sumXY = 0; $sumX2 = 0;
+        for ($i = 0; $i < $trendCount; $i++) {
+            $sumX  += $i;
+            $sumY  += $trendSlice[$i];
+            $sumXY += $i * $trendSlice[$i];
+            $sumX2 += $i * $i;
+        }
+        $denom = ($trendCount * $sumX2 - $sumX * $sumX);
+        $slope = $denom != 0 ? ($trendCount * $sumXY - $sumX * $sumY) / $denom : 0;
+
+        // Batasi slope
+        $maxSlope = $lastPrice * 0.01;
+        $slope    = max(-$maxSlope, min($maxSlope, $slope));
+
+        // Residual std untuk CI
+        $residuals = [];
+        for ($i = max(0, $n - $trendWindow); $i < $n; $i++) {
+            $fitted      = $maAvg + $slope * ($i - ($n - $trendWindow));
+            $residuals[] = $prices[$i] - $fitted;
+        }
+        $residualStd = $this->standardDeviation($residuals);
+
+        $forecastDates  = [];
+        $forecastPrices = [];
+        $forecastLowers = [];
+        $forecastUppers = [];
+
+        for ($h = 1; $h <= $forecastDays; $h++) {
+            $point    = max(0, $lastPrice + $slope * $h);
+            $ciWidth  = 1.96 * $residualStd * sqrt($h);
+
+            $forecastDates[]  = $lastDate->copy()->addDays($h);
+            $forecastPrices[] = (int) round($point);
+            $forecastLowers[] = (int) round(max(0, $point - $ciWidth));
+            $forecastUppers[] = (int) round($point + $ciWidth);
+        }
+
+        return [$forecastDates, $forecastPrices, $forecastLowers, $forecastUppers];
+    }
+
+    // =========================================================
+    // METRICS FALLBACK (hanya dipakai saat Flask tidak ada)
+    // =========================================================
+    private function calculateMetricsFallback(array $prices, array $dates): array
     {
-        $data = CommodityPrice::where('commodity_name', $commodity)->orderBy('date', 'asc')->get();
+        $n = count($prices);
+        if ($n < 4) return [0.0, 0.0];
+
+        $splitIdx    = max(2, (int) floor($n * 0.7));
+        $trainPrices = array_slice($prices, 0, $splitIdx);
+        $trainDates  = array_slice($dates, 0, $splitIdx);
+        $testPrices  = array_values(array_slice($prices, $splitIdx));
+        $testCount   = count($testPrices);
+
+        if ($testCount === 0) return [0.0, 0.0];
+
+        [, $forecastPrices, ,] = $this->simpleForecast($trainDates, $trainPrices, $testCount);
+
+        $mapeSum = 0.0; $mapeCount = 0;
+        for ($i = 0; $i < $testCount; $i++) {
+            $actual    = $testPrices[$i];
+            $predicted = $forecastPrices[$i] ?? 0;
+            if ($actual != 0) {
+                $mapeSum += abs(($actual - $predicted) / $actual);
+                $mapeCount++;
+            }
+        }
+        $mape = $mapeCount > 0 ? ($mapeSum / $mapeCount) * 100 : 0.0;
+
+        $meanActual = array_sum($testPrices) / $testCount;
+        $ssTot = 0.0; $ssRes = 0.0;
+        for ($i = 0; $i < $testCount; $i++) {
+            $predicted = $forecastPrices[$i] ?? $meanActual;
+            $ssTot    += pow($testPrices[$i] - $meanActual, 2);
+            $ssRes    += pow($testPrices[$i] - $predicted, 2);
+        }
+
+        $rSquared = $ssTot > 0 ? max(0.0, min(1.0, 1 - ($ssRes / $ssTot))) : 0.0;
+
+        return [round($mape, 2), round($rSquared, 4)];
+    }
+
+    // =========================================================
+    // HELPER: Standard Deviation (sample, n-1)
+    // =========================================================
+    private function standardDeviation(array $values): float
+    {
+        $n = count($values);
+        if ($n < 2) return 0.0;
+
+        $mean     = array_sum($values) / $n;
+        $variance = array_sum(array_map(fn($v) => pow($v - $mean, 2), $values)) / ($n - 1);
+
+        return sqrt(max(0, $variance));
+    }
+
+    // =========================================================
+    // DATA QUALITY SCANNER
+    // =========================================================
+    private function scanDataQualityPaginated($komoditasId, $request)
+    {
+        $data = CommodityPrice::where('komoditas_id', $komoditasId)
+            ->orderBy('tanggal', 'asc')
+            ->get();
 
         if ($data->isEmpty()) {
             return new \Illuminate\Pagination\LengthAwarePaginator(
@@ -213,7 +501,8 @@ class OperatorController extends Controller
             );
         }
 
-        $prices = $data->pluck('price')->filter()->toArray();
+        $prices = $data->pluck('harga')->filter()->values()->toArray();
+
         if (count($prices) < 4) {
             return new \Illuminate\Pagination\LengthAwarePaginator(
                 collect([]), 0, 8, 1,
@@ -222,357 +511,433 @@ class OperatorController extends Controller
         }
 
         sort($prices);
-        $q1 = $prices[floor(count($prices) * 0.25)];
-        $q3 = $prices[floor(count($prices) * 0.75)];
+        $q1  = $prices[(int) floor(count($prices) * 0.25)];
+        $q3  = $prices[(int) floor(count($prices) * 0.75)];
         $iqr = $q3 - $q1;
         $lowerBound = $q1 - (1.5 * $iqr);
         $upperBound = $q3 + (1.5 * $iqr);
 
         $issues = [];
         foreach ($data as $item) {
-            if (is_null($item->price) || $item->price <= 0) {
-                $issues[] = (object)['date' => $item->date, 'issue' => 'Missing Value', 'value' => 0, 'status' => 'Perlu Diisi (Imputation)'];
-            } elseif ($item->price < $lowerBound || $item->price > $upperBound) {
-                $status = $item->price > $upperBound ? 'Terlalu Tinggi' : 'Terlalu Rendah';
-                $issues[] = (object)['date' => $item->date, 'issue' => 'Outlier', 'value' => $item->price, 'status' => $status];
+            if (is_null($item->harga) || $item->harga <= 0) {
+                $issues[] = (object)[
+                    'date'   => $item->tanggal,
+                    'issue'  => 'Missing Value',
+                    'value'  => 0,
+                    'status' => 'Perlu Diisi (Imputation)',
+                ];
+            } elseif ($item->harga < $lowerBound || $item->harga > $upperBound) {
+                $issues[] = (object)[
+                    'date'   => $item->tanggal,
+                    'issue'  => 'Outlier',
+                    'value'  => $item->harga,
+                    'status' => $item->harga > $upperBound ? 'Terlalu Tinggi' : 'Terlalu Rendah',
+                ];
             }
         }
 
         $issuesCollection = collect($issues);
-        $perPage = 8;
-        $currentPage = $request->input('page', 1);
+        $perPage      = 8;
+        $currentPage  = $request->input('page', 1);
         $currentItems = $issuesCollection->slice(($currentPage - 1) * $perPage, $perPage)->values();
 
         return new \Illuminate\Pagination\LengthAwarePaginator(
-            $currentItems, $issuesCollection->count(), $perPage, $currentPage,
+            $currentItems,
+            $issuesCollection->count(),
+            $perPage,
+            $currentPage,
             ['path' => $request->url(), 'query' => array_merge($request->query(), ['tab' => 'manage'])]
         );
     }
 
+    // =========================================================
+    // CLEAN DATA
+    // =========================================================
     public function cleanData(Request $request)
     {
-        $request->validate(['action' => 'required|in:outlier,missing', 'commodity' => 'required|string']);
+        $request->validate([
+            'action'       => 'required|in:outlier,missing',
+            'komoditas_id' => 'required',
+        ]);
 
         try {
-            $action = $request->input('action');
-            $method = $request->input($action === 'outlier' ? 'outlier_method' : 'missing_method');
-            $commodity = $request->input('commodity');
+            $action      = $request->input('action');
+            $method      = $request->input($action === 'outlier' ? 'outlier_method' : 'missing_method');
+            $komoditasId = $request->input('komoditas_id');
 
-            $prices = CommodityPrice::where('commodity_name', $commodity)->where('price', '>', 0)->pluck('price')->toArray();
-            if (empty($prices)) return redirect()->back()->with('error', 'Data tidak mencukupi');
+            $prices = CommodityPrice::where('komoditas_id', $komoditasId)
+                ->where('harga', '>', 0)
+                ->pluck('harga')
+                ->toArray();
+
+            if (empty($prices)) {
+                return redirect()->back()->with('error', 'Data tidak mencukupi untuk diproses.');
+            }
 
             sort($prices);
-            $mean = array_sum($prices) / count($prices);
-            $median = $prices[floor(count($prices) / 2)];
+            $mean        = array_sum($prices) / count($prices);
+            $median      = $prices[(int) floor(count($prices) / 2)];
             $replacement = ($method === 'median') ? $median : $mean;
             $affectedCount = 0;
 
             if ($action === 'outlier') {
-                $q1 = $prices[floor(count($prices) * 0.25)];
-                $q3 = $prices[floor(count($prices) * 0.75)];
+                $q1  = $prices[(int) floor(count($prices) * 0.25)];
+                $q3  = $prices[(int) floor(count($prices) * 0.75)];
                 $iqr = $q3 - $q1;
-                $lowerBound = $q1 - (1.5 * $iqr);
-                $upperBound = $q3 + (1.5 * $iqr);
 
-                $outliers = CommodityPrice::where('commodity_name', $commodity)
-                    ->where(function($q) use ($lowerBound, $upperBound) {
-                        $q->where('price', '<', $lowerBound)->orWhere('price', '>', $upperBound);
+                $outliers = CommodityPrice::where('komoditas_id', $komoditasId)
+                    ->where(function ($q) use ($q1, $q3, $iqr) {
+                        $q->where('harga', '<', $q1 - 1.5 * $iqr)
+                          ->orWhere('harga', '>', $q3 + 1.5 * $iqr);
                     });
 
-                if ($method === 'remove') {
-                    $affectedCount = $outliers->count();
-                    $outliers->delete();
-                } else {
-                    $affectedCount = $outliers->count();
-                    $outliers->update(['price' => $replacement, 'updated_at' => now()]);
-                }
+                $affectedCount = $outliers->count();
+                $method === 'remove'
+                    ? $outliers->delete()
+                    : $outliers->update(['harga' => round($replacement, 2), 'updated_at' => now()]);
             } else {
-                $missingValues = CommodityPrice::where('commodity_name', $commodity)
-                    ->where(function($q) { $q->whereNull('price')->orWhere('price', '<=', 0); });
+                $missingValues = CommodityPrice::where('komoditas_id', $komoditasId)
+                    ->where(function ($q) {
+                        $q->whereNull('harga')->orWhere('harga', '<=', 0);
+                    });
 
-                if ($method === 'remove') {
-                    $affectedCount = $missingValues->count();
-                    $missingValues->delete();
-                } else {
-                    $affectedCount = $missingValues->count();
-                    $missingValues->update(['price' => $replacement, 'updated_at' => now()]);
-                }
+                $affectedCount = $missingValues->count();
+                $method === 'remove'
+                    ? $missingValues->delete()
+                    : $missingValues->update(['harga' => round($replacement, 2), 'updated_at' => now()]);
             }
 
             $actionText = $action === 'outlier' ? 'Outlier' : 'Missing Values';
-            $methodText = $method === 'remove' ? 'dihapus' : 'diperbaiki';
+            $methodText = $method === 'remove'  ? 'dihapus' : 'diperbaiki';
 
-            return redirect()->route('operator.predict', ['tab' => 'manage', 'commodity' => $commodity])
+            return redirect()
+                ->route('operator.predict', ['tab' => 'manage', 'komoditas_id' => $komoditasId])
                 ->with('success', "{$actionText} berhasil {$methodText}! {$affectedCount} data diproses.");
 
         } catch (\Exception $e) {
-            Log::error('Clean Data Error: ' . $e->getMessage());
+            Log::error('[OPERATOR] Clean Data Error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal membersihkan data: ' . $e->getMessage());
         }
     }
 
-    // Data Management (CRUD)
+    // =========================================================
+    // STORE DATA (Manual + CSV)
+    // =========================================================
     public function storeData(Request $request)
     {
         try {
-            if ($request->hasFile('dataset')) {
-                $file = $request->file('dataset');
+            if ($request->hasFile('csv_file')) {
+                $file   = $request->file('csv_file');
                 $handle = fopen($file->getRealPath(), 'r');
-                fgetcsv($handle);
-                
+                fgetcsv($handle); // skip header
+
                 $insertedCount = 0;
-                while (($data = fgetcsv($handle, 1000, ',')) !== false) {
-                    if (count($data) >= 3) {
+                while (($row = fgetcsv($handle, 1000, ',')) !== false) {
+                    if (count($row) >= 3 && !empty(trim($row[0])) && !empty(trim($row[1]))) {
                         CommodityPrice::updateOrCreate(
-                            ['commodity_name' => $data[1] ?? $data[0], 'date' => $data[0] ?? $data[1]],
-                            ['price' => $data[2], 'source' => 'CSV Upload', 'updated_at' => now()]
+                            [
+                                'komoditas_id' => (int) trim($row[0]),
+                                'tanggal'      => trim($row[1]),
+                            ],
+                            [
+                                'harga'      => (float) str_replace(',', '', trim($row[2])),
+                                'updated_at' => now(),
+                            ]
                         );
                         $insertedCount++;
                     }
                 }
                 fclose($handle);
 
-                return redirect()->route('operator.predict', ['tab' => 'manage'])
+                return redirect()
+                    ->route('operator.predict', ['tab' => 'manage'])
                     ->with('success', "Bulk upload berhasil! {$insertedCount} data diproses.");
             }
 
             $request->validate([
-                'commodity' => 'required|string',
-                'date' => 'required|date',
-                'price' => 'required|numeric|min:0'
+                'komoditas_id' => 'required|integer',
+                'date'         => 'required|date',
+                'price'        => 'required|numeric|min:1',
             ]);
 
             CommodityPrice::create([
-                'commodity_name' => $request->commodity,
-                'date' => $request->date,
-                'price' => $request->price,
-                'source' => 'Manual Input'
+                'komoditas_id' => $request->komoditas_id,
+                'tanggal'      => $request->date,
+                'harga'        => $request->price,
             ]);
 
-            return redirect()->route('operator.predict', ['tab' => 'manage'])
+            return redirect()
+                ->route('operator.predict', ['tab' => 'manage'])
                 ->with('success', 'Data berhasil ditambahkan!');
 
         } catch (\Exception $e) {
-            Log::error('Store Data Error: ' . $e->getMessage());
+            Log::error('[OPERATOR] Store Data Error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal menyimpan data: ' . $e->getMessage());
         }
     }
 
+    // =========================================================
+    // UPDATE DATA (Inline AJAX)
+    // =========================================================
+    public function updateData(Request $request, $id)
+    {
+        try {
+            CommodityPrice::findOrFail($id)->update([
+                'komoditas_id' => $request->komoditas_id,
+                'tanggal'      => $request->date,
+                'harga'        => $request->price,
+                'updated_at'   => now(),
+            ]);
+
+            return response()->json(['success' => true]);
+
+        } catch (\Exception $e) {
+            Log::error('[OPERATOR] Update Data Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    // =========================================================
+    // DELETE DATA
+    // =========================================================
     public function deleteData($id)
     {
         try {
-            $data = CommodityPrice::findOrFail($id);
-            $data->delete();
-            return redirect()->route('operator.predict', ['tab' => 'manage'])
+            CommodityPrice::findOrFail($id)->delete();
+
+            return redirect()
+                ->route('operator.predict', ['tab' => 'manage'])
                 ->with('success', 'Data berhasil dihapus!');
+
         } catch (\Exception $e) {
-            Log::error('Delete Data Error: ' . $e->getMessage());
+            Log::error('[OPERATOR] Delete Data Error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal menghapus data.');
         }
     }
 
+    // =========================================================
+    // DOWNLOAD CSV TEMPLATE
+    // =========================================================
     public function downloadTemplate()
     {
         $headers = [
-            'Content-Type' => 'text/csv',
+            'Content-Type'        => 'text/csv',
             'Content-Disposition' => 'attachment; filename="template_data_komoditas.csv"',
         ];
 
-        $columns = ['tanggal', 'komoditas', 'harga'];
+        $columns    = ['komoditas_id', 'tanggal', 'harga'];
         $sampleData = [
-            ['2026-01-01', 'Beras Premium', '14500'],
-            ['2026-01-02', 'Beras Premium', '14600'],
-            ['2026-01-03', 'Cabai Merah', '85000'],
+            ['9',  '2020-01-06', '6000'],
+            ['10', '2020-02-03', '7000'],
+            ['11', '2020-03-02', '25100'],
         ];
 
-        $callback = function() use ($columns, $sampleData) {
+        $callback = function () use ($columns, $sampleData) {
             $file = fopen('php://output', 'w');
             fputcsv($file, $columns);
-            foreach ($sampleData as $row) {
-                fputcsv($file, $row);
-            }
+            foreach ($sampleData as $row) fputcsv($file, $row);
             fclose($file);
         };
 
         return response()->stream($callback, 200, $headers);
     }
 
-    // Aggregation Helpers - IMPROVED for weekly data
-    
-    /**
-     * Aggregate data by week
-     * Groups data into weeks and calculates average prices
-     */
-    private function aggregateWeeklyData($dates, $actualPrices, $forecastPrices, &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper)
-    {
+    // =========================================================
+    // AGGREGATION — Weekly
+    // =========================================================
+    private function aggregateWeeklyData(
+        $actualDates, $actualPrices,
+        $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+        &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper
+    ) {
         $weekGroups = [];
-        $actualCount = count($actualPrices);
-        
-        // Group actual data by week
-        foreach ($dates as $index => $date) {
-            $weekNumber = $date->weekOfYear;
-            $year = $date->year;
-            $key = "{$year}-W{$weekNumber}";
-            
+
+        foreach ($actualDates as $i => $date) {
+            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
+            $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
             if (!isset($weekGroups[$key])) {
                 $weekGroups[$key] = [
-                    'label' => 'Minggu ' . $weekNumber,
-                    'actualPrices' => [],
+                    'label'          => $d->copy()->startOfWeek()->format('d/m') . ' - ' . $d->copy()->endOfWeek()->format('d/m/Y'),
+                    'actualPrices'   => [],
                     'forecastPrices' => [],
-                    'date' => $date
+                    'lowerPrices'    => [],
+                    'upperPrices'    => [],
+                    'sortKey'        => $d->timestamp,
                 ];
             }
-            
-            // Add actual price if within actual data range
-            if ($index < $actualCount) {
-                $weekGroups[$key]['actualPrices'][] = $actualPrices[$index];
-            }
-            
-            // Add forecast price if available
-            $forecastIndex = $index - $actualCount;
-            if ($forecastIndex >= 0 && $forecastIndex < count($forecastPrices)) {
-                $weekGroups[$key]['forecastPrices'][] = $forecastPrices[$forecastIndex];
+            if (isset($actualPrices[$i])) {
+                $weekGroups[$key]['actualPrices'][] = $actualPrices[$i];
             }
         }
-        
-        // Calculate averages for each week
+
+        foreach ($forecastDates as $i => $date) {
+            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
+            $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
+            if (!isset($weekGroups[$key])) {
+                $weekGroups[$key] = [
+                    'label'          => $d->copy()->startOfWeek()->format('d/m') . ' - ' . $d->copy()->endOfWeek()->format('d/m/Y'),
+                    'actualPrices'   => [],
+                    'forecastPrices' => [],
+                    'lowerPrices'    => [],
+                    'upperPrices'    => [],
+                    'sortKey'        => $d->timestamp,
+                ];
+            }
+            if (isset($forecastPrices[$i])) {
+                $weekGroups[$key]['forecastPrices'][] = $forecastPrices[$i];
+                $weekGroups[$key]['lowerPrices'][]    = $forecastLowers[$i] ?? $forecastPrices[$i];
+                $weekGroups[$key]['upperPrices'][]    = $forecastUppers[$i] ?? $forecastPrices[$i];
+            }
+        }
+
+        ksort($weekGroups);
+
         foreach ($weekGroups as $week) {
-            $labels[] = $week['label'];
-            
-            // Actual average
-            if (!empty($week['actualPrices'])) {
-                $actualAgg[] = round(array_sum($week['actualPrices']) / count($week['actualPrices']));
-            } else {
-                $actualAgg[] = null;
-            }
-            
-            // Forecast average
+            $labels[]    = $week['label'];
+            $actualAgg[] = !empty($week['actualPrices'])
+                ? round(array_sum($week['actualPrices']) / count($week['actualPrices']))
+                : null;
+
             if (!empty($week['forecastPrices'])) {
-                $avgForecast = array_sum($week['forecastPrices']) / count($week['forecastPrices']);
-                $forecastAgg[] = round($avgForecast);
-                $lower[] = round($avgForecast * 0.95);
-                $upper[] = round($avgForecast * 1.05);
+                $forecastAgg[] = round(array_sum($week['forecastPrices']) / count($week['forecastPrices']));
+                $lower[]       = round(array_sum($week['lowerPrices'])    / count($week['lowerPrices']));
+                $upper[]       = round(array_sum($week['upperPrices'])    / count($week['upperPrices']));
             } else {
                 $forecastAgg[] = null;
-                $lower[] = null;
-                $upper[] = null;
+                $lower[]       = null;
+                $upper[]       = null;
             }
         }
     }
 
-    /**
-     * Aggregate data by month
-     * Groups data into months and calculates average prices
-     */
-    private function aggregateMonthlyData($dates, $actualPrices, $forecastPrices, &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper)
-    {
+    // =========================================================
+    // AGGREGATION — Monthly
+    // =========================================================
+    private function aggregateMonthlyData(
+        $actualDates, $actualPrices,
+        $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+        &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper
+    ) {
         $monthGroups = [];
-        $actualCount = count($actualPrices);
-        
-        // Group data by month
-        foreach ($dates as $index => $date) {
-            $monthKey = $date->format('Y-m');
-            $monthLabel = $date->format('M Y');
-            
-            if (!isset($monthGroups[$monthKey])) {
-                $monthGroups[$monthKey] = [
-                    'label' => $monthLabel,
-                    'actualPrices' => [],
-                    'forecastPrices' => []
+
+        foreach ($actualDates as $i => $date) {
+            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
+            $key = $d->format('Y-m');
+            if (!isset($monthGroups[$key])) {
+                $monthGroups[$key] = [
+                    'label'          => $d->format('M Y'),
+                    'actualPrices'   => [],
+                    'forecastPrices' => [],
+                    'lowerPrices'    => [],
+                    'upperPrices'    => [],
                 ];
             }
-            
-            // Add actual price if within actual data range
-            if ($index < $actualCount) {
-                $monthGroups[$monthKey]['actualPrices'][] = $actualPrices[$index];
-            }
-            
-            // Add forecast price if available
-            $forecastIndex = $index - $actualCount;
-            if ($forecastIndex >= 0 && $forecastIndex < count($forecastPrices)) {
-                $monthGroups[$monthKey]['forecastPrices'][] = $forecastPrices[$forecastIndex];
+            if (isset($actualPrices[$i])) {
+                $monthGroups[$key]['actualPrices'][] = $actualPrices[$i];
             }
         }
-        
-        // Calculate averages for each month
-        foreach ($monthGroups as $month) {
-            $labels[] = $month['label'];
-            
-            // Actual average
-            if (!empty($month['actualPrices'])) {
-                $actualAgg[] = round(array_sum($month['actualPrices']) / count($month['actualPrices']));
-            } else {
-                $actualAgg[] = null;
+
+        foreach ($forecastDates as $i => $date) {
+            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
+            $key = $d->format('Y-m');
+            if (!isset($monthGroups[$key])) {
+                $monthGroups[$key] = [
+                    'label'          => $d->format('M Y'),
+                    'actualPrices'   => [],
+                    'forecastPrices' => [],
+                    'lowerPrices'    => [],
+                    'upperPrices'    => [],
+                ];
             }
-            
-            // Forecast average
+            if (isset($forecastPrices[$i])) {
+                $monthGroups[$key]['forecastPrices'][] = $forecastPrices[$i];
+                $monthGroups[$key]['lowerPrices'][]    = $forecastLowers[$i] ?? $forecastPrices[$i];
+                $monthGroups[$key]['upperPrices'][]    = $forecastUppers[$i] ?? $forecastPrices[$i];
+            }
+        }
+
+        ksort($monthGroups);
+
+        foreach ($monthGroups as $month) {
+            $labels[]    = $month['label'];
+            $actualAgg[] = !empty($month['actualPrices'])
+                ? round(array_sum($month['actualPrices']) / count($month['actualPrices']))
+                : null;
+
             if (!empty($month['forecastPrices'])) {
-                $avgForecast = array_sum($month['forecastPrices']) / count($month['forecastPrices']);
-                $forecastAgg[] = round($avgForecast);
-                $lower[] = round($avgForecast * 0.97);
-                $upper[] = round($avgForecast * 1.03);
+                $forecastAgg[] = round(array_sum($month['forecastPrices']) / count($month['forecastPrices']));
+                $lower[]       = round(array_sum($month['lowerPrices'])    / count($month['lowerPrices']));
+                $upper[]       = round(array_sum($month['upperPrices'])    / count($month['upperPrices']));
             } else {
                 $forecastAgg[] = null;
-                $lower[] = null;
-                $upper[] = null;
+                $lower[]       = null;
+                $upper[]       = null;
             }
         }
     }
 
-    /**
-     * Aggregate data by year
-     * Groups data into years and calculates average prices
-     */
-    private function aggregateYearlyData($dates, $actualPrices, $forecastPrices, &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper)
-    {
+    // =========================================================
+    // AGGREGATION — Yearly
+    // =========================================================
+    private function aggregateYearlyData(
+        $actualDates, $actualPrices,
+        $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+        &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper
+    ) {
         $yearGroups = [];
-        $actualCount = count($actualPrices);
-        
-        // Group data by year
-        foreach ($dates as $index => $date) {
-            $year = $date->year;
-            
-            if (!isset($yearGroups[$year])) {
-                $yearGroups[$year] = [
-                    'label' => "Tahun {$year}",
-                    'actualPrices' => [],
-                    'forecastPrices' => []
+
+        foreach ($actualDates as $i => $date) {
+            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
+            $key = (string) $d->year;
+            if (!isset($yearGroups[$key])) {
+                $yearGroups[$key] = [
+                    'label'          => 'Tahun ' . $d->year,
+                    'actualPrices'   => [],
+                    'forecastPrices' => [],
+                    'lowerPrices'    => [],
+                    'upperPrices'    => [],
                 ];
             }
-            
-            // Add actual price if within actual data range
-            if ($index < $actualCount) {
-                $yearGroups[$year]['actualPrices'][] = $actualPrices[$index];
-            }
-            
-            // Add forecast price if available
-            $forecastIndex = $index - $actualCount;
-            if ($forecastIndex >= 0 && $forecastIndex < count($forecastPrices)) {
-                $yearGroups[$year]['forecastPrices'][] = $forecastPrices[$forecastIndex];
+            if (isset($actualPrices[$i])) {
+                $yearGroups[$key]['actualPrices'][] = $actualPrices[$i];
             }
         }
-        
-        // Calculate averages for each year
-        foreach ($yearGroups as $year) {
-            $labels[] = $year['label'];
-            
-            // Actual average
-            if (!empty($year['actualPrices'])) {
-                $actualAgg[] = round(array_sum($year['actualPrices']) / count($year['actualPrices']));
-            } else {
-                $actualAgg[] = null;
+
+        foreach ($forecastDates as $i => $date) {
+            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
+            $key = (string) $d->year;
+            if (!isset($yearGroups[$key])) {
+                $yearGroups[$key] = [
+                    'label'          => 'Tahun ' . $d->year,
+                    'actualPrices'   => [],
+                    'forecastPrices' => [],
+                    'lowerPrices'    => [],
+                    'upperPrices'    => [],
+                ];
             }
-            
-            // Forecast average
+            if (isset($forecastPrices[$i])) {
+                $yearGroups[$key]['forecastPrices'][] = $forecastPrices[$i];
+                $yearGroups[$key]['lowerPrices'][]    = $forecastLowers[$i] ?? $forecastPrices[$i];
+                $yearGroups[$key]['upperPrices'][]    = $forecastUppers[$i] ?? $forecastPrices[$i];
+            }
+        }
+
+        ksort($yearGroups);
+
+        foreach ($yearGroups as $year) {
+            $labels[]    = $year['label'];
+            $actualAgg[] = !empty($year['actualPrices'])
+                ? round(array_sum($year['actualPrices']) / count($year['actualPrices']))
+                : null;
+
             if (!empty($year['forecastPrices'])) {
-                $avgForecast = array_sum($year['forecastPrices']) / count($year['forecastPrices']);
-                $forecastAgg[] = round($avgForecast);
-                $lower[] = round($avgForecast * 0.98);
-                $upper[] = round($avgForecast * 1.02);
+                $forecastAgg[] = round(array_sum($year['forecastPrices']) / count($year['forecastPrices']));
+                $lower[]       = round(array_sum($year['lowerPrices'])    / count($year['lowerPrices']));
+                $upper[]       = round(array_sum($year['upperPrices'])    / count($year['upperPrices']));
             } else {
                 $forecastAgg[] = null;
-                $lower[] = null;
-                $upper[] = null;
+                $lower[]       = null;
+                $upper[]       = null;
             }
         }
     }

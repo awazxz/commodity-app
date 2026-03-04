@@ -9,16 +9,25 @@ class CommodityPrice extends Model
 {
     use HasFactory;
 
-    protected $table = 'commodity_prices'; // SESUAIKAN NAMA TABEL
+    // ✅ Ganti ke tabel yang benar
+    protected $table = 'price_data';
 
     protected $fillable = [
-        'commodity_name',
-        'date',
-        'price',
+        'komoditas_id',
+        'tanggal',
+        'harga',
+        'status',
+        'is_outlier',
     ];
 
     protected $casts = [
-        'date'  => 'date',
-        'price' => 'float',
+        'tanggal'    => 'date:Y-m-d',
+        'harga'      => 'float',
+        'is_outlier' => 'boolean',
     ];
+
+    public function komoditas()
+    {
+        return $this->belongsTo(MasterKomoditas::class, 'komoditas_id');
+    }
 }
