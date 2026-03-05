@@ -74,15 +74,6 @@
         padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;
     }
 
-    .flask-badge {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 2px 8px; border-radius: 9999px;
-        font-size: 9px; font-weight: 700; text-transform: uppercase;
-    }
-    .flask-online  { background: #dcfce7; color: #166534; }
-    .flask-offline { background: #fee2e2; color: #991b1b; }
-    .flask-loading { background: #fef9c3; color: #854d0e; }
-
     .param-changed-indicator {
         display: none;
         position: fixed;
@@ -106,7 +97,6 @@
         background: #eff6ff !important;
     }
 
-    /* Horizon badge pill */
     .horizon-pill {
         display: inline-flex; align-items: center; gap: 3px;
         background: #eef2ff; color: #4338ca;
@@ -122,10 +112,10 @@
     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
 </div>
 
-{{-- Floating indicator ketika parameter berubah --}}
+{{-- Floating indicator --}}
 <div class="param-changed-indicator" id="param-changed-indicator" onclick="triggerSubmit()">
     <i class="fas fa-sync-alt fa-spin"></i>
-    <span>Parameter berubah — Klik untuk Perbarui Prediksi</span>
+    <span>{{ __('messages.perbarui_prediksi') }}</span>
 </div>
 
 <div class="dashboard-container space-y-6 animate-fade-in">
@@ -136,13 +126,13 @@
        class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-xs font-bold uppercase tracking-wider transition-all
               {{ ($currentTab ?? 'insight') === 'insight' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100' }}">
         <i class="fas fa-chart-line"></i>
-        <span>Insight & Prediksi</span>
+        <span>{{ __('messages.tab_insight') }}</span>
     </a>
     <a href="{{ route('operator.predict', ['tab' => 'manage']) }}"
        class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-xs font-bold uppercase tracking-wider transition-all
               {{ ($currentTab ?? '') === 'manage' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100' }}">
         <i class="fas fa-database"></i>
-        <span>Manajemen Data</span>
+        <span>{{ __('messages.tab_manajemen_data') }}</span>
     </a>
 </div>
 
@@ -171,16 +161,16 @@
                 </div>
                 <div>
                     <h2 class="text-xl font-bold text-gray-900 leading-none">
-                        Sistem Analisis Prediksi Harga Komoditas
+                        {{ __('messages.judul_sistem') }}
                     </h2>
                     <p class="text-xs text-orange-500 font-medium uppercase tracking-wider mt-1.5">
-                        Panel Operator — BPS Provinsi Riau
+                        {{ __('messages.panel_operator') }}
                     </p>
                 </div>
             </div>
             {{-- Status Flask API --}}
             <div class="flex items-center gap-2">
-                  <span class="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500" id="flask-status-badge">
+                <span class="flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500" id="flask-status-badge">
                     <span class="w-2 h-2 rounded-full" id="flask-status-dot"></span>
                     <span id="flask-status-text">Memeriksa...</span>
                 </span>
@@ -195,7 +185,7 @@
             <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
                 <div class="md:col-span-4">
                     <label class="text-xs font-semibold text-gray-700 uppercase mb-2 block tracking-tight">
-                        Komoditas Terpilih
+                        {{ __('messages.komoditas_terpilih') }}
                     </label>
                     <select id="select_komoditas"
                             onchange="handleCommodityChange(this.value)"
@@ -210,7 +200,7 @@
 
                 <div class="md:col-span-8">
                     <label class="text-xs font-semibold text-gray-700 uppercase mb-2 block tracking-tight">
-                        Rentang Waktu Analisis Historis
+                        {{ __('messages.rentang_waktu') }}
                     </label>
                     <div class="flex items-center gap-3 bg-gray-50 p-1.5 rounded-md border border-gray-300">
                         <input type="date" name="start_date" id="input_start_date"
@@ -226,8 +216,6 @@
                 </div>
             </div>
 
-            {{-- Hidden inputs untuk semua hyperparameter --}}
-            {{-- ✅ FIX: hidden_komoditas selalu sync dengan dropdown sebelum submit --}}
             <input type="hidden" name="komoditas_id"            id="hidden_komoditas"      value="{{ $selectedKomoditasId ?? '' }}">
             <input type="hidden" name="changepoint_prior_scale" id="hidden_cp"             value="{{ $cpScale ?? 0.05 }}">
             <input type="hidden" name="seasonality_prior_scale" id="hidden_season"         value="{{ $seasonScale ?? 10 }}">
@@ -242,18 +230,18 @@
     {{-- Stats Cards --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <div class="card-standard hover-card p-5">
-            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">Rata-rata Harga</p>
+            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">{{ __('messages.rata_rata_harga') }}</p>
             <p class="text-xl font-bold text-gray-900">Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</p>
-            <p class="text-[10px] text-gray-400 mt-1">{{ $countData ?? 0 }} data poin</p>
+            <p class="text-[10px] text-gray-400 mt-1">{{ $countData ?? 0 }} {{ __('messages.data_poin') }}</p>
         </div>
 
         <div class="card-standard hover-card p-5">
-            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">Harga Tertinggi</p>
+            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">{{ __('messages.harga_tertinggi') }}</p>
             <p class="text-xl font-bold text-red-600">Rp {{ number_format($maxPrice ?? 0, 0, ',', '.') }}</p>
         </div>
 
         <div class="card-standard hover-card p-5">
-            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">Periode Data</p>
+            <p class="text-[10px] uppercase text-gray-500 font-bold tracking-wider mb-2">{{ __('messages.periode_data') }}</p>
             <p class="text-sm font-semibold text-gray-900">
                 {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
                 <span class="text-gray-400 mx-1">→</span>
@@ -262,7 +250,7 @@
         </div>
 
         <div class="bg-blue-600 rounded-lg p-5 text-white shadow-lg hover-card">
-            <p class="text-[10px] uppercase text-blue-100 font-bold tracking-wider mb-2">Arah Tren</p>
+            <p class="text-[10px] uppercase text-blue-100 font-bold tracking-wider mb-2">{{ __('messages.arah_tren') }}</p>
             <p class="text-sm font-bold uppercase flex items-center gap-2">
                 @php
                     $trendIcon = match(strtolower($trendDir ?? 'stabil')) {
@@ -272,7 +260,7 @@
                     };
                 @endphp
                 <i class="fas {{ $trendIcon }}"></i>
-                {{ $trendDir ?? 'Stabil' }}
+                {{ $trendDir ?? __('messages.stabil') }}
             </p>
         </div>
     </div>
@@ -284,7 +272,7 @@
             <div class="card-standard p-5">
                 <div class="flex items-center justify-between mb-5 pb-3 border-b border-gray-100">
                     <h4 class="text-sm font-bold text-gray-900 uppercase tracking-tight">
-                        Pengaturan Hyperparameter
+                        {{ __('messages.pengaturan_hyperparameter') }}
                     </h4>
                     <span class="text-[9px] bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full uppercase">
                         Prophet Model
@@ -296,7 +284,7 @@
                     {{-- Changepoint Prior Scale --}}
                     <div>
                         <div class="flex justify-between mb-2">
-                            <span class="text-xs text-gray-500 font-semibold uppercase">Changepoint Prior</span>
+                            <span class="text-xs text-gray-500 font-semibold uppercase">{{ __('messages.changepoint_prior') }}</span>
                             <span class="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded"
                                   id="cp_display">{{ number_format($cpScale ?? 0.05, 3) }}</span>
                         </div>
@@ -305,13 +293,13 @@
                                class="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer"
                                id="range_cp"
                                oninput="updateVal('hidden_cp', 'cp_display', 'preview_cp', this.value, 3)">
-                        <p class="text-[9px] text-gray-400 mt-1">Fleksibilitas perubahan tren (0.001 – 0.5)</p>
+                        <p class="text-[9px] text-gray-400 mt-1">{{ __('messages.fleksibilitas_tren') }}</p>
                     </div>
 
                     {{-- Seasonality Prior Scale --}}
                     <div>
                         <div class="flex justify-between mb-2">
-                            <span class="text-xs text-gray-500 font-semibold uppercase">Seasonality Prior</span>
+                            <span class="text-xs text-gray-500 font-semibold uppercase">{{ __('messages.seasonality_prior') }}</span>
                             <span class="text-xs font-mono font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded"
                                   id="season_display">{{ number_format($seasonScale ?? 10, 2) }}</span>
                         </div>
@@ -320,32 +308,32 @@
                                class="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer"
                                id="range_season"
                                oninput="updateVal('hidden_season', 'season_display', 'preview_season', this.value, 2)">
-                        <p class="text-[9px] text-gray-400 mt-1">Kekuatan pola musiman (0.01 – 50)</p>
+                        <p class="text-[9px] text-gray-400 mt-1">{{ __('messages.kekuatan_musiman') }}</p>
                     </div>
 
                     {{-- Seasonality Mode --}}
                     <div>
-                        <label class="text-xs text-gray-500 font-semibold uppercase mb-2 block">Mode Musiman</label>
+                        <label class="text-xs text-gray-500 font-semibold uppercase mb-2 block">{{ __('messages.mode_musiman') }}</label>
                         <select id="select_mode"
                                 onchange="updateMode(this.value)"
                                 class="w-full bg-gray-50 border border-gray-200 rounded-lg py-2 px-3 text-xs text-gray-600 font-medium outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="multiplicative" {{ ($seasonMode ?? 'multiplicative') === 'multiplicative' ? 'selected' : '' }}>
-                                Multiplikatif
+                                {{ __('messages.multiplikatif') }}
                             </option>
                             <option value="additive" {{ ($seasonMode ?? '') === 'additive' ? 'selected' : '' }}>
-                                Aditif
+                                {{ __('messages.aditif') }}
                             </option>
                         </select>
-                        <p class="text-[9px] text-gray-400 mt-1">Metode penerapan musiman</p>
+                        <p class="text-[9px] text-gray-400 mt-1">{{ __('messages.metode_musiman') }}</p>
                     </div>
 
-                    {{-- ✅ PATCH 2: Horizon Prediksi slider --}}
+                    {{-- Horizon Prediksi --}}
                     <div class="pt-2 border-t border-gray-100">
                         <div class="flex justify-between items-center mb-2">
-                            <span class="text-xs text-gray-500 font-semibold uppercase">Horizon Prediksi</span>
+                            <span class="text-xs text-gray-500 font-semibold uppercase">{{ __('messages.periode_prediksi') }}</span>
                             <span class="horizon-pill" id="fw_display">
                                 <i class="fas fa-calendar-alt" style="font-size:8px;"></i>
-                                <span id="fw_display_text">{{ $forecastWeeks ?? 12 }} minggu</span>
+                                <span id="fw_display_text">{{ $forecastWeeks ?? 12 }} {{ __('messages.mingguan') }}</span>
                             </span>
                         </div>
                         <input type="range" min="1" max="52" step="1"
@@ -354,21 +342,21 @@
                                id="range_fw"
                                oninput="updateForecastWeeks(this.value)">
                         <div class="flex justify-between text-[8px] text-gray-300 mt-1">
-                            <span>1 minggu</span>
-                            <span>26 minggu</span>
-                            <span>52 minggu</span>
+                            <span>1 {{ __('messages.mingguan') }}</span>
+                            <span>26 {{ __('messages.mingguan') }}</span>
+                            <span>52 {{ __('messages.mingguan') }}</span>
                         </div>
-                        <p class="text-[9px] text-gray-400 mt-1">Jumlah minggu prediksi ke depan (1 – 52)</p>
+                        <p class="text-[9px] text-gray-400 mt-1">{{ __('messages.periode_prediksi') }} (1 – 52)</p>
                     </div>
 
                     {{-- Toggle Seasonality --}}
                     <div class="space-y-2 pt-2 border-t border-gray-100">
-                        <label class="text-xs text-gray-500 font-semibold uppercase block mb-2">Komponen Musiman</label>
+                        <label class="text-xs text-gray-500 font-semibold uppercase block mb-2">{{ __('messages.komponen_musiman') }}</label>
 
                         <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-100">
                             <div>
-                                <span class="text-xs text-gray-500 font-medium uppercase">Mingguan</span>
-                                <p class="text-[9px] text-gray-400">Deteksi pola per minggu</p>
+                                <span class="text-xs text-gray-500 font-medium uppercase">{{ __('messages.mingguan') }}</span>
+                                <p class="text-[9px] text-gray-400">{{ __('messages.deteksi_pola_minggu') }}</p>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox"
@@ -385,8 +373,8 @@
 
                         <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-100">
                             <div>
-                                <span class="text-xs text-gray-500 font-medium uppercase">Tahunan</span>
-                                <p class="text-[9px] text-gray-400">Deteksi pola per tahun</p>
+                                <span class="text-xs text-gray-500 font-medium uppercase">{{ __('messages.tahunan') }}</span>
+                                <p class="text-[9px] text-gray-400">{{ __('messages.deteksi_pola_tahun') }}</p>
                             </div>
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox"
@@ -404,7 +392,7 @@
 
                     {{-- Preview parameter aktif --}}
                     <div class="bg-gray-50 rounded-lg p-3 border border-gray-100 space-y-1" id="param-preview-box">
-                        <p class="text-[9px] text-gray-400 font-bold uppercase mb-2">Parameter Aktif (dikirim ke Flask)</p>
+                        <p class="text-[9px] text-gray-400 font-bold uppercase mb-2">Parameter Aktif (Flask)</p>
                         <div class="flex justify-between text-[10px]">
                             <span class="text-gray-500">cp_scale</span>
                             <span class="font-mono text-blue-600" id="preview_cp">{{ $cpScale ?? 0.05 }}</span>
@@ -425,7 +413,6 @@
                             <span class="text-gray-500">yearly</span>
                             <span class="font-mono" id="preview_yearly">{{ ($yearlySeason ?? false) ? 'true' : 'false' }}</span>
                         </div>
-                        {{-- ✅ PATCH 3: Preview forecast_weeks --}}
                         <div class="flex justify-between text-[10px]">
                             <span class="text-gray-500">forecast_weeks</span>
                             <span class="font-mono text-indigo-600" id="preview_fw">{{ $forecastWeeks ?? 12 }}</span>
@@ -433,7 +420,7 @@
 
                         <div id="param-dirty-notice" class="hidden mt-2 pt-2 border-t border-orange-200 text-[9px] text-orange-600 font-bold flex items-center gap-1">
                             <i class="fas fa-exclamation-triangle"></i>
-                            Parameter belum diterapkan — klik "Perbarui Prediksi"
+                            {{ __('messages.perbarui_prediksi') }}
                         </div>
                     </div>
 
@@ -442,38 +429,38 @@
                             id="btn-update"
                             class="w-full bg-blue-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all shadow-sm flex items-center justify-center gap-2">
                         <i class="fas fa-sync-alt" id="btn-refresh-icon"></i>
-                        Perbarui Prediksi
+                        {{ __('messages.perbarui_prediksi') }}
                     </button>
 
                     <div class="text-[9px] text-gray-400 text-center">
-                        Prediksi terakhir menggunakan parameter di atas.<br>
-                        Ubah parameter → klik "Perbarui Prediksi" untuk mendapatkan insight baru.
+                        {{ __('messages.prediksi_terakhir_note') }}<br>
+                        {{ __('messages.ubah_parameter_note') }}
                     </div>
                 </div>
             </div>
 
             {{-- Statistik Model --}}
             <div class="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg shadow-lg p-5 text-white">
-                <h4 class="text-xs font-bold uppercase tracking-wider mb-3 opacity-90">Ringkasan Statistik</h4>
+                <h4 class="text-xs font-bold uppercase tracking-wider mb-3 opacity-90">{{ __('messages.ringkasan_statistik') }}</h4>
                 <div class="space-y-3">
                     <div class="flex justify-between items-end border-b border-white/10 pb-2">
                         <div>
-                            <span class="text-[10px] opacity-70 font-semibold uppercase">MAPE (CV 70/30)</span>
-                            <p class="text-[8px] opacity-50 mt-0.5">Berubah saat hyperparameter berubah</p>
+                            <span class="text-[10px] opacity-70 font-semibold uppercase">{{ __('messages.mape') }}</span>
+                            <p class="text-[8px] opacity-50 mt-0.5">{{ __('messages.berubah_saat_hyperparameter') }}</p>
                         </div>
                         <span class="text-sm font-bold">{{ number_format($mape ?? 0, 2) }}%</span>
                     </div>
                     <div class="flex justify-between items-end border-b border-white/10 pb-2">
-                        <span class="text-[10px] opacity-70 font-semibold uppercase">Skor R-Squared</span>
+                        <span class="text-[10px] opacity-70 font-semibold uppercase">{{ __('messages.r_squared') }}</span>
                         <span class="text-sm font-bold">{{ number_format($rSquared ?? 0, 3) }}</span>
                     </div>
                     <div class="flex justify-between items-end border-b border-white/10 pb-2">
-                        <span class="text-[10px] opacity-70 font-semibold uppercase">Total Data Poin</span>
+                        <span class="text-[10px] opacity-70 font-semibold uppercase">{{ __('messages.total_data_poin') }}</span>
                         <span class="text-sm font-bold">{{ $countData ?? 0 }}</span>
                     </div>
                     <div class="flex justify-between items-end">
-                        <span class="text-[10px] opacity-70 font-semibold uppercase">Horizon Prediksi</span>
-                        <span class="text-sm font-bold">{{ $forecastWeeks ?? 12 }} minggu</span>
+                        <span class="text-[10px] opacity-70 font-semibold uppercase">{{ __('messages.periode_prediksi') }}</span>
+                        <span class="text-sm font-bold">{{ $forecastWeeks ?? 12 }} {{ __('messages.mingguan') }}</span>
                     </div>
                 </div>
             </div>
@@ -483,19 +470,19 @@
         <div class="col-span-12 lg:col-span-8 card-standard overflow-hidden flex flex-col">
             <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row justify-between items-center gap-4 flex-shrink-0">
                 <div>
-                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">Visualisasi Tren & Proyeksi</h3>
+                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">{{ __('messages.visualisasi_tren') }}</h3>
                     <p class="text-xs text-gray-500">
-                        {{ $selectedCommodity }} — Data Historis vs Proyeksi
+                        {{ $selectedCommodity }} — {{ __('messages.data_historis_vs_proyeksi') }}
                         <span class="ml-2 horizon-pill">
                             <i class="fas fa-calendar-alt" style="font-size:8px;"></i>
-                            {{ $forecastWeeks ?? 12 }} minggu ke depan
+                            {{ $forecastWeeks ?? 12 }} {{ __('messages.mingguan') }}
                         </span>
                     </p>
                 </div>
                 <div class="flex bg-white border border-gray-300 p-1 rounded-md shadow-sm">
-                    <button onclick="changeChartPeriod('weekly')"  class="filter-btn active" id="btn-weekly">Mingguan</button>
-                    <button onclick="changeChartPeriod('monthly')" class="filter-btn border-none" id="btn-monthly">Bulanan</button>
-                    <button onclick="changeChartPeriod('yearly')"  class="filter-btn border-none" id="btn-yearly">Tahunan</button>
+                    <button onclick="changeChartPeriod('weekly')"  class="filter-btn active" id="btn-weekly">{{ __('messages.mingguan') }}</button>
+                    <button onclick="changeChartPeriod('monthly')" class="filter-btn border-none" id="btn-monthly">{{ __('messages.bulanan') }}</button>
+                    <button onclick="changeChartPeriod('yearly')"  class="filter-btn border-none" id="btn-yearly">{{ __('messages.tahunan') }}</button>
                 </div>
             </div>
             <div class="flex-1 p-6" style="min-height: 500px;">
@@ -508,30 +495,28 @@
     <div class="card-standard overflow-hidden">
         <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
             <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">
-                Ringkasan Analisis
-                <span id="selectedPeriodText" class="text-blue-600">Mingguan</span>
+                {{ __('messages.ringkasan_analisis') }}
+                <span id="selectedPeriodText" class="text-blue-600">{{ __('messages.mingguan') }}</span>
             </h3>
             <div class="flex items-center gap-3">
                 <span class="text-xs text-gray-400">{{ $selectedCommodity }}</span>
                 <span class="text-[9px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full">
                     MAPE: {{ number_format($mape ?? 0, 2) }}%
                 </span>
-                <span class="horizon-pill">
-                    {{ $forecastWeeks ?? 12 }} minggu
-                </span>
+                <span class="horizon-pill">{{ $forecastWeeks ?? 12 }} {{ __('messages.mingguan') }}</span>
             </div>
         </div>
         <div class="overflow-x-auto custom-scrollbar">
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="text-[11px] font-bold text-gray-500 uppercase bg-gray-50 border-b border-gray-200">
-                        <th class="px-6 py-4">Periode</th>
-                        <th class="px-6 py-4 text-right">Harga Aktual</th>
-                        <th class="px-6 py-4 text-right">Harga Prediksi</th>
-                        <th class="px-6 py-4 text-right">Interval Bawah</th>
-                        <th class="px-6 py-4 text-right">Interval Atas</th>
-                        <th class="px-6 py-4 text-right">Selisih</th>
-                        <th class="px-6 py-4 text-center">Indikator</th>
+                        <th class="px-6 py-4">{{ __('messages.periode') }}</th>
+                        <th class="px-6 py-4 text-right">{{ __('messages.harga_aktual') }}</th>
+                        <th class="px-6 py-4 text-right">{{ __('messages.harga_prediksi') }}</th>
+                        <th class="px-6 py-4 text-right">{{ __('messages.rentang_bawah') }}</th>
+                        <th class="px-6 py-4 text-right">{{ __('messages.rentang_atas') }}</th>
+                        <th class="px-6 py-4 text-right">{{ __('messages.selisih') }}</th>
+                        <th class="px-6 py-4 text-center">{{ __('messages.indikator') }}</th>
                     </tr>
                 </thead>
                 <tbody class="text-sm text-gray-700 divide-y divide-gray-100" id="insightTableBody">
@@ -543,21 +528,16 @@
     {{-- Interpretasi --}}
     <div class="card-standard p-6 border-l-4 border-l-blue-600">
         <div class="flex items-center gap-3 mb-3">
-            <h4 class="text-sm font-bold text-gray-900 uppercase">Interpretasi Analisis Tren</h4>
+            <h4 class="text-sm font-bold text-gray-900 uppercase">{{ __('messages.interpretasi_tren') }}</h4>
         </div>
         <p id="dynamic-analysis" class="text-sm text-gray-600 leading-relaxed">
-            Berdasarkan analisis data historis untuk komoditas <strong>{{ $selectedCommodity }}</strong>,
-            model mendeteksi tren harga <strong>{{ strtolower($trendDir ?? 'stabil') }}</strong>
-            dengan rata-rata harga <strong>Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</strong>
-            dan total <strong>{{ $countData ?? 0 }} data poin</strong> pada periode
+            {{ __('messages.berdasarkan_analisis') }} <strong>{{ $selectedCommodity }}</strong>,
+            {{ __('messages.model_deteksi') }} <strong>{{ strtolower($trendDir ?? __('messages.stabil')) }}</strong>
+            {{ __('messages.rata_rata_harga_label') }} <strong>Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</strong>
+            {{ __('messages.total_label') }} <strong>{{ $countData ?? 0 }} {{ __('messages.data_poin') }}</strong>
+            {{ __('messages.pada_periode') }}
             {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
             s/d {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.
-            Model Prophet dilatih dengan <strong>changepoint_prior_scale={{ $cpScale ?? 0.05 }}</strong>,
-            <strong>seasonality_prior_scale={{ $seasonScale ?? 10 }}</strong>,
-            mode <strong>{{ $seasonMode ?? 'multiplicative' }}</strong>,
-            horizon prediksi <strong>{{ $forecastWeeks ?? 12 }} minggu ke depan</strong>.
-            Nilai MAPE (Cross-Validation 70/30) sebesar <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
-            menunjukkan {{ ($mape ?? 0) < 5 ? 'akurasi sangat baik' : (($mape ?? 0) < 10 ? 'akurasi baik' : 'perlu penyesuaian hyperparameter') }}.
         </p>
     </div>
 
@@ -569,21 +549,21 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1">
                 <div class="card-standard p-6">
-                    <h3 class="text-sm font-bold text-gray-900 mb-6 uppercase tracking-tight">Tambah Data Baru</h3>
+                    <h3 class="text-sm font-bold text-gray-900 mb-6 uppercase tracking-tight">{{ __('messages.tambah_data_baru') }}</h3>
                     <div class="flex gap-4 mb-6 border-b pb-2">
                         <button onclick="switchInputMode('single')" id="btn-tab-single"
-                                class="text-blue-600 border-b-2 border-blue-600 text-xs uppercase tracking-wider pb-1 font-semibold">Manual</button>
+                                class="text-blue-600 border-b-2 border-blue-600 text-xs uppercase tracking-wider pb-1 font-semibold">{{ __('messages.manual') }}</button>
                         <button onclick="switchInputMode('bulk')" id="btn-tab-bulk"
-                                class="text-gray-400 text-xs uppercase tracking-wider pb-1 font-semibold">Unggah CSV</button>
+                                class="text-gray-400 text-xs uppercase tracking-wider pb-1 font-semibold">{{ __('messages.unggah_csv') }}</button>
                     </div>
 
                     <form id="form-single" action="{{ route('operator.storeData') }}" method="POST" class="space-y-4 tab-single">
                         @csrf
                         <div>
-                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">Komoditas</label>
+                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">{{ __('messages.komoditas') }}</label>
                             <select name="komoditas_id" required
                                     class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-900 font-medium outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Pilih Komoditas --</option>
+                                <option value="">{{ __('messages.pilih_komoditas') }}</option>
                                 @foreach($commodities ?? [] as $kom)
                                     <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
                                         {{ $kom->display_name }}
@@ -592,18 +572,18 @@
                             </select>
                         </div>
                         <div>
-                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">Tanggal</label>
+                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">{{ __('messages.tanggal') }}</label>
                             <input type="date" name="date" required
                                    class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 font-medium focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
-                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">Harga (Rp)</label>
-                            <input type="number" name="price" placeholder="Masukkan harga" required min="1"
+                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">{{ __('messages.harga') }}</label>
+                            <input type="number" name="price" placeholder="{{ __('messages.masukkan_harga') }}" required min="1"
                                    class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 font-medium focus:ring-2 focus:ring-blue-500">
                         </div>
                         <button type="submit"
                                 class="w-full bg-emerald-500 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-emerald-600 transition-all">
-                            Simpan Data
+                            {{ __('messages.simpan_data') }}
                         </button>
                     </form>
 
@@ -611,14 +591,14 @@
                           enctype="multipart/form-data" class="space-y-4 tab-bulk">
                         @csrf
                         <div>
-                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">Unggah File CSV</label>
+                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">{{ __('messages.unggah_file_csv') }}</label>
                             <div class="p-8 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 text-center relative hover:border-blue-300 transition-colors" id="dropzone">
                                 <input type="file" name="csv_file" accept=".csv"
                                        class="absolute inset-0 opacity-0 cursor-pointer"
                                        onchange="showFileName(this)">
                                 <i class="fas fa-cloud-upload-alt text-gray-300 text-2xl mb-2"></i>
-                                <p class="text-xs text-gray-400 font-medium" id="file-name-display">Pilih atau seret file CSV ke sini</p>
-                                <p class="text-[9px] text-gray-300 mt-1">Format: komoditas_id, tanggal, harga</p>
+                                <p class="text-xs text-gray-400 font-medium" id="file-name-display">{{ __('messages.pilih_seret_csv') }}</p>
+                                <p class="text-[9px] text-gray-300 mt-1">{{ __('messages.format_csv_operator') }}</p>
                             </div>
                         </div>
 
@@ -626,14 +606,14 @@
                             <div class="flex items-start gap-3">
                                 <i class="fas fa-info-circle text-blue-500 text-sm mt-0.5"></i>
                                 <div class="flex-1">
-                                    <p class="text-xs text-blue-700 font-semibold uppercase tracking-tight mb-2">Template CSV</p>
+                                    <p class="text-xs text-blue-700 font-semibold uppercase tracking-tight mb-2">{{ __('messages.template_csv') }}</p>
                                     <p class="text-[10px] text-blue-600 mb-3 leading-relaxed">
-                                        Gunakan template standar untuk memastikan format data yang benar
+                                        {{ __('messages.gunakan_template_standar') }}
                                     </p>
                                     <a href="{{ route('operator.downloadTemplate') }}"
                                        class="inline-flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-colors">
                                         <i class="fas fa-download"></i>
-                                        Unduh Template CSV
+                                        {{ __('messages.unduh_template_csv') }}
                                     </a>
                                 </div>
                             </div>
@@ -641,7 +621,7 @@
 
                         <button type="submit"
                                 class="w-full bg-blue-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all">
-                            Unggah Dataset
+                            {{ __('messages.unggah_dataset') }}
                         </button>
                     </form>
                 </div>
@@ -650,7 +630,7 @@
             <div class="lg:col-span-2">
                 <div class="card-standard overflow-hidden flex flex-col" style="height: fit-content;">
                     <div class="p-5 border-b bg-gray-50/50 flex justify-between items-center">
-                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">Riwayat Database</h3>
+                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">{{ __('messages.riwayat_database') }}</h3>
                         <span class="text-xs text-gray-400">{{ $selectedCommodity }}</span>
                     </div>
                     <div class="overflow-x-auto" style="max-height: 450px;">
@@ -658,10 +638,10 @@
                             <table class="w-full text-left">
                                 <thead class="sticky top-0 bg-white border-b border-gray-100 z-10">
                                     <tr class="text-xs text-gray-400 uppercase font-bold">
-                                        <th class="px-6 py-4">Komoditas</th>
-                                        <th class="px-6 py-4">Tanggal</th>
-                                        <th class="px-6 py-4">Harga</th>
-                                        <th class="px-6 py-4 text-center">Aksi</th>
+                                        <th class="px-6 py-4">{{ __('messages.komoditas') }}</th>
+                                        <th class="px-6 py-4">{{ __('messages.tanggal') }}</th>
+                                        <th class="px-6 py-4">{{ __('messages.harga') }}</th>
+                                        <th class="px-6 py-4 text-center">{{ __('messages.aksi') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 text-xs">
@@ -692,17 +672,17 @@
                                                 <div class="flex items-center justify-center gap-3">
                                                     <button type="button" onclick="toggleEditMode({{ $data->id }})"
                                                             class="edit-btn text-blue-500 hover:text-blue-700 transition-colors text-sm font-medium">
-                                                        <i class="fas fa-edit"></i> Edit
+                                                        <i class="fas fa-edit"></i> {{ __('messages.edit') }}
                                                     </button>
                                                     <button type="button" onclick="toggleEditMode({{ $data->id }})"
                                                             class="done-btn hidden text-green-500 hover:text-green-700 transition-colors text-sm font-medium">
-                                                        <i class="fas fa-check"></i> Selesai
+                                                        <i class="fas fa-check"></i> {{ __('messages.selesai') }}
                                                     </button>
                                                     <form action="{{ route('operator.deleteData', $data->id) }}" method="POST"
-                                                          onsubmit="return confirm('Hapus data ini?')" class="inline delete-form">
+                                                          onsubmit="return confirm('{{ __('messages.hapus') }}?')" class="inline delete-form">
                                                         @csrf @method('DELETE')
                                                         <button type="submit" class="text-red-400 hover:text-red-600 transition-colors text-sm font-medium">
-                                                            <i class="fas fa-trash"></i> Hapus
+                                                            <i class="fas fa-trash"></i> {{ __('messages.hapus') }}
                                                         </button>
                                                     </form>
                                                 </div>
@@ -713,8 +693,8 @@
                                             <td colspan="4" class="p-12 text-center">
                                                 <div class="flex flex-col items-center gap-2 text-gray-400">
                                                     <i class="fas fa-database text-3xl opacity-30"></i>
-                                                    <p class="text-sm font-medium">Data tidak ditemukan</p>
-                                                    <p class="text-xs">Pilih komoditas atau tambah data baru</p>
+                                                    <p class="text-sm font-medium">{{ __('messages.data_tidak_ditemukan') }}</p>
+                                                    <p class="text-xs">{{ __('messages.pilih_atau_tambah') }}</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -728,8 +708,8 @@
                         <div class="px-6 py-4 border-t bg-gray-50/30">
                             <div class="flex items-center justify-between">
                                 <div class="text-xs text-gray-500">
-                                    Menampilkan {{ $latestData->firstItem() ?? 0 }} - {{ $latestData->lastItem() ?? 0 }}
-                                    dari {{ $latestData->total() }} data
+                                    {{ __('messages.menampilkan') }} {{ $latestData->firstItem() ?? 0 }} - {{ $latestData->lastItem() ?? 0 }}
+                                    {{ __('messages.dari') }} {{ $latestData->total() }} {{ __('messages.data') }}
                                 </div>
                                 <div class="flex gap-1">
                                     @if ($latestData->onFirstPage())
@@ -761,23 +741,23 @@
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1">
                 <div class="card-standard p-6" style="height: fit-content;">
-                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight mb-6">Pembersihan Data</h3>
+                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight mb-6">{{ __('messages.pembersihan_data') }}</h3>
 
                     <form action="{{ route('operator.predict') }}" method="POST" class="mb-6 pb-6 border-b border-gray-100">
                         @csrf
                         <input type="hidden" name="tab" value="manage">
-                        <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">Pindai Data Untuk</label>
+                        <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">{{ __('messages.pindai_data') }}</label>
                         <div class="flex gap-2">
                             <select name="komoditas_id"
                                     class="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">-- Pilih Komoditas --</option>
+                                <option value="">{{ __('messages.pilih_komoditas') }}</option>
                                 @foreach($commodities ?? [] as $kom)
                                     <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
                                         {{ $kom->display_name }}
                                     </option>
                                 @endforeach
                             </select>
-                            <button type="submit" class="bg-blue-600 text-white px-4 rounded-lg text-xs font-bold uppercase hover:bg-blue-700">Pindai</button>
+                            <button type="submit" class="bg-blue-600 text-white px-4 rounded-lg text-xs font-bold uppercase hover:bg-blue-700">{{ __('messages.pindai') }}</button>
                         </div>
                     </form>
 
@@ -786,32 +766,32 @@
                         <input type="hidden" name="komoditas_id" value="{{ $selectedKomoditasId }}">
                         <div class="space-y-4">
                             <div>
-                                <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">Deteksi Outlier</label>
+                                <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">{{ __('messages.deteksi_outlier') }}</label>
                                 <div class="flex items-center gap-2">
                                     <select name="outlier_method"
                                             class="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="remove">Hapus Outlier</option>
-                                        <option value="mean">Ganti dengan Rata-rata</option>
-                                        <option value="median">Ganti dengan Median</option>
+                                        <option value="remove">{{ __('messages.hapus_outlier') }}</option>
+                                        <option value="mean">{{ __('messages.ganti_rata_rata') }}</option>
+                                        <option value="median">{{ __('messages.ganti_median') }}</option>
                                     </select>
                                     <button type="submit" name="action" value="outlier"
                                             class="bg-orange-500 text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-orange-600 whitespace-nowrap">
-                                        Terapkan
+                                        {{ __('messages.terapkan') }}
                                     </button>
                                 </div>
                             </div>
                             <div>
-                                <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">Nilai Hilang</label>
+                                <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">{{ __('messages.nilai_hilang') }}</label>
                                 <div class="flex items-center gap-2">
                                     <select name="missing_method"
                                             class="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-2.5 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="mean">Isi dengan Rata-rata</option>
-                                        <option value="median">Isi dengan Median</option>
-                                        <option value="remove">Hapus Data Kosong</option>
+                                        <option value="mean">{{ __('messages.isi_rata_rata') }}</option>
+                                        <option value="median">{{ __('messages.isi_median') }}</option>
+                                        <option value="remove">{{ __('messages.hapus_data_kosong') }}</option>
                                     </select>
                                     <button type="submit" name="action" value="missing"
                                             class="bg-blue-600 text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 whitespace-nowrap">
-                                        Terapkan
+                                        {{ __('messages.terapkan') }}
                                     </button>
                                 </div>
                             </div>
@@ -823,9 +803,9 @@
             <div class="lg:col-span-2">
                 <div class="card-standard border-orange-200 overflow-hidden flex flex-col" style="height: fit-content;">
                     <div class="p-4 bg-orange-50/50 border-b border-orange-100 flex justify-between items-center">
-                        <h3 class="text-xs text-orange-700 font-bold uppercase tracking-tight">Hasil Pemindaian: {{ $selectedCommodity }}</h3>
+                        <h3 class="text-xs text-orange-700 font-bold uppercase tracking-tight">{{ __('messages.hasil_pemindaian') }}: {{ $selectedCommodity }}</h3>
                         <span class="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[10px] font-bold">
-                            {{ ($dataIssues instanceof \Illuminate\Pagination\LengthAwarePaginator ? $dataIssues->total() : count($dataIssues ?? [])) }} Temuan
+                            {{ ($dataIssues instanceof \Illuminate\Pagination\LengthAwarePaginator ? $dataIssues->total() : count($dataIssues ?? [])) }} {{ __('messages.temuan') }}
                         </span>
                     </div>
                     <div class="overflow-x-auto" style="max-height: 350px;">
@@ -833,10 +813,10 @@
                             <table class="w-full text-left">
                                 <thead class="bg-gray-50 sticky top-0 text-xs text-gray-400 uppercase font-bold z-10">
                                     <tr>
-                                        <th class="px-6 py-3">Tanggal</th>
-                                        <th class="px-6 py-3">Jenis Masalah</th>
-                                        <th class="px-6 py-3">Nilai</th>
-                                        <th class="px-6 py-3">Status</th>
+                                        <th class="px-6 py-3">{{ __('messages.tanggal') }}</th>
+                                        <th class="px-6 py-3">{{ __('messages.jenis_masalah') }}</th>
+                                        <th class="px-6 py-3">{{ __('messages.nilai') }}</th>
+                                        <th class="px-6 py-3">{{ __('messages.status') }}</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-gray-100 text-xs">
@@ -856,8 +836,8 @@
                                             <td colspan="4" class="p-8 text-center">
                                                 <div class="flex flex-col items-center gap-2 text-gray-400">
                                                     <i class="fas fa-check-circle text-2xl text-green-400 opacity-60"></i>
-                                                    <p class="text-sm font-medium">Tidak ada masalah yang terdeteksi</p>
-                                                    <p class="text-xs">Data sudah bersih</p>
+                                                    <p class="text-sm font-medium">{{ __('messages.tidak_ada_masalah') }}</p>
+                                                    <p class="text-xs">{{ __('messages.data_sudah_bersih') }}</p>
                                                 </div>
                                             </td>
                                         </tr>
@@ -879,6 +859,22 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+// Translation strings untuk JavaScript
+const trans = {
+    naik:         '{{ __("messages.naik") }}',
+    turun:        '{{ __("messages.turun") }}',
+    stabil:       '{{ __("messages.stabil") }}',
+    proyeksi:     '{{ __("messages.proyeksi") }}',
+    mingguan:     '{{ __("messages.mingguan") }}',
+    bulanan:      '{{ __("messages.bulanan") }}',
+    tahunan:      '{{ __("messages.tahunan") }}',
+    hargaAktual:  '{{ __("messages.harga_aktual") }}',
+    hargaProyeksi:'{{ __("messages.harga_proyeksi") }}',
+    rentangBawah: '{{ __("messages.rentang_bawah") }}',
+    rentangAtas:  '{{ __("messages.rentang_atas") }}',
+    tidakAdaData: '{{ __("messages.tidak_ada_data") }}',
+};
+
 const chartData = {
     weekly: {
         labels:   {!! json_encode($weeklyLabels   ?? []) !!},
@@ -928,11 +924,10 @@ function updateToggle(hiddenId, previewId, isChecked) {
     markParamDirty();
 }
 
-// ✅ PATCH 4: Fungsi updateForecastWeeks
 function updateForecastWeeks(val) {
     const weeks = parseInt(val);
     document.getElementById('hidden_forecast_weeks').value = weeks;
-    document.getElementById('fw_display_text').textContent = weeks + ' minggu';
+    document.getElementById('fw_display_text').textContent = weeks + ' ' + trans.mingguan;
     document.getElementById('preview_fw').textContent = weeks;
     markParamDirty();
 }
@@ -973,10 +968,9 @@ function triggerSubmit() {
     const mode   = document.getElementById('hidden_mode');
     const weekly = document.getElementById('hidden_weekly');
     const yearly = document.getElementById('hidden_yearly');
-    // ✅ Validasi forecast_weeks
     const fw     = document.getElementById('hidden_forecast_weeks');
 
-    if (!cp.value || isNaN(parseFloat(cp.value)))     cp.value = '0.05';
+    if (!cp.value || isNaN(parseFloat(cp.value)))         cp.value = '0.05';
     if (!season.value || isNaN(parseFloat(season.value))) season.value = '10';
     if (!mode.value)   mode.value = 'multiplicative';
     if (weekly.value !== 'true' && weekly.value !== 'false') weekly.value = 'false';
@@ -995,7 +989,6 @@ function triggerSubmit() {
 }
 
 function handleCommodityChange(val) {
-    // ✅ FIX: sync nilai komoditas ke hidden input SEBELUM submit
     document.getElementById('hidden_komoditas').value = val;
     triggerSubmit();
 }
@@ -1031,37 +1024,29 @@ function switchInputMode(mode) {
 
 function checkFlaskStatus() {
     const badge = document.getElementById('flask-status-badge');
-    const dot = document.getElementById('flask-status-dot');
-    const text = document.getElementById('flask-status-text');
+    const dot   = document.getElementById('flask-status-dot');
+    const text  = document.getElementById('flask-status-text');
 
-    // State: loading
     badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-gray-100 text-gray-500';
-    dot.className = 'w-2 h-2 rounded-full bg-gray-400 animate-pulse';
+    dot.className   = 'w-2 h-2 rounded-full bg-gray-400 animate-pulse';
     text.textContent = 'Memeriksa...';
 
-    fetch('/api/flask-health') // sesuaikan endpoint-nya
+    fetch('/api/flask-health')
         .then(res => {
             if (res.ok) {
-                // Online - hijau
                 badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-green-100 text-green-700';
-                dot.className = 'w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.8)]';
-                text.textContent = 'Online';
-            } else {
-                throw new Error('not ok');
-            }
+                dot.className   = 'w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.8)]';
+                text.textContent = '{{ __("messages.prophet_aktif") }}';
+            } else { throw new Error('not ok'); }
         })
         .catch(() => {
-            // Offline - merah
             badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-red-100 text-red-700';
-            dot.className = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]';
-            text.textContent = 'Offline';
+            dot.className   = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]';
+            text.textContent = '{{ __("messages.api_offline") }}';
         });
 }
 
-// Cek saat halaman load
 checkFlaskStatus();
-
-// Cek ulang tiap 30 detik
 setInterval(checkFlaskStatus, 30000);
 
 function initializeChart() {
@@ -1076,7 +1061,7 @@ function initializeChart() {
         ctx.fillStyle = '#9ca3af';
         ctx.font      = '14px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('Tidak ada data untuk periode ini', canvas.width / 2, canvas.height / 2);
+        ctx.fillText(trans.tidakAdaData, canvas.width / 2, canvas.height / 2);
         return;
     }
 
@@ -1096,51 +1081,38 @@ function initializeChart() {
             labels: data.labels,
             datasets: [
                 {
-                    label: 'Rentang Bawah',
+                    label: trans.rentangBawah,
                     data: data.lower,
                     backgroundColor: 'rgba(34, 197, 94, 0.08)',
                     borderColor: 'transparent',
-                    fill: '+1',
-                    pointRadius: 0,
-                    tension: 0.4
+                    fill: '+1', pointRadius: 0, tension: 0.4
                 },
                 {
-                    label: 'Rentang Atas',
+                    label: trans.rentangAtas,
                     data: data.upper,
                     borderColor: 'transparent',
-                    fill: false,
-                    pointRadius: 0,
-                    tension: 0.4
+                    fill: false, pointRadius: 0, tension: 0.4
                 },
                 {
-                    label: 'Harga Aktual',
+                    label: trans.hargaAktual,
                     data: data.actual,
                     borderColor: '#043277',
                     backgroundColor: gradientActual,
-                    borderWidth: 2.5,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
+                    borderWidth: 2.5, fill: true, tension: 0.4,
+                    pointRadius: 0, pointHoverRadius: 6,
                     pointHoverBackgroundColor: '#043277',
-                    pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 2,
+                    pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
                     spanGaps: false
                 },
                 {
-                    label: 'Harga Proyeksi',
+                    label: trans.hargaProyeksi,
                     data: data.forecast,
                     borderColor: '#f97316',
                     backgroundColor: gradientForecast,
-                    borderDash: [8, 4],
-                    borderWidth: 2.5,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
+                    borderDash: [8, 4], borderWidth: 2.5, fill: true, tension: 0.4,
+                    pointRadius: 0, pointHoverRadius: 6,
                     pointHoverBackgroundColor: '#f97316',
-                    pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 2,
+                    pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
                     spanGaps: false
                 }
             ]
@@ -1163,7 +1135,7 @@ function initializeChart() {
                         boxWidth: 12, boxHeight: 12, padding: 15,
                         font: { size: 11, weight: '600' }, color: '#64748b',
                         usePointStyle: true, pointStyle: 'circle',
-                        filter: (item) => !item.text.includes('Rentang')
+                        filter: (item) => item.text !== trans.rentangBawah && item.text !== trans.rentangAtas
                     }
                 },
                 tooltip: {
@@ -1171,12 +1143,11 @@ function initializeChart() {
                     titleColor: '#1e293b', bodyColor: '#475569',
                     borderColor: '#e2e8f0', borderWidth: 1,
                     padding: 12, boxPadding: 6, usePointStyle: true,
-                    titleFont: { size: 11, weight: '600' },
-                    bodyFont: { size: 11 },
+                    titleFont: { size: 11, weight: '600' }, bodyFont: { size: 11 },
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
-                            if (label.includes('Rentang')) return null;
+                            if (label === trans.rentangBawah || label === trans.rentangAtas) return null;
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
                                 label += new Intl.NumberFormat('id-ID', {
@@ -1193,8 +1164,7 @@ function initializeChart() {
                     beginAtZero: false,
                     grid: { color: '#f1f5f9', drawBorder: false },
                     ticks: {
-                        color: '#94a3b8', font: { size: 10, weight: '500' },
-                        padding: 8,
+                        color: '#94a3b8', font: { size: 10, weight: '500' }, padding: 8,
                         callback: value => 'Rp ' + value.toLocaleString('id-ID')
                     }
                 },
@@ -1202,8 +1172,7 @@ function initializeChart() {
                     grid: { display: false },
                     ticks: {
                         color: '#94a3b8', font: { size: 9, weight: '500' },
-                        maxRotation: 45, minRotation: 0,
-                        autoSkip: true, maxTicksLimit: 20
+                        maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 20
                     }
                 }
             }
@@ -1216,7 +1185,11 @@ function changeChartPeriod(period) {
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`btn-${period}`).classList.add('active');
 
-    const periodText = { 'weekly': 'Mingguan', 'monthly': 'Bulanan', 'yearly': 'Tahunan' };
+    const periodText = {
+        'weekly':  trans.mingguan,
+        'monthly': trans.bulanan,
+        'yearly':  trans.tahunan
+    };
     document.getElementById('selectedPeriodText').textContent = periodText[period];
 
     initializeChart();
@@ -1230,43 +1203,28 @@ function updateInsightTable() {
     tbody.innerHTML = '';
 
     if (!data.labels || data.labels.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400">Tidak ada data</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400">${trans.tidakAdaData}</td></tr>`;
         return;
     }
 
-    // ✅ FIX: Pisahkan baris aktual dan baris forecast
-    const actualRows    = [];
-    const forecastRows  = [];
+    const actualRows   = [];
+    const forecastRows = [];
 
     for (let i = 0; i < data.labels.length; i++) {
         const row = {
-            label:    data.labels[i],
-            actual:   data.actual[i],
-            forecast: data.forecast[i],
-            lower:    data.lower[i],
-            upper:    data.upper[i],
+            label: data.labels[i], actual: data.actual[i],
+            forecast: data.forecast[i], lower: data.lower[i], upper: data.upper[i],
         };
-        if (data.actual[i] !== null) {
-            actualRows.push(row);
-        }
-        // Baris forecast murni (aktual null, forecast ada)
-        if (data.actual[i] === null && data.forecast[i] !== null) {
-            forecastRows.push(row);
-        }
-        // Baris overlap (aktual ada DAN forecast ada — periode validasi)
-        if (data.actual[i] !== null && data.forecast[i] !== null) {
-            // sudah masuk actualRows, tidak perlu duplikat
-        }
+        if (data.actual[i] !== null) actualRows.push(row);
+        if (data.actual[i] === null && data.forecast[i] !== null) forecastRows.push(row);
     }
 
-    // Tampilkan: 8 aktual terakhir + semua forecast ke depan
     const displayActual   = actualRows.slice(-8);
-    const displayForecast = forecastRows; // tampilkan semua forecast
-
+    const displayForecast = forecastRows;
     const display = [...displayActual, ...displayForecast];
 
     if (display.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs">Tidak ada data untuk periode ini</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs">${trans.tidakAdaData}</td></tr>`;
         return;
     }
 
@@ -1277,43 +1235,38 @@ function updateInsightTable() {
         const isForecastOnly = actual === null && forecast !== null;
         const diff = (actual !== null && forecast !== null) ? (forecast - actual) : null;
 
-        let insight = 'Stabil', insightClass = 'insight-stabil';
+        let insight = trans.stabil, insightClass = 'insight-stabil';
         if (diff !== null) {
             const threshold = (actual || 1) * 0.01;
-            if (diff > threshold)       { insight = 'Naik';  insightClass = 'insight-naik'; }
-            else if (diff < -threshold) { insight = 'Turun'; insightClass = 'insight-turun'; }
+            if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
+            else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
         } else if (isForecastOnly) {
             if (lastActualRow && lastActualRow.actual !== null) {
                 const diffFromLast  = forecast - lastActualRow.actual;
                 const thresholdLast = lastActualRow.actual * 0.01;
-                if (diffFromLast > thresholdLast)       { insight = 'Naik';     insightClass = 'insight-naik'; }
-                else if (diffFromLast < -thresholdLast) { insight = 'Turun';    insightClass = 'insight-turun'; }
-                else                                    { insight = 'Proyeksi'; insightClass = 'insight-stabil'; }
+                if (diffFromLast > thresholdLast)       { insight = trans.naik;     insightClass = 'insight-naik'; }
+                else if (diffFromLast < -thresholdLast) { insight = trans.turun;    insightClass = 'insight-turun'; }
+                else                                    { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
             } else {
-                insight = 'Proyeksi'; insightClass = 'insight-stabil';
+                insight = trans.proyeksi; insightClass = 'insight-stabil';
             }
         }
 
         const diffColor = diff !== null
             ? (diff > 0 ? 'text-red-600' : diff < 0 ? 'text-emerald-600' : 'text-gray-500')
             : 'text-gray-300';
-
         const diffText = diff !== null
             ? (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID')
             : '—';
 
-        // ✅ Beri warna baris berbeda untuk forecast murni
-        const rowBg = isForecastOnly ? 'bg-orange-50/30' : '';
-        // Garis pemisah antara aktual terakhir dan forecast pertama
-        const borderTop = (idx === displayActual.length && forecastRows.length > 0)
-            ? 'border-t-2 border-orange-200'
-            : '';
+        const rowBg    = isForecastOnly ? 'bg-orange-50/30' : '';
+        const borderTop = (idx === displayActual.length && forecastRows.length > 0) ? 'border-t-2 border-orange-200' : '';
 
         tbody.innerHTML += `
             <tr class="${rowBg} ${borderTop} border-b border-gray-50 hover:bg-orange-50/50 animate-fade-in">
                 <td class="px-6 py-4 text-gray-500 font-medium text-xs">
                     ${label}
-                    ${isForecastOnly ? '<span class="ml-1 text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold uppercase">Proyeksi</span>' : ''}
+                    ${isForecastOnly ? `<span class="ml-1 text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold uppercase">${trans.proyeksi}</span>` : ''}
                 </td>
                 <td class="px-6 py-4 text-right text-xs font-medium">
                     ${actual !== null ? 'Rp ' + Math.round(actual).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>'}
@@ -1344,14 +1297,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
 @endif
 
-// ============================================================
-// Edit Mode — Data Table
-// ============================================================
+// ── Edit Mode Data Table ──
 function toggleEditMode(id) {
     const row = document.getElementById(`row-${id}`);
     if (!row) return;
     const isEditing = row.querySelector('.commodity-edit').classList.contains('hidden');
-
     row.querySelector('.commodity-view').classList.toggle('hidden', isEditing);
     row.querySelector('.commodity-edit').classList.toggle('hidden', !isEditing);
     row.querySelector('.date-view').classList.toggle('hidden', isEditing);
@@ -1360,14 +1310,13 @@ function toggleEditMode(id) {
     row.querySelector('.price-edit').classList.toggle('hidden', !isEditing);
     row.querySelector('.edit-btn').classList.toggle('hidden', isEditing);
     row.querySelector('.done-btn').classList.toggle('hidden', !isEditing);
-
     const deleteForm = row.querySelector('.delete-form');
     if (deleteForm) {
         deleteForm.style.opacity       = isEditing ? '0.3' : '1';
         deleteForm.style.pointerEvents = isEditing ? 'none' : 'auto';
     }
-    if (isEditing) { row.classList.add('bg-blue-50', 'border-l-4', 'border-l-blue-500'); }
-    else           { row.classList.remove('bg-blue-50', 'border-l-4', 'border-l-blue-500'); }
+    if (isEditing) row.classList.add('bg-blue-50', 'border-l-4', 'border-l-blue-500');
+    else           row.classList.remove('bg-blue-50', 'border-l-4', 'border-l-blue-500');
 }
 
 function autoSaveData(id) {
@@ -1375,12 +1324,9 @@ function autoSaveData(id) {
     const komoditasId = row.querySelector('.commodity-edit').value;
     const date        = row.querySelector('.date-edit').value;
     const price       = row.querySelector('.price-edit').value;
-
     if (!komoditasId || !date || !price) { showNotification('Semua field harus diisi!', 'error'); return; }
     if (parseFloat(price) <= 0)          { showNotification('Harga harus lebih dari 0!', 'error'); return; }
-
     row.style.backgroundColor = '#fef3c7';
-
     fetch(`{{ url('/operator/update-data') }}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
@@ -1398,31 +1344,23 @@ function autoSaveData(id) {
             setTimeout(() => { row.style.backgroundColor = ''; }, 800);
             showNotification('Data tersimpan!', 'success');
         } else {
-            showNotification('Gagal menyimpan: ' + (data.message || 'Terjadi kesalahan'), 'error');
+            showNotification('Gagal: ' + (data.message || 'Terjadi kesalahan'), 'error');
             row.style.backgroundColor = '';
         }
     })
     .catch(() => { showNotification('Terjadi kesalahan jaringan', 'error'); row.style.backgroundColor = ''; });
 }
 
-// ============================================================
-// Toast Notification
-// ============================================================
 function showNotification(message, type = 'success') {
     const existing = document.querySelector('.toast-notification');
     if (existing) existing.remove();
-
     const notification = document.createElement('div');
     notification.className = `toast-notification fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white text-sm font-medium animate-fade-in ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
-    notification.innerHTML = `<div class="flex items-center gap-3">
-        <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
-        <span>${message}</span>
-    </div>`;
+    notification.innerHTML = `<div class="flex items-center gap-3"><i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i><span>${message}</span></div>`;
     document.body.appendChild(notification);
-
     setTimeout(() => {
-        notification.style.opacity    = '0';
-        notification.style.transform  = 'translateX(100%)';
+        notification.style.opacity   = '0';
+        notification.style.transform = 'translateX(100%)';
         notification.style.transition = 'all 0.3s ease';
         setTimeout(() => notification.remove(), 300);
     }, 3000);

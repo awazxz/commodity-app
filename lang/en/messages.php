@@ -8,6 +8,9 @@ return [
     'manajemen_pengguna'        => 'User Management',
     'logout'                    => 'Logout',
     'pilih_bahasa'              => 'Language',
+    'tampilan'                  => 'Theme',
+    'login_sebagai'             => 'Logged in as:',
+    'horizon_prediksi'          => 'Prediction Horizon',
 
     // ── ROLE LABELS ──────────────────────────────────────────────
     'administrator'             => 'Administrator',
@@ -64,13 +67,24 @@ return [
     'stabil'                    => 'Stable',
     'proyeksi'                  => 'Projection',
 
-    // ── INTERPRETASI ─────────────────────────────────────────────
+   // ── INTERPRETASI ─────────────────────────────────────────────
     'interpretasi_tren'         => 'Trend Analysis Interpretation',
     'berdasarkan_analisis'      => 'Based on historical data analysis for commodity',
     'model_deteksi'             => 'the model detects a price trend of',
     'rata_rata_harga_label'     => 'with an average price of',
     'total_label'               => 'and a total of',
-    'pada_periode'              => 'in the period',
+    'pada_periode'              => 'for the period',
+
+    // ── DETAIL MODEL & EVALUASI (TAMBAHAN) ──────────────────────
+    'model_prophet_dilatih'     => 'The Prophet model is trained with',
+    'horizon_prediksi_label'    => 'prediction horizon',
+    'minggu_ke_depan'           => 'weeks ahead',
+    'nilai_mape_label'          => 'MAPE value (80/20 Cross-Validation) of',
+    'menunjukkan'               => 'indicates',
+    'akurasi_sangat_baik'       => 'excellent accuracy',
+    'akurasi_baik'              => 'good accuracy',
+    'perlu_penyesuaian'         => 'hyperparameter adjustment needed',
+    's_d'                       => 'to',
 
     // ── STATISTIK ────────────────────────────────────────────────
     'ringkasan_statistik'       => 'Statistical Summary',
@@ -177,9 +191,14 @@ return [
     'komoditas_varian'          => 'Commodity & Variant',
     'trend'                     => 'Trend',
     'belum_ada_prediksi'        => 'No prediction yet',
+    'batas_atas'                => 'Upper bound',
+    'batas_bawah'               => 'Lower bound',
+    'aktual&prediksi'           => 'Actual + Prediction',
+    'hanya_prediksi'            => 'Prediction Only',
+    'hanya_aktual'              => 'Actual Only',
 
     // ── STATUS & NOTIFIKASI ──────────────────────────────────────
-    'prophet_aktif'             => 'Prophet Active',
+    'API_aktif'                 => 'API Active',
     'api_offline'               => 'API Offline',
     'prediksi_tersedia'         => '✓ Available',
     'prediksi_tidak_tersedia'   => '⚠ Unavailable',
@@ -195,4 +214,49 @@ return [
     'komoditas_tersedia'        => 'Available Commodities',
     'klik_lihat_analisis'       => 'Click to view analysis for other commodities',
     'tidak_ada_komoditas'       => 'No commodities available.',
+
+    // ── TAMPILAN / THEME ─────────────────────────────────────────
+    'mode_terang'               => 'Light Mode',
+    'mode_gelap'                => 'Dark Mode',
+
+    // ── NAMA BULAN ───────────────────────────────────────────────────────
+'bulan_januari'     => 'January',
+'bulan_februari'    => 'February',
+'bulan_maret'       => 'March',
+'bulan_april'       => 'April',
+'bulan_mei'         => 'May',
+'bulan_juni'        => 'June',
+'bulan_juli'        => 'July',
+'bulan_agustus'     => 'August',
+'bulan_september'   => 'September',
+'bulan_oktober'     => 'October',
+'bulan_november'    => 'November',
+'bulan_desember'    => 'December',
+
+// ── KESIMPULAN ANALISIS (pakai :placeholder untuk angka dinamis) 
+'kesimpulan_naik'   => 'Of :total commodities analyzed, most show a predicted price increase (:naik up, :turun down, :stabil stable). Price control measures may be needed.',
+'kesimpulan_turun'  => 'Of :total commodities analyzed, most show a predicted price decrease (:naik up, :turun down, :stabil stable). Prices are expected to ease.',
+'kesimpulan_stabil' => 'Of :total commodities analyzed, most prices are predicted to remain stable (:naik up, :turun down, :stabil stable). Market conditions are relatively under control.',
+'kesimpulan_kosong' => 'No data available to analyze for this period.',
+
+// ── HYPERPARAMETER NOTES (admin & operator dashboard)
+'deteksi_pola_minggu'          => 'Detect weekly patterns',
+'deteksi_pola_tahun'           => 'Detect yearly patterns',
+'berubah_saat_hyperparameter'  => 'Changes when hyperparameters change',
+'prediksi_terakhir_note'       => 'Last prediction used the parameters above.',
+'ubah_parameter_note'          => 'Change parameters → click "Update Prediction" for new insights.',
+'gunakan_template_standar'     => 'Use the standard template to ensure correct data format',
+'format_csv_admin'             => 'Format: komoditas_id, date, price',
+'format_csv_operator'          => 'Format: komoditas_id, date, price',
+
+// ── FLASK API STATUS 
+'memeriksa'         => 'Checking...',
+
+// ── INTERPRETASI TREN (admin & operator dashboard) 
+'interpretasi_tren'         => 'Trend Analysis Interpretation',
+'berdasarkan_analisis'      => 'Based on historical data analysis for commodity',
+'model_deteksi'             => 'the model detects a price trend of',
+'rata_rata_harga_label'     => 'with an average price of',
+'total_label'               => 'and a total of',
+'pada_periode'              => 'for the period',
 ];

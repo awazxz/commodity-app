@@ -26,6 +26,24 @@
     html.dark tr.only-forecast { background-color: rgba(59, 130, 246, 0.08) !important; }
 </style>
 
+@php
+    // Nama bulan sesuai locale aktif
+    $namaBulanList = [
+        1  => __('messages.bulan_januari'),
+        2  => __('messages.bulan_februari'),
+        3  => __('messages.bulan_maret'),
+        4  => __('messages.bulan_april'),
+        5  => __('messages.bulan_mei'),
+        6  => __('messages.bulan_juni'),
+        7  => __('messages.bulan_juli'),
+        8  => __('messages.bulan_agustus'),
+        9  => __('messages.bulan_september'),
+        10 => __('messages.bulan_oktober'),
+        11 => __('messages.bulan_november'),
+        12 => __('messages.bulan_desember'),
+    ];
+@endphp
+
 <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
 
@@ -77,8 +95,58 @@
                     </div>
                 </div>
 
+                {{--
+                    FIX: $analisis['kesimpulan'] dibuat di Controller dengan teks hardcoded Indonesia.
+                    Solusinya: Controller mengirim 'kesimpulan_key' (string key) + data angka,
+                    lalu blade yang merakit kalimat pakai __().
+                    Jika Controller belum diupdate, fallback ke teks lama tetap ditampilkan.
+                --}}
                 <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 p-4">
-                    <p class="text-sm text-blue-700 dark:text-blue-300 font-medium italic">{{ $analisis['kesimpulan'] }}</p>
+                    @if(isset($analisis['naik']) && isset($analisis['turun']) && isset($analisis['stabil']))
+                        @php
+                            $total  = ($analisis['naik'] ?? 0) + ($analisis['turun'] ?? 0) + ($analisis['stabil'] ?? 0);
+                            $maxVal = max($analisis['naik'] ?? 0, $analisis['turun'] ?? 0, $analisis['stabil'] ?? 0);
+                        @endphp
+                        @if($total > 0)
+                            @if($maxVal === ($analisis['naik'] ?? 0))
+                                <p class="text-sm text-blue-700 dark:text-blue-300 font-medium italic">
+                                    {{ __('messages.kesimpulan_naik', [
+                                        'naik'   => $analisis['naik'],
+                                        'turun'  => $analisis['turun'],
+                                        'stabil' => $analisis['stabil'],
+                                        'total'  => $total,
+                                    ]) }}
+                                </p>
+                            @elseif($maxVal === ($analisis['turun'] ?? 0))
+                                <p class="text-sm text-blue-700 dark:text-blue-300 font-medium italic">
+                                    {{ __('messages.kesimpulan_turun', [
+                                        'naik'   => $analisis['naik'],
+                                        'turun'  => $analisis['turun'],
+                                        'stabil' => $analisis['stabil'],
+                                        'total'  => $total,
+                                    ]) }}
+                                </p>
+                            @else
+                                <p class="text-sm text-blue-700 dark:text-blue-300 font-medium italic">
+                                    {{ __('messages.kesimpulan_stabil', [
+                                        'naik'   => $analisis['naik'],
+                                        'turun'  => $analisis['turun'],
+                                        'stabil' => $analisis['stabil'],
+                                        'total'  => $total,
+                                    ]) }}
+                                </p>
+                            @endif
+                        @else
+                            <p class="text-sm text-blue-700 dark:text-blue-300 font-medium italic">
+                                {{ __('messages.kesimpulan_kosong') }}
+                            </p>
+                        @endif
+                    @else
+                        {{-- Fallback jika struktur $analisis berbeda --}}
+                        <p class="text-sm text-blue-700 dark:text-blue-300 font-medium italic">
+                            {{ $analisis['kesimpulan'] ?? '' }}
+                        </p>
+                    @endif
                 </div>
             </div>
         </div>
@@ -110,8 +178,9 @@
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">{{ __('messages.bulan') }}</label>
                         <select name="bulan" class="mt-1 block w-full border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border py-2 px-2 shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
                             <option value="">{{ __('messages.semua_bulan') }}</option>
-                            @foreach(['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'] as $idx => $namaBulan)
-                                <option value="{{ $idx + 1 }}" {{ request('bulan') == ($idx + 1) ? 'selected' : '' }}>{{ $namaBulan }}</option>
+                            {{-- FIX: Pakai array dari messages.php bukan hardcoded --}}
+                            @foreach($namaBulanList as $num => $nama)
+                                <option value="{{ $num }}" {{ request('bulan') == $num ? 'selected' : '' }}>{{ $nama }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -138,9 +207,9 @@
 
         {{-- Legend --}}
         <div class="flex items-center gap-4 mb-3 text-xs text-gray-500 dark:text-gray-400">
-            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700"></span> Aktual + Prediksi tersedia</span>
-            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700"></span> Hanya Prediksi (masa depan)</span>
-            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600"></span> Hanya Aktual</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700"></span> {{ __('messages.aktual&prediksi') }}</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-blue-100 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700"></span> {{ __('messages.hanya_prediksi') }}</span>
+            <span class="flex items-center gap-1"><span class="inline-block w-3 h-3 rounded bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600"></span> {{ __('messages.hanya_aktual') }}</span>
         </div>
 
         {{-- Tabel --}}
@@ -155,8 +224,8 @@
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.komoditas_varian') }}</th>
                                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.harga_aktual') }}</th>
                                     <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.harga_prediksi') }}</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Batas Bawah</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Batas Atas</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.batas_bawah') }}</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.batas_atas') }}</th>
                                     <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">{{ __('messages.trend') }}</th>
                                 </tr>
                             </thead>
@@ -166,12 +235,17 @@
                                     $hasAktual   = !is_null($item->harga_aktual)   && $item->harga_aktual > 0;
                                     $hasPrediksi = !is_null($item->harga_prediksi) && $item->harga_prediksi > 0;
                                     $rowClass    = $hasAktual && $hasPrediksi ? 'has-both' : ($hasPrediksi ? 'only-forecast' : '');
+
+                                    // FIX: Gunakan Carbon::parse dengan locale app, bukan translatedFormat hardcoded
+                                    $tglCarbon  = \Carbon\Carbon::parse($item->tanggal)->locale(app()->getLocale());
+                                    $namaBulan  = $namaBulanList[$tglCarbon->month] ?? $tglCarbon->format('F');
+                                    $periodeStr = $namaBulan . ' ' . $tglCarbon->year;
                                 @endphp
                                 <tr class="{{ $rowClass }} hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="font-medium text-gray-900 dark:text-gray-100">
-                                            Minggu {{ \Carbon\Carbon::parse($item->tanggal)->weekOfMonth }},
-                                            {{ \Carbon\Carbon::parse($item->tanggal)->translatedFormat('F Y') }}
+                                            {{ __('messages.minggu_ke') }} {{ \Carbon\Carbon::parse($item->tanggal)->weekOfMonth }},
+                                            {{ $periodeStr }}
                                         </div>
                                         <div class="text-xs text-gray-400 dark:text-gray-500">{{ \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') }}</div>
                                     </td>
@@ -208,14 +282,14 @@
                                                 $threshold = (float)$item->harga_aktual * 0.01;
                                             @endphp
                                             @if($diff > $threshold)
-                                                <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300">▲ {{ __('messages.naik') }}</span>
+                                                <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300"> {{ __('messages.naik') }}</span>
                                             @elseif($diff < -$threshold)
-                                                <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">▼ {{ __('messages.turun') }}</span>
+                                                <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300"> {{ __('messages.turun') }}</span>
                                             @else
-                                                <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300">● {{ __('messages.stabil') }}</span>
+                                                <span class="px-3 py-1 inline-flex text-xs font-semibold rounded-full bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300"> {{ __('messages.stabil') }}</span>
                                             @endif
                                         @elseif($hasPrediksi)
-                                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">🔮 Forecast</span>
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"> {{ __('messages.proyeksi') }}</span>
                                         @else
                                             <span class="text-gray-300 dark:text-gray-600">-</span>
                                         @endif
