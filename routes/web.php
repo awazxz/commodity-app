@@ -26,7 +26,6 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-// Contact admin (public)
 Route::get('/contact-admin', function () {
     return view('layouts.contact-admin');
 })->name('contact.admin');
@@ -39,21 +38,24 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::get('/laporan-komoditas',       [LaporanKomoditasController::class, 'index'])->name('laporan.komoditas.index');
-    Route::get('/laporan-komoditas/cetak', [LaporanKomoditasController::class, 'cetak'])->name('laporan.komoditas.cetak');
+    // ── LAPORAN KOMODITAS ────────────────────────────────────────
+    Route::prefix('laporan-komoditas')->name('laporan.komoditas.')->group(function () {
+        Route::get('/',      [LaporanKomoditasController::class, 'index'])     ->name('index');
+        Route::get('/cetak', [LaporanKomoditasController::class, 'cetak'])     ->name('cetak');
+        Route::get('/pdf',   [LaporanKomoditasController::class, 'exportPdf']) ->name('pdf');
+        Route::get('/csv',   [LaporanKomoditasController::class, 'exportCsv']) ->name('csv');
+    });
 
     // ── USER ROLE ────────────────────────────────────────────────
     Route::prefix('user')->name('user.')->group(function () {
         Route::get('/dashboard', [UserController::class, 'index'])->name('dashboard');
+        Route::get('/analisis',  [UserController::class, 'analisis'])->name('analisis');
 
-        // ✅ Analisis & Prediksi (UserController baru)
-        Route::get('/analisis', [UserController::class, 'analisis'])->name('analisis');
-
-        // Legacy routes (tetap dipertahankan agar tidak breaking)
-        Route::get('/olah-data', [ForecastingController::class, 'index'])->name('olah-data');
-        Route::get('/forecast/data/{komoditas}',   [ForecastingController::class, 'historical'])->name('forecast.data');
-        Route::post('/forecast/run/{komoditas}',   [ForecastingController::class, 'run'])->name('forecast.run');
-        Route::get('/forecast/result/{komoditas}', [ForecastingController::class, 'result'])->name('forecast.result');
+        // Legacy routes
+        Route::get('/olah-data',                       [ForecastingController::class, 'index'])->name('olah-data');
+        Route::get('/forecast/data/{komoditas}',        [ForecastingController::class, 'historical'])->name('forecast.data');
+        Route::post('/forecast/run/{komoditas}',        [ForecastingController::class, 'run'])->name('forecast.run');
+        Route::get('/forecast/result/{komoditas}',      [ForecastingController::class, 'result'])->name('forecast.result');
     });
 
     // ── ADMIN ROLE ───────────────────────────────────────────────
@@ -96,7 +98,6 @@ Route::middleware('auth')->group(function () {
         Route::post('/clean-data',         [OperatorController::class, 'cleanData'])->name('cleanData');
         Route::get('/download-template',   [DatasetController::class, 'downloadTemplate'])->name('downloadTemplate');
 
-        // ── MANAJEMEN DATA (mirrored from admin) ─────────────────
         Route::prefix('manajemen-data')->name('manajemen-data.')->group(function () {
             Route::get('/',                  [ManajemenDataController::class, 'index'])->name('index');
             Route::post('/store-manual',     [ManajemenDataController::class, 'storeManual'])->name('store-manual');
@@ -111,11 +112,57 @@ Route::middleware('auth')->group(function () {
     });
 
     // ── PROFILE ───────────────────────────────────────────────────
-    Route::controller(ProfileController::class)->group(function () {
+        Route::controller(ProfileController::class)->group(function () {
         Route::get('/profile',    'edit')->name('profile.edit');
         Route::patch('/profile',  'update')->name('profile.update');
         Route::delete('/profile', 'destroy')->name('profile.destroy');
     });
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// TAMBAHKAN KE routes/web.php
+// Letakkan di dalam group middleware auth + admin
+// ═══════════════════════════════════════════════════════════════
+
+// Contoh jika kamu punya group seperti ini:
+// Route::middleware(['auth', 'role:admin,operator'])->group(function () {
+
+    // ── Cache Management ─────────────────────────────────────
+    Route::delete('/admin/clear-model-cache/{id}',
+        [\App\Http\Controllers\AdminController::class, 'clearModelCache']
+    )->name('admin.clearModelCache');
+
+    Route::delete('/admin/clear-model-cache-all',
+        [\App\Http\Controllers\AdminController::class, 'clearModelCacheAll']
+    )->name('admin.clearModelCacheAll');
+
+    Route::get('/admin/flask-model-status',
+        [\App\Http\Controllers\AdminController::class, 'flaskModelStatus']
+    )->name('admin.flaskModelStatus');
+
+// });
+
+
+// ═══════════════════════════════════════════════════════════════
+// JIKA OPERATOR JUGA BISA AKSES, TAMBAHKAN DI GROUP OPERATOR:
+// ═══════════════════════════════════════════════════════════════
+
+Route::middleware(['auth', 'role:operator'])->group(function () {
+
+    // Operator boleh clear cache tapi tidak bisa delete user dll
+    Route::delete('/operator/clear-model-cache/{id}',
+        [\App\Http\Controllers\AdminController::class, 'clearModelCache']
+    )->name('operator.clearModelCache');
+
+    Route::delete('/operator/clear-model-cache-all',
+        [\App\Http\Controllers\AdminController::class, 'clearModelCacheAll']
+    )->name('operator.clearModelCacheAll');
+
+    Route::get('/operator/flask-model-status',
+        [\App\Http\Controllers\AdminController::class, 'flaskModelStatus']
+    )->name('operator.flaskModelStatus');
+
 });
 
 require __DIR__.'/auth.php';

@@ -220,7 +220,8 @@
                                class="bg-transparent text-sm p-1 outline-none flex-1 font-medium text-gray-900 dark:text-gray-100">
                         <span class="text-gray-400 font-bold">→</span>
                         <input type="date" name="end_date" id="input_end_date"
-                               value="{{ $endDate ?? date('Y-m-d') }}"
+                                value="{{ $endDate }}"
+                                max="{{ $endDate }}"
                                onchange="triggerSubmit()"
                                class="bg-transparent text-sm p-1 outline-none flex-1 font-medium text-gray-900 dark:text-gray-100">
                     </div>
@@ -532,6 +533,7 @@
                 </tbody>
             </table>
         </div>
+        <div id="insightPagination"></div>
     </div>
 
      {{-- Interpretasi --}}
@@ -1381,6 +1383,7 @@ function initializeChart() {
 
 function changeChartPeriod(period) {
     currentPeriod = period;
+    insightCurrentPage = 1;
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById(`btn-${period}`).classList.add('active');
 
@@ -1726,6 +1729,160 @@ function showNotification(message, type = 'success') {
         notification.style.transition = 'all 0.3s ease';
         setTimeout(() => notification.remove(), 300);
     }, 3000);
+}
+// Tambahkan di atas fungsi updateInsightTable()
+let insightCurrentPage = 1;
+const INSIGHT_PER_PAGE = 10;
+
+function updateInsightTable(page = 1) {
+    insightCurrentPage = page;
+    const data  = chartData[currentPeriod];
+    const tbody = document.getElementById('insightTableBody');
+    const paginationEl = document.getElementById('insightPagination');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!data.labels || data.labels.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 dark:text-gray-500">${trans.tidakAdaData}</td></tr>`;
+        if (paginationEl) paginationEl.innerHTML = '';
+        return;
+    }
+
+    const actualRows   = [];
+    const forecastRows = [];
+
+    for (let i = 0; i < data.labels.length; i++) {
+        const row = {
+            label: data.labels[i], actual: data.actual[i],
+            forecast: data.forecast[i], lower: data.lower[i], upper: data.upper[i],
+        };
+        if (data.actual[i] !== null) actualRows.push(row);
+        if (data.actual[i] === null && data.forecast[i] !== null) forecastRows.push(row);
+    }
+
+    const allRows = [...actualRows, ...forecastRows];
+    const totalRows = allRows.length;
+    const totalPages = Math.ceil(totalRows / INSIGHT_PER_PAGE);
+    const startIdx = (page - 1) * INSIGHT_PER_PAGE;
+    const endIdx = startIdx + INSIGHT_PER_PAGE;
+    const display = allRows.slice(startIdx, endIdx);
+    const lastActualRow = actualRows.slice(-1)[0];
+    const actualEndIdx = actualRows.length; // batas antara actual dan forecast di allRows
+
+    if (display.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">${trans.tidakAdaData}</td></tr>`;
+        if (paginationEl) paginationEl.innerHTML = '';
+        return;
+    }
+
+    display.forEach((row, idx) => {
+        const globalIdx = startIdx + idx;
+        const { label, actual, forecast, lower, upper } = row;
+        const isForecastOnly = actual === null && forecast !== null;
+
+        let insight = trans.stabil, insightClass = 'insight-stabil';
+        let diff = null, diffColor = 'text-gray-300 dark:text-gray-600', diffText = '—';
+
+        if (!isForecastOnly && actual !== null && forecast !== null) {
+            diff = forecast - actual;
+            const threshold = actual * 0.01;
+            if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
+            else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
+            diffColor = diff > 0 ? 'text-red-600 dark:text-red-400' : diff < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400';
+            diffText  = (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID');
+        } else if (!isForecastOnly && actual !== null && forecast === null) {
+            const prevActual = globalIdx > 0 ? allRows[globalIdx - 1]?.actual : null;
+            if (prevActual !== null && prevActual !== undefined && prevActual !== 0) {
+                diff = actual - prevActual;
+                const threshold = prevActual * 0.01;
+                if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
+                else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
+                diffColor = diff > 0 ? 'text-red-600 dark:text-red-400' : diff < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400';
+                diffText  = (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID');
+            }
+        } else if (isForecastOnly) {
+            if (lastActualRow && lastActualRow.actual !== null) {
+                const diffFromLast  = forecast - lastActualRow.actual;
+                const thresholdLast = lastActualRow.actual * 0.01;
+                if (diffFromLast > thresholdLast)       { insight = trans.naik;     insightClass = 'insight-naik'; }
+                else if (diffFromLast < -thresholdLast) { insight = trans.turun;    insightClass = 'insight-turun'; }
+                else                                    { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
+            } else {
+                insight = trans.proyeksi; insightClass = 'insight-stabil';
+            }
+        }
+
+        const rowBg    = isForecastOnly ? 'bg-orange-50/30 dark:bg-orange-900/5' : '';
+        // Tambahkan border separator saat baris pertama forecast muncul di halaman ini
+        const borderTop = (!isForecastOnly === false && globalIdx === actualEndIdx) ? 'border-t-2 border-orange-200 dark:border-orange-800' : '';
+
+        tbody.innerHTML += `
+            <tr class="${rowBg} ${borderTop} border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/80 dark:hover:bg-gray-700/50 transition-colors">
+                <td class="px-6 py-4 text-gray-500 dark:text-gray-400 font-medium text-xs">
+                    ${label}
+                    ${isForecastOnly ? `<span class="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded font-bold uppercase">${trans.proyeksi}</span>` : ''}
+                </td>
+                <td class="px-6 py-4 text-right text-xs font-medium text-gray-800 dark:text-gray-200">
+                    ${actual !== null ? 'Rp ' + Math.round(actual).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
+                </td>
+                <td class="px-6 py-4 text-right text-blue-600 dark:text-blue-400 font-bold text-xs">
+                    ${forecast !== null ? 'Rp ' + Math.round(forecast).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
+                </td>
+                <td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">
+                    ${lower !== null ? 'Rp ' + Math.round(lower).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
+                </td>
+                <td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">
+                    ${upper !== null ? 'Rp ' + Math.round(upper).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
+                </td>
+                <td class="px-6 py-4 text-right text-xs ${diffColor} font-medium">${diffText}</td>
+                <td class="px-6 py-4 text-center">
+                    <span class="insight-badge ${insightClass}">${insight}</span>
+                </td>
+            </tr>
+        `;
+    });
+
+    // Render pagination
+    renderInsightPagination(page, totalPages, totalRows, startIdx, Math.min(endIdx, totalRows));
+}
+
+function renderInsightPagination(currentPage, totalPages, totalRows, startIdx, endIdx) {
+    const el = document.getElementById('insightPagination');
+    if (!el) return;
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+    const btnBase = 'px-3 py-1.5 text-xs rounded border transition-all font-medium';
+    const btnActive = 'bg-blue-600 text-white border-blue-600';
+    const btnInactive = 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700';
+    const btnDisabled = 'text-gray-300 dark:text-gray-600 bg-gray-50 dark:bg-gray-800 border-gray-100 dark:border-gray-700 cursor-not-allowed';
+
+    let pagesHtml = '';
+    for (let p = 1; p <= totalPages; p++) {
+        if (totalPages > 7 && p > 2 && p < totalPages - 1 && Math.abs(p - currentPage) > 1) {
+            if (p === 3 || p === totalPages - 2) pagesHtml += `<span class="px-1 text-gray-400">…</span>`;
+            continue;
+        }
+        pagesHtml += `<button onclick="updateInsightTable(${p})" class="${btnBase} ${p === currentPage ? btnActive : btnInactive}">${p}</button>`;
+    }
+
+    el.innerHTML = `
+        <div class="flex items-center justify-between px-6 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30">
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+                Menampilkan <span class="font-semibold">${startIdx + 1}–${endIdx}</span> dari <span class="font-semibold">${totalRows}</span> data
+            </p>
+            <div class="flex items-center gap-1">
+                <button onclick="updateInsightTable(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''} 
+                        class="${btnBase} ${currentPage === 1 ? btnDisabled : btnInactive}">
+                    <i class="fas fa-chevron-left text-[10px]"></i>
+                </button>
+                ${pagesHtml}
+                <button onclick="updateInsightTable(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''} 
+                        class="${btnBase} ${currentPage === totalPages ? btnDisabled : btnInactive}">
+                    <i class="fas fa-chevron-right text-[10px]"></i>
+                </button>
+            </div>
+        </div>
+    `;
 }
 </script>
 

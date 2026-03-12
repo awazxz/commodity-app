@@ -526,20 +526,38 @@
     </div>
 
     {{-- Interpretasi --}}
-    <div class="card-standard p-6 border-l-4 border-l-blue-600">
-        <div class="flex items-center gap-3 mb-3">
-            <h4 class="text-sm font-bold text-gray-900 uppercase">{{ __('messages.interpretasi_tren') }}</h4>
-        </div>
-        <p id="dynamic-analysis" class="text-sm text-gray-600 leading-relaxed">
-            {{ __('messages.berdasarkan_analisis') }} <strong>{{ $selectedCommodity }}</strong>,
-            {{ __('messages.model_deteksi') }} <strong>{{ strtolower($trendDir ?? __('messages.stabil')) }}</strong>
-            {{ __('messages.rata_rata_harga_label') }} <strong>Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</strong>
-            {{ __('messages.total_label') }} <strong>{{ $countData ?? 0 }} {{ __('messages.data_poin') }}</strong>
-            {{ __('messages.pada_periode') }}
-            {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
-            s/d {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.
-        </p>
+<div class="card-standard p-6 border-l-4 border-l-blue-600">
+    <div class="flex items-center gap-3 mb-3">
+        <h4 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase">
+            {{ __('messages.interpretasi_tren') }}
+        </h4>
     </div>
+    <p id="dynamic-analysis" class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+        {{ __('messages.berdasarkan_analisis') }} <strong>{{ $selectedCommodity }}</strong>,
+        {{ __('messages.model_deteksi') }} <strong>{{ __('messages.' . strtolower($trendDir ?? 'stabil')) }}</strong>
+        {{ __('messages.rata_rata_harga_label') }} <strong>Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</strong>
+        {{ __('messages.total_label') }} <strong>{{ $countData ?? 0 }} {{ __('messages.data_poin') }}</strong> {{ __('messages.pada_periode') }}
+        {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
+        {{ __('messages.s_d') }} {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.
+        
+        {{ __('messages.model_prophet_dilatih') }} <strong>changepoint_prior_scale={{ $cpScale ?? 0.05 }}</strong>,
+        <strong>seasonality_prior_scale={{ $seasonScale ?? 10 }}</strong>,
+        {{ __('messages.mode_musiman') }} <strong>{{ $seasonMode ?? 'multiplicative' }}</strong>,
+        {{ __('messages.horizon_prediksi_label') }} <strong>{{ $forecastWeeks ?? 12 }} {{ __('messages.minggu_ke_depan') }}</strong>.
+        
+        {{ __('messages.nilai_mape_label') }} <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
+        {{ __('messages.menunjukkan') }} 
+        <strong>
+            @if(($mape ?? 0) < 5)
+                {{ __('messages.akurasi_sangat_baik') }}
+            @elseif(($mape ?? 0) < 10)
+                {{ __('messages.akurasi_baik') }}
+            @else
+                {{ __('messages.perlu_penyesuaian') }}
+            @endif
+        </strong>.
+    </p>
+</div>
 
 @endif
 
@@ -1036,7 +1054,7 @@ function checkFlaskStatus() {
             if (res.ok) {
                 badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-green-100 text-green-700';
                 dot.className   = 'w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.8)]';
-                text.textContent = '{{ __("messages.prophet_aktif") }}';
+                text.textContent = '{{ __("messages.API_aktif") }}';
             } else { throw new Error('not ok'); }
         })
         .catch(() => {

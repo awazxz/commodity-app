@@ -8,7 +8,7 @@
         .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #043277; padding-bottom: 10px; }
         .header h2 { margin: 0; color: #043277; text-transform: uppercase; font-size: 16px; }
         .header p { margin: 5px 0; font-size: 10px; color: #666; }
-        
+
         .info-section { margin-bottom: 20px; }
         .info-table { width: 100%; margin-bottom: 20px; }
         .info-table td { padding: 3px 0; vertical-align: top; }
@@ -16,29 +16,31 @@
         table.data-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         table.data-table th { background-color: #f8fafc; border: 1px solid #cbd5e1; padding: 8px; text-align: center; text-transform: uppercase; font-size: 9px; }
         table.data-table td { border: 1px solid #cbd5e1; padding: 8px; }
-        
-        .text-right { text-align: right; }
+        table.data-table tbody tr:nth-child(even) { background-color: #f8fafc; }
+
+        .text-right  { text-align: right; }
         .text-center { text-align: center; }
-        .badge { padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9px; }
-        .naik { color: #be123c; }
-        .turun { color: #15803d; }
+        .naik   { color: #be123c; font-weight: bold; }
+        .turun  { color: #15803d; font-weight: bold; }
         .stabil { color: #475569; }
 
         .footer { margin-top: 40px; }
         .summary-box { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-top: 10px; }
-        
+
         @media print {
             body { margin: 0; }
             .no-print { display: none; }
         }
     </style>
 </head>
+
 <body onload="window.print()">
 
     <div class="header">
         <h2>Badan Pusat Statistik Provinsi Riau</h2>
         <p>Laporan Analisis Harga Aktual vs Prediksi Harian Komoditas</p>
-        <p>Tanggal Cetak: {{ date('d/m/Y H:i') }}</p>
+       
+        <p>Tanggal Cetak: {{ now()->format('d/m/Y H:i') }}</p>
     </div>
 
     <div class="info-section">
@@ -49,12 +51,17 @@
                 <td>{{ $tanggal ?? 'Semua Tanggal' }}</td>
             </tr>
             <tr>
+                <td>Total Data</td>
+                <td>:</td>
+                <td><strong>{{ $data->count() }} baris</strong></td>
+            </tr>
+            <tr>
                 <td>Status Ringkasan</td>
                 <td>:</td>
                 <td>
-                    Naik: <strong>{{ $analisis['naik'] }}</strong> | 
-                    Turun: <strong>{{ $analisis['turun'] }}</strong> | 
-                    Stabil: <strong>{{ $analisis['stabil'] }}</strong>
+                    <span class="naik">Naik: <strong>{{ $analisis['naik'] }}</strong></span> &nbsp;|&nbsp;
+                    <span class="turun">Turun: <strong>{{ $analisis['turun'] }}</strong></span> &nbsp;|&nbsp;
+                    <span class="stabil">Stabil: <strong>{{ $analisis['stabil'] }}</strong></span>
                 </td>
             </tr>
         </table>
@@ -65,7 +72,7 @@
             <tr>
                 <th>No</th>
                 <th>Tanggal</th>
-                <th>Komoditas & Varian</th>
+                <th>Komoditas &amp; Varian</th>
                 <th>Harga Aktual</th>
                 <th>Harga Prediksi</th>
                 <th>Selisih</th>
@@ -74,23 +81,40 @@
         </thead>
         <tbody>
             @forelse($data as $index => $item)
-            @php 
-                $selisih = ($item->harga_prediksi ?? 0) - ($item->harga_aktual ?? 0);
+            @php
+             
+                $aktual   = (float) ($item->harga_aktual   ?? 0);
+                $prediksi = (float) ($item->harga_prediksi ?? 0);
+                $selisih  = $prediksi - $aktual;
             @endphp
             <tr>
                 <td class="text-center">{{ $index + 1 }}</td>
                 <td class="text-center">{{ \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') }}</td>
                 <td>{{ $item->nama_komoditas }} ({{ $item->nama_varian }})</td>
-                <td class="text-right">Rp {{ number_format($item->harga_aktual, 0, ',', '.') }}</td>
-                <td class="text-right">{{ $item->harga_prediksi ? 'Rp ' . number_format($item->harga_prediksi, 0, ',', '.') : '-' }}</td>
-                <td class="text-right {{ $selisih > 0 ? 'naik' : ($selisih < 0 ? 'turun' : '') }}">
-                    {{ $selisih != 0 ? number_format($selisih, 0, ',', '.') : '-' }}
+
+                <td class="text-right">
+                    {{ $aktual > 0 ? 'Rp ' . number_format($aktual, 0, ',', '.') : '-' }}
                 </td>
+
+                <td class="text-right">
+                    {{ $prediksi > 0 ? 'Rp ' . number_format($prediksi, 0, ',', '.') : '-' }}
+                </td>
+
+                {{-- FIX 3: tampilkan abs() agar tidak ada angka negatif --}}
+                <td class="text-right {{ $selisih > 0 ? 'naik' : ($selisih < 0 ? 'turun' : 'stabil') }}">
+                    {{ $selisih != 0 ? number_format(abs($selisih), 0, ',', '.') : '-' }}
+                </td>
+
+            
                 <td class="text-center">
-                    @if($item->harga_prediksi > $item->harga_aktual)
-                        <span class="naik">▲ Naik</span>
-                    @elseif($item->harga_prediksi < $item->harga_aktual && $item->harga_prediksi > 0)
-                        <span class="turun">▼ Turun</span>
+                    @if($aktual > 0 && $prediksi > 0)
+                        @if($prediksi > $aktual)
+                            <span class="naik"> Naik</span>
+                        @elseif($prediksi < $aktual)
+                            <span class="turun"> Turun</span>
+                        @else
+                            <span class="stabil"> Stabil</span>
+                        @endif
                     @else
                         <span class="stabil"> Stabil</span>
                     @endif
@@ -98,7 +122,9 @@
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="text-center">Data tidak ditemukan untuk parameter ini.</td>
+                <td colspan="7" class="text-center" style="padding: 20px; color: #94a3b8;">
+                    Data tidak ditemukan untuk parameter ini.
+                </td>
             </tr>
             @endforelse
         </tbody>
