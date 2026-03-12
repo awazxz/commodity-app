@@ -104,6 +104,27 @@
         padding: 2px 7px; border-radius: 9999px;
         text-transform: uppercase; letter-spacing: 0.04em;
     }
+
+    /* Pagination button styles */
+    .pg-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 2rem; height: 2rem; padding: 0 0.5rem;
+        font-size: 0.75rem; font-weight: 500;
+        border-radius: 0.375rem; border: 1px solid #e5e7eb;
+        background: white; color: #374151;
+        cursor: pointer; transition: all 0.15s;
+        text-decoration: none;
+    }
+    .pg-btn:hover:not(.pg-btn-active):not(.pg-btn-disabled) {
+        background: #f9fafb; border-color: #d1d5db;
+    }
+    .pg-btn-active {
+        background: #2563eb; color: white; border-color: #2563eb; font-weight: 700;
+        cursor: default;
+    }
+    .pg-btn-disabled {
+        background: #f3f4f6; color: #9ca3af; border-color: #f3f4f6; cursor: not-allowed;
+    }
 </style>
 </div>
 
@@ -520,44 +541,47 @@
                     </tr>
                 </thead>
                 <tbody class="text-sm text-gray-700 divide-y divide-gray-100" id="insightTableBody">
+                    {{-- Diisi oleh JavaScript --}}
                 </tbody>
             </table>
         </div>
+        {{-- Pagination insight — diisi oleh JS --}}
+        <div id="insightPagination"></div>
     </div>
 
     {{-- Interpretasi --}}
-<div class="card-standard p-6 border-l-4 border-l-blue-600">
-    <div class="flex items-center gap-3 mb-3">
-        <h4 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase">
-            {{ __('messages.interpretasi_tren') }}
-        </h4>
+    <div class="card-standard p-6 border-l-4 border-l-blue-600">
+        <div class="flex items-center gap-3 mb-3">
+            <h4 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase">
+                {{ __('messages.interpretasi_tren') }}
+            </h4>
+        </div>
+        <p id="dynamic-analysis" class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
+            {{ __('messages.berdasarkan_analisis') }} <strong>{{ $selectedCommodity }}</strong>,
+            {{ __('messages.model_deteksi') }} <strong>{{ __('messages.' . strtolower($trendDir ?? 'stabil')) }}</strong>
+            {{ __('messages.rata_rata_harga_label') }} <strong>Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</strong>
+            {{ __('messages.total_label') }} <strong>{{ $countData ?? 0 }} {{ __('messages.data_poin') }}</strong> {{ __('messages.pada_periode') }}
+            {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
+            {{ __('messages.s_d') }} {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.
+
+            {{ __('messages.model_prophet_dilatih') }} <strong>changepoint_prior_scale={{ $cpScale ?? 0.05 }}</strong>,
+            <strong>seasonality_prior_scale={{ $seasonScale ?? 10 }}</strong>,
+            {{ __('messages.mode_musiman') }} <strong>{{ $seasonMode ?? 'multiplicative' }}</strong>,
+            {{ __('messages.horizon_prediksi_label') }} <strong>{{ $forecastWeeks ?? 12 }} {{ __('messages.minggu_ke_depan') }}</strong>.
+
+            {{ __('messages.nilai_mape_label') }} <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
+            {{ __('messages.menunjukkan') }}
+            <strong>
+                @if(($mape ?? 0) < 5)
+                    {{ __('messages.akurasi_sangat_baik') }}
+                @elseif(($mape ?? 0) < 10)
+                    {{ __('messages.akurasi_baik') }}
+                @else
+                    {{ __('messages.perlu_penyesuaian') }}
+                @endif
+            </strong>.
+        </p>
     </div>
-    <p id="dynamic-analysis" class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-        {{ __('messages.berdasarkan_analisis') }} <strong>{{ $selectedCommodity }}</strong>,
-        {{ __('messages.model_deteksi') }} <strong>{{ __('messages.' . strtolower($trendDir ?? 'stabil')) }}</strong>
-        {{ __('messages.rata_rata_harga_label') }} <strong>Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</strong>
-        {{ __('messages.total_label') }} <strong>{{ $countData ?? 0 }} {{ __('messages.data_poin') }}</strong> {{ __('messages.pada_periode') }}
-        {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
-        {{ __('messages.s_d') }} {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.
-        
-        {{ __('messages.model_prophet_dilatih') }} <strong>changepoint_prior_scale={{ $cpScale ?? 0.05 }}</strong>,
-        <strong>seasonality_prior_scale={{ $seasonScale ?? 10 }}</strong>,
-        {{ __('messages.mode_musiman') }} <strong>{{ $seasonMode ?? 'multiplicative' }}</strong>,
-        {{ __('messages.horizon_prediksi_label') }} <strong>{{ $forecastWeeks ?? 12 }} {{ __('messages.minggu_ke_depan') }}</strong>.
-        
-        {{ __('messages.nilai_mape_label') }} <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
-        {{ __('messages.menunjukkan') }} 
-        <strong>
-            @if(($mape ?? 0) < 5)
-                {{ __('messages.akurasi_sangat_baik') }}
-            @elseif(($mape ?? 0) < 10)
-                {{ __('messages.akurasi_baik') }}
-            @else
-                {{ __('messages.perlu_penyesuaian') }}
-            @endif
-        </strong>.
-    </p>
-</div>
 
 @endif
 
@@ -645,112 +669,139 @@
                 </div>
             </div>
 
+            {{-- Tabel Riwayat Database --}}
             <div class="lg:col-span-2">
                 <div class="card-standard overflow-hidden flex flex-col" style="height: fit-content;">
                     <div class="p-5 border-b bg-gray-50/50 flex justify-between items-center">
                         <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">{{ __('messages.riwayat_database') }}</h3>
                         <span class="text-xs text-gray-400">{{ $selectedCommodity }}</span>
                     </div>
-                    <div class="overflow-x-auto" style="max-height: 450px;">
-                        <div class="custom-scrollbar">
-                            <table class="w-full text-left">
-                                <thead class="sticky top-0 bg-white border-b border-gray-100 z-10">
-                                    <tr class="text-xs text-gray-400 uppercase font-bold">
-                                        <th class="px-6 py-4">{{ __('messages.komoditas') }}</th>
-                                        <th class="px-6 py-4">{{ __('messages.tanggal') }}</th>
-                                        <th class="px-6 py-4">{{ __('messages.harga') }}</th>
-                                        <th class="px-6 py-4 text-center">{{ __('messages.aksi') }}</th>
+                    <div class="overflow-x-auto custom-scrollbar" style="max-height: 450px;">
+                        <table class="w-full text-left">
+                            <thead class="sticky top-0 bg-white border-b border-gray-100 z-10">
+                                <tr class="text-xs text-gray-400 uppercase font-bold">
+                                    <th class="px-6 py-4">{{ __('messages.komoditas') }}</th>
+                                    <th class="px-6 py-4">{{ __('messages.tanggal') }}</th>
+                                    <th class="px-6 py-4">{{ __('messages.harga') }}</th>
+                                    <th class="px-6 py-4 text-center">{{ __('messages.aksi') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 text-xs">
+                                @forelse($latestData ?? [] as $data)
+                                    <tr class="hover:bg-gray-50 transition-colors" id="row-{{ $data->id }}">
+                                        <td class="px-6 py-4 uppercase font-bold text-blue-600">
+                                            <span class="commodity-view">{{ $data->komoditas->display_name ?? '-' }}</span>
+                                            <select class="commodity-edit hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-blue-500"
+                                                    data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
+                                                @foreach($commodities ?? [] as $kom)
+                                                    <option value="{{ $kom->id }}" {{ $data->komoditas_id == $kom->id ? 'selected' : '' }}>
+                                                        {{ $kom->display_name }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+                                        <td class="px-6 py-4 text-gray-500">
+                                            <span class="date-view">{{ \Carbon\Carbon::parse($data->tanggal)->format('d/m/Y') }}</span>
+                                            <input type="date" class="date-edit hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500"
+                                                   value="{{ $data->tanggal }}" data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
+                                        </td>
+                                        <td class="px-6 py-4 font-bold text-emerald-600">
+                                            <span class="price-view">Rp {{ number_format($data->harga, 0, ',', '.') }}</span>
+                                            <input type="number" class="price-edit hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500"
+                                                   value="{{ $data->harga }}" data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="flex items-center justify-center gap-3">
+                                                <button type="button" onclick="toggleEditMode({{ $data->id }})"
+                                                        class="edit-btn text-blue-500 hover:text-blue-700 transition-colors text-sm font-medium">
+                                                    <i class="fas fa-edit"></i> {{ __('messages.edit') }}
+                                                </button>
+                                                <button type="button" onclick="toggleEditMode({{ $data->id }})"
+                                                        class="done-btn hidden text-green-500 hover:text-green-700 transition-colors text-sm font-medium">
+                                                    <i class="fas fa-check"></i> {{ __('messages.selesai') }}
+                                                </button>
+                                                <form action="{{ route('operator.deleteData', $data->id) }}" method="POST"
+                                                      onsubmit="return confirm('{{ __('messages.hapus') }}?')" class="inline delete-form">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit" class="text-red-400 hover:text-red-600 transition-colors text-sm font-medium">
+                                                        <i class="fas fa-trash"></i> {{ __('messages.hapus') }}
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100 text-xs">
-                                    @forelse($latestData ?? [] as $data)
-                                        <tr class="hover:bg-gray-50 transition-colors" id="row-{{ $data->id }}">
-                                            <td class="px-6 py-4 uppercase font-bold text-blue-600">
-                                                <span class="commodity-view">{{ $data->komoditas->display_name ?? '-' }}</span>
-                                                <select class="commodity-edit hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-blue-500"
-                                                        data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
-                                                    @foreach($commodities ?? [] as $kom)
-                                                        <option value="{{ $kom->id }}" {{ $data->komoditas_id == $kom->id ? 'selected' : '' }}>
-                                                            {{ $kom->display_name }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </td>
-                                            <td class="px-6 py-4 text-gray-500">
-                                                <span class="date-view">{{ \Carbon\Carbon::parse($data->tanggal)->format('d/m/Y') }}</span>
-                                                <input type="date" class="date-edit hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500"
-                                                       value="{{ $data->tanggal }}" data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
-                                            </td>
-                                            <td class="px-6 py-4 font-bold text-emerald-600">
-                                                <span class="price-view">Rp {{ number_format($data->harga, 0, ',', '.') }}</span>
-                                                <input type="number" class="price-edit hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500"
-                                                       value="{{ $data->harga }}" data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
-                                            </td>
-                                            <td class="px-6 py-4">
-                                                <div class="flex items-center justify-center gap-3">
-                                                    <button type="button" onclick="toggleEditMode({{ $data->id }})"
-                                                            class="edit-btn text-blue-500 hover:text-blue-700 transition-colors text-sm font-medium">
-                                                        <i class="fas fa-edit"></i> {{ __('messages.edit') }}
-                                                    </button>
-                                                    <button type="button" onclick="toggleEditMode({{ $data->id }})"
-                                                            class="done-btn hidden text-green-500 hover:text-green-700 transition-colors text-sm font-medium">
-                                                        <i class="fas fa-check"></i> {{ __('messages.selesai') }}
-                                                    </button>
-                                                    <form action="{{ route('operator.deleteData', $data->id) }}" method="POST"
-                                                          onsubmit="return confirm('{{ __('messages.hapus') }}?')" class="inline delete-form">
-                                                        @csrf @method('DELETE')
-                                                        <button type="submit" class="text-red-400 hover:text-red-600 transition-colors text-sm font-medium">
-                                                            <i class="fas fa-trash"></i> {{ __('messages.hapus') }}
-                                                        </button>
-                                                    </form>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="4" class="p-12 text-center">
-                                                <div class="flex flex-col items-center gap-2 text-gray-400">
-                                                    <i class="fas fa-database text-3xl opacity-30"></i>
-                                                    <p class="text-sm font-medium">{{ __('messages.data_tidak_ditemukan') }}</p>
-                                                    <p class="text-xs">{{ __('messages.pilih_atau_tambah') }}</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="p-12 text-center">
+                                            <div class="flex flex-col items-center gap-2 text-gray-400">
+                                                <i class="fas fa-database text-3xl opacity-30"></i>
+                                                <p class="text-sm font-medium">{{ __('messages.data_tidak_ditemukan') }}</p>
+                                                <p class="text-xs">{{ __('messages.pilih_atau_tambah') }}</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
 
+                    {{-- Pagination Riwayat Database --}}
                     @if(isset($latestData) && method_exists($latestData, 'hasPages') && $latestData->hasPages())
-                        <div class="px-6 py-4 border-t bg-gray-50/30">
-                            <div class="flex items-center justify-between">
-                                <div class="text-xs text-gray-500">
-                                    {{ __('messages.menampilkan') }} {{ $latestData->firstItem() ?? 0 }} - {{ $latestData->lastItem() ?? 0 }}
-                                    {{ __('messages.dari') }} {{ $latestData->total() }} {{ __('messages.data') }}
-                                </div>
-                                <div class="flex gap-1">
-                                    @if ($latestData->onFirstPage())
-                                        <span class="px-3 py-1.5 text-xs text-gray-400 bg-gray-100 rounded cursor-not-allowed"><i class="fas fa-chevron-left"></i></span>
+                        <div class="px-6 py-4 border-t bg-gray-50/30 flex items-center justify-between">
+                            <div class="text-xs text-gray-500">
+                                {{ __('messages.menampilkan') }}
+                                {{ $latestData->firstItem() ?? 0 }}–{{ $latestData->lastItem() ?? 0 }}
+                                {{ __('messages.dari') }} {{ $latestData->total() }} {{ __('messages.data') }}
+                            </div>
+                            <div class="flex items-center gap-1">
+                                {{-- Prev --}}
+                                @if($latestData->onFirstPage())
+                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
+                                @else
+                                    <a href="{{ $latestData->appends(request()->except('dataPage'))->previousPageUrl() }}" class="pg-btn">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                @endif
+
+                                {{-- Pages --}}
+                                @php
+                                    $currentDataPage = $latestData->currentPage();
+                                    $lastDataPage    = $latestData->lastPage();
+                                    $deltaData       = 2;
+                                    $startData       = max(1, $currentDataPage - $deltaData);
+                                    $endData         = min($lastDataPage, $currentDataPage + $deltaData);
+                                @endphp
+
+                                @if($startData > 1)
+                                    <a href="{{ $latestData->appends(request()->except('dataPage'))->url(1) }}" class="pg-btn">1</a>
+                                    @if($startData > 2)<span class="px-1 text-gray-400 text-xs">…</span>@endif
+                                @endif
+
+                                @for($p = $startData; $p <= $endData; $p++)
+                                    @if($p == $currentDataPage)
+                                        <span class="pg-btn pg-btn-active">{{ $p }}</span>
                                     @else
-                                        <a href="{{ $latestData->previousPageUrl() }}" class="px-3 py-1.5 text-xs text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50"><i class="fas fa-chevron-left"></i></a>
+                                        <a href="{{ $latestData->appends(request()->except('dataPage'))->url($p) }}" class="pg-btn">{{ $p }}</a>
                                     @endif
-                                    @foreach ($latestData->getUrlRange(1, $latestData->lastPage()) as $page => $url)
-                                        @if ($page == $latestData->currentPage())
-                                            <span class="px-3 py-1.5 text-xs font-bold text-white bg-blue-600 rounded">{{ $page }}</span>
-                                        @else
-                                            <a href="{{ $url }}" class="px-3 py-1.5 text-xs text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50">{{ $page }}</a>
-                                        @endif
-                                    @endforeach
-                                    @if ($latestData->hasMorePages())
-                                        <a href="{{ $latestData->nextPageUrl() }}" class="px-3 py-1.5 text-xs text-gray-700 bg-white border border-gray-200 rounded hover:bg-gray-50"><i class="fas fa-chevron-right"></i></a>
-                                    @else
-                                        <span class="px-3 py-1.5 text-xs text-gray-400 bg-gray-100 rounded cursor-not-allowed"><i class="fas fa-chevron-right"></i></span>
-                                    @endif
-                                </div>
+                                @endfor
+
+                                @if($endData < $lastDataPage)
+                                    @if($endData < $lastDataPage - 1)<span class="px-1 text-gray-400 text-xs">…</span>@endif
+                                    <a href="{{ $latestData->appends(request()->except('dataPage'))->url($lastDataPage) }}" class="pg-btn">{{ $lastDataPage }}</a>
+                                @endif
+
+                                {{-- Next --}}
+                                @if($latestData->hasMorePages())
+                                    <a href="{{ $latestData->appends(request()->except('dataPage'))->nextPageUrl() }}" class="pg-btn">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                @else
+                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-right"></i></span>
+                                @endif
                             </div>
                         </div>
                     @endif
+
                 </div>
             </div>
         </div>
@@ -818,6 +869,7 @@
                 </div>
             </div>
 
+            {{-- Tabel Hasil Pemindaian --}}
             <div class="lg:col-span-2">
                 <div class="card-standard border-orange-200 overflow-hidden flex flex-col" style="height: fit-content;">
                     <div class="p-4 bg-orange-50/50 border-b border-orange-100 flex justify-between items-center">
@@ -826,44 +878,99 @@
                             {{ ($dataIssues instanceof \Illuminate\Pagination\LengthAwarePaginator ? $dataIssues->total() : count($dataIssues ?? [])) }} {{ __('messages.temuan') }}
                         </span>
                     </div>
-                    <div class="overflow-x-auto" style="max-height: 350px;">
-                        <div class="custom-scrollbar">
-                            <table class="w-full text-left">
-                                <thead class="bg-gray-50 sticky top-0 text-xs text-gray-400 uppercase font-bold z-10">
-                                    <tr>
-                                        <th class="px-6 py-3">{{ __('messages.tanggal') }}</th>
-                                        <th class="px-6 py-3">{{ __('messages.jenis_masalah') }}</th>
-                                        <th class="px-6 py-3">{{ __('messages.nilai') }}</th>
-                                        <th class="px-6 py-3">{{ __('messages.status') }}</th>
+                    <div class="overflow-x-auto custom-scrollbar" style="max-height: 350px;">
+                        <table class="w-full text-left">
+                            <thead class="bg-gray-50 sticky top-0 text-xs text-gray-400 uppercase font-bold z-10">
+                                <tr>
+                                    <th class="px-6 py-3">{{ __('messages.tanggal') }}</th>
+                                    <th class="px-6 py-3">{{ __('messages.jenis_masalah') }}</th>
+                                    <th class="px-6 py-3">{{ __('messages.nilai') }}</th>
+                                    <th class="px-6 py-3">{{ __('messages.status') }}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 text-xs">
+                                @forelse($dataIssues ?? [] as $issue)
+                                    <tr class="bg-orange-50/20 hover:bg-orange-50/40 transition-colors">
+                                        <td class="px-6 py-3 font-medium">{{ \Carbon\Carbon::parse($issue->date)->format('d/m/Y') }}</td>
+                                        <td class="px-6 py-3">
+                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $issue->issue == 'Outlier' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600' }}">
+                                                {{ $issue->issue }}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-3 font-medium">Rp {{ number_format($issue->value, 0, ',', '.') }}</td>
+                                        <td class="px-6 py-3 text-gray-500">{{ $issue->status }}</td>
                                     </tr>
-                                </thead>
-                                <tbody class="divide-y divide-gray-100 text-xs">
-                                    @forelse($dataIssues ?? [] as $issue)
-                                        <tr class="bg-orange-50/20 hover:bg-orange-50/40 transition-colors">
-                                            <td class="px-6 py-3 font-medium">{{ \Carbon\Carbon::parse($issue->date)->format('d/m/Y') }}</td>
-                                            <td class="px-6 py-3">
-                                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $issue->issue == 'Outlier' ? 'bg-red-100 text-red-600' : 'bg-yellow-100 text-yellow-600' }}">
-                                                    {{ $issue->issue }}
-                                                </span>
-                                            </td>
-                                            <td class="px-6 py-3 font-medium">Rp {{ number_format($issue->value, 0, ',', '.') }}</td>
-                                            <td class="px-6 py-3 text-gray-500">{{ $issue->status }}</td>
-                                        </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="4" class="p-8 text-center">
-                                                <div class="flex flex-col items-center gap-2 text-gray-400">
-                                                    <i class="fas fa-check-circle text-2xl text-green-400 opacity-60"></i>
-                                                    <p class="text-sm font-medium">{{ __('messages.tidak_ada_masalah') }}</p>
-                                                    <p class="text-xs">{{ __('messages.data_sudah_bersih') }}</p>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="p-8 text-center">
+                                            <div class="flex flex-col items-center gap-2 text-gray-400">
+                                                <i class="fas fa-check-circle text-2xl text-green-400 opacity-60"></i>
+                                                <p class="text-sm font-medium">{{ __('messages.tidak_ada_masalah') }}</p>
+                                                <p class="text-xs">{{ __('messages.data_sudah_bersih') }}</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
                     </div>
+
+                    {{-- Pagination Hasil Pemindaian --}}
+                    @if(isset($dataIssues) && $dataIssues instanceof \Illuminate\Pagination\LengthAwarePaginator && $dataIssues->hasPages())
+                        <div class="px-4 py-3 border-t border-orange-100 bg-orange-50/20 flex items-center justify-between">
+                            <div class="text-xs text-orange-600">
+                                {{ $dataIssues->firstItem() }}–{{ $dataIssues->lastItem() }}
+                                dari {{ $dataIssues->total() }} {{ __('messages.temuan') }}
+                            </div>
+                            <div class="flex items-center gap-1">
+                                {{-- Prev --}}
+                                @if($dataIssues->onFirstPage())
+                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
+                                @else
+                                    <a href="{{ $dataIssues->appends(request()->except('issuePage'))->previousPageUrl() }}" class="pg-btn">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                @endif
+
+                                {{-- Pages --}}
+                                @php
+                                    $currentIssuePage = $dataIssues->currentPage();
+                                    $lastIssuePage    = $dataIssues->lastPage();
+                                    $deltaIssue       = 2;
+                                    $startIssue       = max(1, $currentIssuePage - $deltaIssue);
+                                    $endIssue         = min($lastIssuePage, $currentIssuePage + $deltaIssue);
+                                @endphp
+
+                                @if($startIssue > 1)
+                                    <a href="{{ $dataIssues->appends(request()->except('issuePage'))->url(1) }}" class="pg-btn">1</a>
+                                    @if($startIssue > 2)<span class="px-1 text-gray-400 text-xs">…</span>@endif
+                                @endif
+
+                                @for($p = $startIssue; $p <= $endIssue; $p++)
+                                    @if($p == $currentIssuePage)
+                                        <span class="pg-btn pg-btn-active">{{ $p }}</span>
+                                    @else
+                                        <a href="{{ $dataIssues->appends(request()->except('issuePage'))->url($p) }}" class="pg-btn">{{ $p }}</a>
+                                    @endif
+                                @endfor
+
+                                @if($endIssue < $lastIssuePage)
+                                    @if($endIssue < $lastIssuePage - 1)<span class="px-1 text-gray-400 text-xs">…</span>@endif
+                                    <a href="{{ $dataIssues->appends(request()->except('issuePage'))->url($lastIssuePage) }}" class="pg-btn">{{ $lastIssuePage }}</a>
+                                @endif
+
+                                {{-- Next --}}
+                                @if($dataIssues->hasMorePages())
+                                    <a href="{{ $dataIssues->appends(request()->except('issuePage'))->nextPageUrl() }}" class="pg-btn">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                @else
+                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-right"></i></span>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+
                 </div>
             </div>
         </div>
@@ -877,7 +984,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
-// Translation strings untuk JavaScript
+
 const trans = {
     naik:         '{{ __("messages.naik") }}',
     turun:        '{{ __("messages.turun") }}',
@@ -917,10 +1024,16 @@ const chartData = {
     }
 };
 
-let parametersDirty = false;
-let currentPeriod   = 'weekly';
-let mainChart       = null;
+// ── Variabel state — WAJIB di sini sebelum semua fungsi ──
+let parametersDirty    = false;
+let currentPeriod      = 'weekly';
+let mainChart          = null;
+let insightCurrentPage = 1;
+const INSIGHT_PER_PAGE = 10;
 
+// ─────────────────────────────────────────────
+// FUNGSI HYPERPARAMETER
+// ─────────────────────────────────────────────
 function updateVal(hiddenId, displayId, previewId, val, decimals) {
     const parsed = parseFloat(val);
     document.getElementById(hiddenId).value = parsed;
@@ -988,26 +1101,29 @@ function triggerSubmit() {
     const yearly = document.getElementById('hidden_yearly');
     const fw     = document.getElementById('hidden_forecast_weeks');
 
-    if (!cp.value || isNaN(parseFloat(cp.value)))         cp.value = '0.05';
-    if (!season.value || isNaN(parseFloat(season.value))) season.value = '10';
-    if (!mode.value)   mode.value = 'multiplicative';
-    if (weekly.value !== 'true' && weekly.value !== 'false') weekly.value = 'false';
-    if (yearly.value !== 'true' && yearly.value !== 'false') yearly.value = 'false';
-    if (!fw || !fw.value || isNaN(parseInt(fw.value)) || parseInt(fw.value) < 1) fw.value = '12';
+    if (cp     && (!cp.value     || isNaN(parseFloat(cp.value))))         cp.value     = '0.05';
+    if (season && (!season.value || isNaN(parseFloat(season.value))))     season.value = '10';
+    if (mode   && !mode.value)                                            mode.value   = 'multiplicative';
+    if (weekly && weekly.value !== 'true' && weekly.value !== 'false')    weekly.value = 'false';
+    if (yearly && yearly.value !== 'true' && yearly.value !== 'false')    yearly.value = 'false';
+    if (fw     && (!fw.value || isNaN(parseInt(fw.value)) || parseInt(fw.value) < 1)) fw.value = '12';
 
     const icon = document.getElementById('btn-refresh-icon');
     if (icon) icon.classList.add('fa-spin');
 
-    document.getElementById('real-content').classList.add('opacity-30');
+    const realContent = document.getElementById('real-content');
+    if (realContent) realContent.classList.add('opacity-30');
     const overlay = document.getElementById('skeleton-overlay');
     if (overlay) { overlay.classList.remove('hidden'); overlay.style.opacity = '1'; }
 
     clearParamDirty();
-    setTimeout(() => document.getElementById('mainForm').submit(), 100);
+    const form = document.getElementById('mainForm');
+    if (form) setTimeout(() => form.submit(), 100);
 }
 
 function handleCommodityChange(val) {
-    document.getElementById('hidden_komoditas').value = val;
+    const hidden = document.getElementById('hidden_komoditas');
+    if (hidden) hidden.value = val;
     triggerSubmit();
 }
 
@@ -1038,12 +1154,16 @@ function switchInputMode(mode) {
     }
 }
 
+// ─────────────────────────────────────────────
+// INSIGHT TAB FUNCTIONS (hanya jalan kalau tab insight)
+// ─────────────────────────────────────────────
 @if(($currentTab ?? 'insight') == 'insight')
 
 function checkFlaskStatus() {
     const badge = document.getElementById('flask-status-badge');
     const dot   = document.getElementById('flask-status-dot');
     const text  = document.getElementById('flask-status-text');
+    if (!badge) return;
 
     badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-gray-100 text-gray-500';
     dot.className   = 'w-2 h-2 rounded-full bg-gray-400 animate-pulse';
@@ -1063,9 +1183,6 @@ function checkFlaskStatus() {
             text.textContent = '{{ __("messages.api_offline") }}';
         });
 }
-
-checkFlaskStatus();
-setInterval(checkFlaskStatus, 30000);
 
 function initializeChart() {
     const canvas = document.getElementById('mainChart');
@@ -1199,127 +1316,195 @@ function initializeChart() {
 }
 
 function changeChartPeriod(period) {
-    currentPeriod = period;
-    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById(`btn-${period}`).classList.add('active');
+    currentPeriod      = period;
+    insightCurrentPage = 1; // reset ke halaman 1 saat ganti periode
 
-    const periodText = {
-        'weekly':  trans.mingguan,
-        'monthly': trans.bulanan,
-        'yearly':  trans.tahunan
-    };
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('btn-' + period).classList.add('active');
+
+    const periodText = { weekly: trans.mingguan, monthly: trans.bulanan, yearly: trans.tahunan };
     document.getElementById('selectedPeriodText').textContent = periodText[period];
 
     initializeChart();
-    updateInsightTable();
+    updateInsightTable(1);
 }
 
-function updateInsightTable() {
+// ─── Tabel Insight dengan Pagination Client-side ───
+function updateInsightTable(page) {
+    page = page || 1;
+    insightCurrentPage = page;
+
     const data  = chartData[currentPeriod];
     const tbody = document.getElementById('insightTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
 
     if (!data.labels || data.labels.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400">${trans.tidakAdaData}</td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs">' + trans.tidakAdaData + '</td></tr>';
+        renderInsightPagination(1, 1, 0, 0, 0);
         return;
     }
 
+    // Pisahkan baris aktual dan forecast
     const actualRows   = [];
     const forecastRows = [];
-
     for (let i = 0; i < data.labels.length; i++) {
         const row = {
-            label: data.labels[i], actual: data.actual[i],
-            forecast: data.forecast[i], lower: data.lower[i], upper: data.upper[i],
+            label:    data.labels[i],
+            actual:   data.actual[i],
+            forecast: data.forecast[i],
+            lower:    data.lower[i],
+            upper:    data.upper[i],
         };
-        if (data.actual[i] !== null) actualRows.push(row);
-        if (data.actual[i] === null && data.forecast[i] !== null) forecastRows.push(row);
+        if (data.actual[i] !== null) {
+            actualRows.push(row);
+        } else if (data.forecast[i] !== null) {
+            forecastRows.push(row);
+        }
     }
 
-    const displayActual   = actualRows.slice(-8);
-    const displayForecast = forecastRows;
-    const display = [...displayActual, ...displayForecast];
+    const allRows    = actualRows.concat(forecastRows);
+    const totalRows  = allRows.length;
+    const totalPages = Math.max(1, Math.ceil(totalRows / INSIGHT_PER_PAGE));
+    const safePage   = Math.min(Math.max(1, page), totalPages);
+    const startIdx   = (safePage - 1) * INSIGHT_PER_PAGE;
+    const endIdx     = Math.min(startIdx + INSIGHT_PER_PAGE, totalRows);
+    const display    = allRows.slice(startIdx, endIdx);
+    const lastActual = actualRows.length > 0 ? actualRows[actualRows.length - 1] : null;
+    const actualCount = actualRows.length;
 
     if (display.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs">${trans.tidakAdaData}</td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs">' + trans.tidakAdaData + '</td></tr>';
+        renderInsightPagination(1, 1, 0, 0, 0);
         return;
     }
 
-    const lastActualRow = actualRows.slice(-1)[0];
+    var html = '';
+    for (var idx = 0; idx < display.length; idx++) {
+        var row           = display[idx];
+        var label         = row.label;
+        var actual        = row.actual;
+        var forecast      = row.forecast;
+        var lower         = row.lower;
+        var upper         = row.upper;
+        var isForecastOnly = (actual === null && forecast !== null);
+        var globalIdx     = startIdx + idx;
+        var diff          = (actual !== null && forecast !== null) ? (forecast - actual) : null;
 
-    display.forEach((row, idx) => {
-        const { label, actual, forecast, lower, upper } = row;
-        const isForecastOnly = actual === null && forecast !== null;
-        const diff = (actual !== null && forecast !== null) ? (forecast - actual) : null;
+        var insight      = trans.stabil;
+        var insightClass = 'insight-stabil';
 
-        let insight = trans.stabil, insightClass = 'insight-stabil';
         if (diff !== null) {
-            const threshold = (actual || 1) * 0.01;
+            var threshold = (actual || 1) * 0.01;
             if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
             else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
+        } else if (isForecastOnly && lastActual !== null) {
+            var diffFromLast  = forecast - lastActual.actual;
+            var threshLast    = lastActual.actual * 0.01;
+            if (diffFromLast > threshLast)       { insight = trans.naik;     insightClass = 'insight-naik'; }
+            else if (diffFromLast < -threshLast) { insight = trans.turun;    insightClass = 'insight-turun'; }
+            else                                 { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
         } else if (isForecastOnly) {
-            if (lastActualRow && lastActualRow.actual !== null) {
-                const diffFromLast  = forecast - lastActualRow.actual;
-                const thresholdLast = lastActualRow.actual * 0.01;
-                if (diffFromLast > thresholdLast)       { insight = trans.naik;     insightClass = 'insight-naik'; }
-                else if (diffFromLast < -thresholdLast) { insight = trans.turun;    insightClass = 'insight-turun'; }
-                else                                    { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
-            } else {
-                insight = trans.proyeksi; insightClass = 'insight-stabil';
-            }
+            insight = trans.proyeksi; insightClass = 'insight-stabil';
         }
 
-        const diffColor = diff !== null
+        var diffColor = diff !== null
             ? (diff > 0 ? 'text-red-600' : diff < 0 ? 'text-emerald-600' : 'text-gray-500')
             : 'text-gray-300';
-        const diffText = diff !== null
+        var diffText = diff !== null
             ? (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID')
             : '—';
 
-        const rowBg    = isForecastOnly ? 'bg-orange-50/30' : '';
-        const borderTop = (idx === displayActual.length && forecastRows.length > 0) ? 'border-t-2 border-orange-200' : '';
+        var rowBg     = isForecastOnly ? 'bg-orange-50/30' : '';
+        var borderTop = (globalIdx === actualCount && forecastRows.length > 0) ? 'border-t-2 border-orange-200' : '';
 
-        tbody.innerHTML += `
-            <tr class="${rowBg} ${borderTop} border-b border-gray-50 hover:bg-orange-50/50 animate-fade-in">
-                <td class="px-6 py-4 text-gray-500 font-medium text-xs">
-                    ${label}
-                    ${isForecastOnly ? `<span class="ml-1 text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold uppercase">${trans.proyeksi}</span>` : ''}
-                </td>
-                <td class="px-6 py-4 text-right text-xs font-medium">
-                    ${actual !== null ? 'Rp ' + Math.round(actual).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>'}
-                </td>
-                <td class="px-6 py-4 text-right text-blue-600 font-bold text-xs">
-                    ${forecast !== null ? 'Rp ' + Math.round(forecast).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>'}
-                </td>
-                <td class="px-6 py-4 text-right text-xs text-gray-400">
-                    ${lower !== null ? 'Rp ' + Math.round(lower).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>'}
-                </td>
-                <td class="px-6 py-4 text-right text-xs text-gray-400">
-                    ${upper !== null ? 'Rp ' + Math.round(upper).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>'}
-                </td>
-                <td class="px-6 py-4 text-right text-xs ${diffColor} font-medium">${diffText}</td>
-                <td class="px-6 py-4 text-center">
-                    <span class="insight-badge ${insightClass}">${insight}</span>
-                </td>
-            </tr>
-        `;
-    });
+        var forecastBadge = isForecastOnly
+            ? '<span class="ml-1 text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold uppercase">' + trans.proyeksi + '</span>'
+            : '';
+
+        var actualCell   = actual   !== null ? 'Rp ' + Math.round(actual).toLocaleString('id-ID')   : '<span class="text-gray-300">—</span>';
+        var forecastCell = forecast !== null ? 'Rp ' + Math.round(forecast).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>';
+        var lowerCell    = lower    !== null ? 'Rp ' + Math.round(lower).toLocaleString('id-ID')    : '<span class="text-gray-300">—</span>';
+        var upperCell    = upper    !== null ? 'Rp ' + Math.round(upper).toLocaleString('id-ID')    : '<span class="text-gray-300">—</span>';
+
+        html +=
+            '<tr class="' + rowBg + ' ' + borderTop + ' border-b border-gray-50 hover:bg-orange-50/50 animate-fade-in">' +
+                '<td class="px-6 py-4 text-gray-500 font-medium text-xs">' + label + forecastBadge + '</td>' +
+                '<td class="px-6 py-4 text-right text-xs font-medium">' + actualCell + '</td>' +
+                '<td class="px-6 py-4 text-right text-blue-600 font-bold text-xs">' + forecastCell + '</td>' +
+                '<td class="px-6 py-4 text-right text-xs text-gray-400">' + lowerCell + '</td>' +
+                '<td class="px-6 py-4 text-right text-xs text-gray-400">' + upperCell + '</td>' +
+                '<td class="px-6 py-4 text-right text-xs ' + diffColor + ' font-medium">' + diffText + '</td>' +
+                '<td class="px-6 py-4 text-center"><span class="insight-badge ' + insightClass + '">' + insight + '</span></td>' +
+            '</tr>';
+    }
+    tbody.innerHTML = html;
+
+    renderInsightPagination(safePage, totalPages, totalRows, startIdx + 1, endIdx);
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+function renderInsightPagination(currentPage, totalPages, totalRows, fromRow, toRow) {
+    var container = document.getElementById('insightPagination');
+    if (!container) return;
+
+    if (totalPages <= 1) {
+        container.innerHTML = '';
+        return;
+    }
+
+    var btnBase     = 'pg-btn';
+    var btnActive   = 'pg-btn pg-btn-active';
+    var btnDisabled = 'pg-btn pg-btn-disabled';
+
+    var prev = currentPage > 1
+        ? '<button onclick="updateInsightTable(' + (currentPage - 1) + ')" class="' + btnBase + '"><i class="fas fa-chevron-left"></i></button>'
+        : '<span class="' + btnDisabled + '"><i class="fas fa-chevron-left"></i></span>';
+
+    var next = currentPage < totalPages
+        ? '<button onclick="updateInsightTable(' + (currentPage + 1) + ')" class="' + btnBase + '"><i class="fas fa-chevron-right"></i></button>'
+        : '<span class="' + btnDisabled + '"><i class="fas fa-chevron-right"></i></span>';
+
+    var delta = 2;
+    var start = Math.max(1, currentPage - delta);
+    var end   = Math.min(totalPages, currentPage + delta);
+    var pages = '';
+
+    if (start > 1) {
+        pages += '<button onclick="updateInsightTable(1)" class="' + btnBase + '">1</button>';
+        if (start > 2) pages += '<span class="px-1 text-gray-400 text-xs">…</span>';
+    }
+    for (var p = start; p <= end; p++) {
+        pages += '<button onclick="updateInsightTable(' + p + ')" class="' + (p === currentPage ? btnActive : btnBase) + '">' + p + '</button>';
+    }
+    if (end < totalPages) {
+        if (end < totalPages - 1) pages += '<span class="px-1 text-gray-400 text-xs">…</span>';
+        pages += '<button onclick="updateInsightTable(' + totalPages + ')" class="' + btnBase + '">' + totalPages + '</button>';
+    }
+
+    container.innerHTML =
+        '<div class="flex items-center justify-between px-6 py-3 border-t border-gray-100 bg-gray-50/30">' +
+            '<span class="text-xs text-gray-500">Menampilkan ' + fromRow + '–' + toRow + ' dari ' + totalRows + ' data</span>' +
+            '<div class="flex items-center gap-1">' + prev + pages + next + '</div>' +
+        '</div>';
+}
+
+// Init saat DOM ready
+document.addEventListener('DOMContentLoaded', function () {
     initializeChart();
-    updateInsightTable();
+    updateInsightTable(1);
     checkFlaskStatus();
+    setInterval(checkFlaskStatus, 30000);
 });
 
 @endif
 
-// ── Edit Mode Data Table ──
+// ─────────────────────────────────────────────
+// EDIT MODE DATA TABLE
+// ─────────────────────────────────────────────
 function toggleEditMode(id) {
-    const row = document.getElementById(`row-${id}`);
+    var row = document.getElementById('row-' + id);
     if (!row) return;
-    const isEditing = row.querySelector('.commodity-edit').classList.contains('hidden');
+    var isEditing = row.querySelector('.commodity-edit').classList.contains('hidden');
     row.querySelector('.commodity-view').classList.toggle('hidden', isEditing);
     row.querySelector('.commodity-edit').classList.toggle('hidden', !isEditing);
     row.querySelector('.date-view').classList.toggle('hidden', isEditing);
@@ -1328,7 +1513,7 @@ function toggleEditMode(id) {
     row.querySelector('.price-edit').classList.toggle('hidden', !isEditing);
     row.querySelector('.edit-btn').classList.toggle('hidden', isEditing);
     row.querySelector('.done-btn').classList.toggle('hidden', !isEditing);
-    const deleteForm = row.querySelector('.delete-form');
+    var deleteForm = row.querySelector('.delete-form');
     if (deleteForm) {
         deleteForm.style.opacity       = isEditing ? '0.3' : '1';
         deleteForm.style.pointerEvents = isEditing ? 'none' : 'auto';
@@ -1338,49 +1523,54 @@ function toggleEditMode(id) {
 }
 
 function autoSaveData(id) {
-    const row         = document.getElementById(`row-${id}`);
-    const komoditasId = row.querySelector('.commodity-edit').value;
-    const date        = row.querySelector('.date-edit').value;
-    const price       = row.querySelector('.price-edit').value;
+    var row         = document.getElementById('row-' + id);
+    var komoditasId = row.querySelector('.commodity-edit').value;
+    var date        = row.querySelector('.date-edit').value;
+    var price       = row.querySelector('.price-edit').value;
     if (!komoditasId || !date || !price) { showNotification('Semua field harus diisi!', 'error'); return; }
     if (parseFloat(price) <= 0)          { showNotification('Harga harus lebih dari 0!', 'error'); return; }
+
     row.style.backgroundColor = '#fef3c7';
-    fetch(`{{ url('/operator/update-data') }}/${id}`, {
+    fetch('{{ url("/operator/update-data") }}/' + id, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-        body: JSON.stringify({ komoditas_id: komoditasId, date, price })
+        body: JSON.stringify({ komoditas_id: komoditasId, date: date, price: price })
     })
-    .then(res => res.json())
-    .then(data => {
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
         if (data.success) {
-            const selectedOption = row.querySelector('.commodity-edit option:checked');
+            var selectedOption = row.querySelector('.commodity-edit option:checked');
             row.querySelector('.commodity-view').textContent = selectedOption ? selectedOption.text : komoditasId;
-            const [y, m, d] = date.split('-');
-            row.querySelector('.date-view').textContent  = `${d}/${m}/${y}`;
+            var parts = date.split('-');
+            row.querySelector('.date-view').textContent  = parts[2] + '/' + parts[1] + '/' + parts[0];
             row.querySelector('.price-view').textContent = 'Rp ' + parseInt(price).toLocaleString('id-ID');
             row.style.backgroundColor = '#d1fae5';
-            setTimeout(() => { row.style.backgroundColor = ''; }, 800);
+            setTimeout(function() { row.style.backgroundColor = ''; }, 800);
             showNotification('Data tersimpan!', 'success');
         } else {
             showNotification('Gagal: ' + (data.message || 'Terjadi kesalahan'), 'error');
             row.style.backgroundColor = '';
         }
     })
-    .catch(() => { showNotification('Terjadi kesalahan jaringan', 'error'); row.style.backgroundColor = ''; });
+    .catch(function() { showNotification('Terjadi kesalahan jaringan', 'error'); row.style.backgroundColor = ''; });
 }
 
-function showNotification(message, type = 'success') {
-    const existing = document.querySelector('.toast-notification');
+function showNotification(message, type) {
+    type = type || 'success';
+    var existing = document.querySelector('.toast-notification');
     if (existing) existing.remove();
-    const notification = document.createElement('div');
-    notification.className = `toast-notification fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white text-sm font-medium animate-fade-in ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
-    notification.innerHTML = `<div class="flex items-center gap-3"><i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i><span>${message}</span></div>`;
+    var notification = document.createElement('div');
+    notification.className = 'toast-notification fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white text-sm font-medium animate-fade-in ' +
+        (type === 'success' ? 'bg-green-500' : 'bg-red-500');
+    notification.innerHTML = '<div class="flex items-center gap-3"><i class="fas fa-' +
+        (type === 'success' ? 'check-circle' : 'exclamation-circle') +
+        '"></i><span>' + message + '</span></div>';
     document.body.appendChild(notification);
-    setTimeout(() => {
-        notification.style.opacity   = '0';
-        notification.style.transform = 'translateX(100%)';
+    setTimeout(function() {
+        notification.style.opacity    = '0';
+        notification.style.transform  = 'translateX(100%)';
         notification.style.transition = 'all 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
+        setTimeout(function() { notification.remove(); }, 300);
     }, 3000);
 }
 </script>
