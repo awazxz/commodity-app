@@ -304,7 +304,9 @@ const chartData = {
     }
 };
 
-const forecastSuccess = {{ isset($forecastSuccess) && $forecastSuccess ? 'true' : 'false' }};
+const forecastSuccess = (chartData.weekly.forecast && chartData.weekly.forecast.some(v => v !== null)) ||
+                        (chartData.monthly.forecast && chartData.monthly.forecast.some(v => v !== null)) ||
+                        (chartData.yearly.forecast && chartData.yearly.forecast.some(v => v !== null));z
 
 const trans = {
     weekly:   "{{ __('messages.mingguan') }}",
@@ -351,7 +353,6 @@ function checkFlaskStatus() {
         });
 }
 
-/* ── CHART ── */
 function initializeChart() {
     const canvas = document.getElementById('mainChart');
     if (!canvas) return;
@@ -376,18 +377,40 @@ function initializeChart() {
     gradForecast.addColorStop(0, 'rgba(249,115,22,0.15)');
     gradForecast.addColorStop(1, 'rgba(249,115,22,0)');
 
+    // ── BRIDGE: cari index terakhir actual data ──
+    let lastActualIndex = -1;
+    for (let i = data.actual.length - 1; i >= 0; i--) {
+        if (data.actual[i] !== null && data.actual[i] !== undefined) {
+            lastActualIndex = i;
+            break;
+        }
+    }
+
+    const forecastBridged = data.forecast.map((val, i) => {
+        if (i === lastActualIndex) return data.actual[lastActualIndex];
+        return val;
+    });
+    const lowerBridged = data.lower.map((val, i) => {
+        if (i === lastActualIndex) return data.actual[lastActualIndex];
+        return val;
+    });
+    const upperBridged = data.upper.map((val, i) => {
+        if (i === lastActualIndex) return data.actual[lastActualIndex];
+        return val;
+    });
+
     if (mainChart) mainChart.destroy();
 
     const datasets = [
         {
-            label: trans.lower, data: data.lower,
+            label: trans.lower, data: lowerBridged,
             backgroundColor: 'rgba(34,197,94,0.08)', borderColor: 'transparent',
-            fill: '+1', pointRadius: 0, tension: 0.4, order: 4
+            fill: '+1', pointRadius: 0, tension: 0.4, order: 4, spanGaps: false
         },
         {
-            label: trans.upper, data: data.upper,
+            label: trans.upper, data: upperBridged,
             borderColor: 'transparent', fill: false,
-            pointRadius: 0, tension: 0.4, order: 4
+            pointRadius: 0, tension: 0.4, order: 4, spanGaps: false
         },
         {
             label: trans.actual, data: data.actual,
@@ -403,7 +426,7 @@ function initializeChart() {
 
     if (forecastSuccess) {
         datasets.push({
-            label: trans.forecast, data: data.forecast,
+            label: trans.forecast, data: forecastBridged,
             borderColor: '#f97316', backgroundColor: gradForecast,
             borderDash: [8, 4], borderWidth: 2.5, fill: true, tension: 0.4,
             pointRadius: 0, pointHoverRadius: 6,
@@ -431,7 +454,7 @@ function initializeChart() {
                     labels: {
                         boxWidth: 12, usePointStyle: true,
                         color: dark ? '#9ca3af' : '#64748b',
-                        filter: item => !item.text.includes(trans.lower) && !item.text.includes(trans.upper)
+                        filter: item => item.text !== trans.lower && item.text !== trans.upper
                     }
                 },
                 tooltip: {

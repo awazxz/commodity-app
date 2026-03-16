@@ -173,6 +173,7 @@
 
 @if(($currentTab ?? 'insight') == 'insight')
 
+
     {{-- Header & Form --}}
     <div class="card-standard p-6">
         <div class="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -984,6 +985,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
 <script>
+const SELECTED_COMMODITY = '{{ addslashes($selectedCommodity ?? "") }}';
 
 const trans = {
     naik:         '{{ __("messages.naik") }}',
@@ -1158,6 +1160,7 @@ function switchInputMode(mode) {
 // INSIGHT TAB FUNCTIONS (hanya jalan kalau tab insight)
 // ─────────────────────────────────────────────
 @if(($currentTab ?? 'insight') == 'insight')
+function isDark() { return document.documentElement.classList.contains('dark'); }
 
 function checkFlaskStatus() {
     const badge = document.getElementById('flask-status-badge');
@@ -1190,6 +1193,7 @@ function initializeChart() {
 
     const ctx  = canvas.getContext('2d');
     const data = chartData[currentPeriod];
+    const dark = isDark();
 
     if (!data.labels || data.labels.length === 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1200,8 +1204,33 @@ function initializeChart() {
         return;
     }
 
+    // ── BRIDGE: cari index terakhir actual data ──
+    let lastActualIndex = -1;
+    for (let i = data.actual.length - 1; i >= 0; i--) {
+        if (data.actual[i] !== null && data.actual[i] !== undefined) {
+            lastActualIndex = i;
+            break;
+        }
+    }
+
+    // Buat salinan baru (tidak mengubah data asli dari database)
+    const forecastBridged = data.forecast.map((val, i) => {
+        if (i === lastActualIndex) return data.actual[lastActualIndex];
+        return val;
+    });
+
+    const lowerBridged = data.lower.map((val, i) => {
+        if (i === lastActualIndex) return data.actual[lastActualIndex];
+        return val;
+    });
+
+    const upperBridged = data.upper.map((val, i) => {
+        if (i === lastActualIndex) return data.actual[lastActualIndex];
+        return val;
+    });
+
     const gradientActual = ctx.createLinearGradient(0, 0, 0, 400);
-    gradientActual.addColorStop(0, 'rgba(4, 50, 119, 0.15)');
+    gradientActual.addColorStop(0, dark ? 'rgba(96,165,250,0.3)' : 'rgba(4, 50, 119, 0.15)');
     gradientActual.addColorStop(1, 'rgba(4, 50, 119, 0)');
 
     const gradientForecast = ctx.createLinearGradient(0, 0, 0, 400);
@@ -1217,31 +1246,33 @@ function initializeChart() {
             datasets: [
                 {
                     label: trans.rentangBawah,
-                    data: data.lower,
+                    data: lowerBridged,
                     backgroundColor: 'rgba(34, 197, 94, 0.08)',
                     borderColor: 'transparent',
-                    fill: '+1', pointRadius: 0, tension: 0.4
+                    fill: '+1', pointRadius: 0, tension: 0.4,
+                    spanGaps: false
                 },
                 {
                     label: trans.rentangAtas,
-                    data: data.upper,
+                    data: upperBridged,
                     borderColor: 'transparent',
-                    fill: false, pointRadius: 0, tension: 0.4
+                    fill: false, pointRadius: 0, tension: 0.4,
+                    spanGaps: false
                 },
                 {
                     label: trans.hargaAktual,
                     data: data.actual,
-                    borderColor: '#043277',
+                    borderColor: dark ? '#60a5fa' : '#043277',
                     backgroundColor: gradientActual,
                     borderWidth: 2.5, fill: true, tension: 0.4,
                     pointRadius: 0, pointHoverRadius: 6,
-                    pointHoverBackgroundColor: '#043277',
+                    pointHoverBackgroundColor: dark ? '#60a5fa' : '#043277',
                     pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
                     spanGaps: false
                 },
                 {
                     label: trans.hargaProyeksi,
-                    data: data.forecast,
+                    data: forecastBridged,
                     borderColor: '#f97316',
                     backgroundColor: gradientForecast,
                     borderDash: [8, 4], borderWidth: 2.5, fill: true, tension: 0.4,
@@ -1258,9 +1289,8 @@ function initializeChart() {
             interaction: { intersect: false, mode: 'index' },
             plugins: {
                 title: {
-                    display: true,
-                    text: '{{ $selectedCommodity }}',
-                    color: '#043277',
+                    display: true, text: SELECTED_COMMODITY,
+                    color: dark ? '#93c5fd' : '#043277',
                     font: { size: 14, weight: '600', family: 'Inter' },
                     padding: { top: 10, bottom: 15 }
                 },
@@ -1268,16 +1298,17 @@ function initializeChart() {
                     display: true, position: 'top', align: 'end',
                     labels: {
                         boxWidth: 12, boxHeight: 12, padding: 15,
-                        font: { size: 11, weight: '600' }, color: '#64748b',
+                        font: { size: 11, weight: '600' }, color: dark ? '#9ca3af' : '#64748b',
                         usePointStyle: true, pointStyle: 'circle',
-                        filter: (item) => item.text !== trans.rentangBawah && item.text !== trans.rentangAtas
+                        filter: (item) => !item.text.includes(trans.rentangBawah.split(' ')[0])
                     }
                 },
                 tooltip: {
-                    backgroundColor: '#ffffff',
-                    titleColor: '#1e293b', bodyColor: '#475569',
-                    borderColor: '#e2e8f0', borderWidth: 1,
-                    padding: 12, boxPadding: 6, usePointStyle: true,
+                    backgroundColor: dark ? '#1e2433' : '#ffffff',
+                    titleColor: dark ? '#f3f4f6' : '#1e293b',
+                    bodyColor: dark ? '#9ca3af' : '#475569',
+                    borderColor: dark ? '#374151' : '#e2e8f0',
+                    borderWidth: 1, padding: 12, boxPadding: 6, usePointStyle: true,
                     titleFont: { size: 11, weight: '600' }, bodyFont: { size: 11 },
                     callbacks: {
                         label: function(context) {
@@ -1297,17 +1328,18 @@ function initializeChart() {
             scales: {
                 y: {
                     beginAtZero: false,
-                    grid: { color: '#f1f5f9', drawBorder: false },
+                    grid: { color: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', drawBorder: false },
                     ticks: {
-                        color: '#94a3b8', font: { size: 10, weight: '500' }, padding: 8,
+                        color: dark ? '#6b7280' : '#94a3b8', font: { size: 10, weight: '500' },
+                        padding: 8,
                         callback: value => 'Rp ' + value.toLocaleString('id-ID')
                     }
                 },
                 x: {
                     grid: { display: false },
                     ticks: {
-                        color: '#94a3b8', font: { size: 9, weight: '500' },
-                        maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 20
+                        color: dark ? '#6b7280' : '#94a3b8', font: { size: 9, weight: '500' },
+                        maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 15
                     }
                 }
             }

@@ -1408,6 +1408,31 @@ function initializeChart() {
         return;
     }
 
+    // ── BRIDGE: cari index terakhir actual data ──
+    let lastActualIndex = -1;
+    for (let i = data.actual.length - 1; i >= 0; i--) {
+        if (data.actual[i] !== null && data.actual[i] !== undefined) {
+            lastActualIndex = i;
+            break;
+        }
+    }
+
+    // Buat salinan baru (tidak mengubah data asli dari database)
+    const forecastBridged = data.forecast.map((val, i) => {
+        if (i === lastActualIndex) return data.actual[lastActualIndex];
+        return val;
+    });
+
+    const lowerBridged = data.lower.map((val, i) => {
+        if (i === lastActualIndex) return data.actual[lastActualIndex];
+        return val;
+    });
+
+    const upperBridged = data.upper.map((val, i) => {
+        if (i === lastActualIndex) return data.actual[lastActualIndex];
+        return val;
+    });
+
     const gradientActual = ctx.createLinearGradient(0, 0, 0, 400);
     gradientActual.addColorStop(0, dark ? 'rgba(96,165,250,0.3)' : 'rgba(4, 50, 119, 0.15)');
     gradientActual.addColorStop(1, 'rgba(4, 50, 119, 0)');
@@ -1425,16 +1450,18 @@ function initializeChart() {
             datasets: [
                 {
                     label: trans.rentangBawah,
-                    data: data.lower,
+                    data: lowerBridged,
                     backgroundColor: 'rgba(34, 197, 94, 0.08)',
                     borderColor: 'transparent',
-                    fill: '+1', pointRadius: 0, tension: 0.4
+                    fill: '+1', pointRadius: 0, tension: 0.4,
+                    spanGaps: false
                 },
                 {
                     label: trans.rentangAtas,
-                    data: data.upper,
+                    data: upperBridged,
                     borderColor: 'transparent',
-                    fill: false, pointRadius: 0, tension: 0.4
+                    fill: false, pointRadius: 0, tension: 0.4,
+                    spanGaps: false
                 },
                 {
                     label: trans.hargaAktual,
@@ -1449,7 +1476,7 @@ function initializeChart() {
                 },
                 {
                     label: trans.hargaProyeksi,
-                    data: data.forecast,
+                    data: forecastBridged,
                     borderColor: '#f97316',
                     backgroundColor: gradientForecast,
                     borderDash: [8, 4], borderWidth: 2.5, fill: true, tension: 0.4,
