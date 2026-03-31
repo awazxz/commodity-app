@@ -63,6 +63,9 @@ trait SavesUserPreferences
             $prefs->end_date ? $prefs->end_date->format('Y-m-d') : null,
             null   // null → akan di-resolve dari dbMaxDate di controller
         );
+        if ($endDate && Carbon::parse($endDate)->lt(Carbon::now()->subDays(30))) {
+        $endDate = null;
+        }
 
         $forecastWeeks = (int) $get('forecast_weeks', $prefs->forecast_weeks, 12);
         $forecastWeeks = max(1, min(52, $forecastWeeks));

@@ -306,7 +306,7 @@ const chartData = {
 
 const forecastSuccess = (chartData.weekly.forecast && chartData.weekly.forecast.some(v => v !== null)) ||
                         (chartData.monthly.forecast && chartData.monthly.forecast.some(v => v !== null)) ||
-                        (chartData.yearly.forecast && chartData.yearly.forecast.some(v => v !== null));z
+                        (chartData.yearly.forecast && chartData.yearly.forecast.some(v => v !== null));
 
 const trans = {
     weekly:   "{{ __('messages.mingguan') }}",
