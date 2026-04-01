@@ -4,6 +4,14 @@ app.py
 Flask API untuk sistem forecasting harga komoditas.
 Menggunakan model persistence + scheduled auto-retraining.
 
+FIX v3:
+- Deteksi user_override dilakukan di app.py dengan membandingkan
+  nilai hyperparams yang masuk vs DEFAULT_HP, bukan mengandalkan
+  flag eksplisit dari frontend yang sering tidak dikirim.
+- Flag user_override kemudian diteruskan ke predictor via hyperparams dict.
+- Ini memperbaiki bug di mana params user selalu di-override oleh
+  grid search karena user_override selalu False.
+
 FIX v2:
 - _filter_by_date_range() diterapkan sebelum masuk ke predictor,
   sehingga historical_df sudah sesuai filter user
@@ -63,6 +71,19 @@ UPLOAD_FOLDER      = 'uploads'
 ALLOWED_EXTENSIONS = {'csv'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+# ═══════════════════════════════════════════════════════════════
+# FIX v3: DEFAULT HYPERPARAMS — satu sumber kebenaran di app.py
+# Harus sinkron dengan DEFAULT_HYPERPARAMS di predictor.py
+# ═══════════════════════════════════════════════════════════════
+
+_DEFAULT_HP = {
+    'changepoint_prior_scale': 0.05,
+    'seasonality_prior_scale': 1.0,
+    'seasonality_mode':        'multiplicative',
+    'weekly_seasonality':      False,
+    'yearly_seasonality':      True,
+}
+
 
 # ═══════════════════════════════════════════════════════════════
 # HELPERS
@@ -103,12 +124,6 @@ def _filter_by_date_range(df: pd.DataFrame, start_date: str = None, end_date: st
     - historical_df['ds'].max() = akhir data aktual user (bukan hari ini)
     - predictor akan meneruskan nilai ini sebagai start_after ke Prophet
     - forecast dimulai tepat setelah data aktual terakhir user
-
-    Contoh:
-    - Data di DB: 2020-01-01 s/d 2025-06-30
-    - User pilih end_date=2024-12-31
-    - Setelah filter: historical_df['ds'].max() = 2024-12-31
-    - Forecast akan dimulai dari minggu pertama Januari 2025
     """
     if df.empty:
         return df
@@ -128,6 +143,41 @@ def _filter_by_date_range(df: pd.DataFrame, start_date: str = None, end_date: st
     return df.reset_index(drop=True)
 
 
+def _detect_user_override_app(hyperparams: dict) -> bool:
+    """
+    FIX v3: Deteksi apakah user mengubah hyperparams dari nilai default.
+
+    Dilakukan di app.py — sebelum dikirim ke predictor — agar flag
+    user_override sudah benar saat sampai ke _detect_user_override()
+    di predictor.py.
+
+    Tidak mengandalkan flag eksplisit dari frontend karena frontend
+    sering tidak mengirim field 'user_override' sama sekali.
+
+    Menggunakan toleransi 1e-9 untuk float agar '0.05' == 0.05.
+    """
+    for key, default_val in _DEFAULT_HP.items():
+        if key not in hyperparams:
+            continue
+        user_val = hyperparams[key]
+        if isinstance(default_val, float):
+            try:
+                if abs(float(user_val) - default_val) > 1e-9:
+                    print(f"   [App] Override terdeteksi: {key}={user_val} (default={default_val})")
+                    return True
+            except (TypeError, ValueError):
+                pass
+        elif isinstance(default_val, bool):
+            if bool(user_val) != default_val:
+                print(f"   [App] Override terdeteksi: {key}={user_val} (default={default_val})")
+                return True
+        else:
+            if user_val != default_val:
+                print(f"   [App] Override terdeteksi: {key}={user_val} (default={default_val})")
+                return True
+    return False
+
+
 # ═══════════════════════════════════════════════════════════════
 # ROOT & HEALTH
 # ═══════════════════════════════════════════════════════════════
@@ -137,7 +187,7 @@ def index():
     return jsonify({
         'success': True,
         'message': 'Commodity Price Forecasting API',
-        'version': '3.2.0',
+        'version': '3.3.0',
         'endpoints': {
             'health':            '/api/health',
             'predict_advanced':  '/api/forecast/predict-advanced',
@@ -180,18 +230,22 @@ def predict_forecast_advanced():
     """
     Advanced forecast dengan model persistence.
 
+    FIX v3 — deteksi user_override:
+    Sebelumnya: mengandalkan field 'user_override' dari frontend
+                → frontend tidak kirim → selalu False → grid search selalu jalan
+                → params user di-override oleh best_params grid search
+    Sekarang:   _detect_user_override_app() membandingkan nilai hyperparams
+                yang masuk vs _DEFAULT_HP → deteksi otomatis tanpa perlu
+                frontend kirim flag eksplisit
+                → user_override=True diteruskan ke predictor via hyperparams dict
+                → grid search dilewati → params user dihormati
+
     FIX v2 — alur yang benar:
     1. Ambil historical_data dari DB (semua data komoditas)
     2. Filter berdasarkan start_date & end_date dari user
     3. Serahkan historical_data terfilter ke predictor
     4. predictor mengambil last_data_date dari df terfilter
-       → meneruskannya sebagai start_after ke Prophet
     5. Forecast dimulai tepat setelah data aktual terakhir user
-
-    Parameter opsional:
-        start_date    : str   — batas awal data historis (YYYY-MM-DD)
-        end_date      : str   — batas akhir data historis (YYYY-MM-DD)
-        force_retrain : bool  — paksa retrain meski cache masih fresh
     """
     try:
         data = request.get_json()
@@ -206,13 +260,31 @@ def predict_forecast_advanced():
         start_date    = data.get('start_date') or None
         end_date      = data.get('end_date')   or None
 
+        # ── FIX v3: Bangun hyperparams dari nilai yang dikirim frontend ──
+        # Gunakan nilai default jika field tidak ada di request
         hyperparams = {
-            'changepoint_prior_scale': float(data.get('changepoint_prior_scale', 0.05)),
-            'seasonality_prior_scale': float(data.get('seasonality_prior_scale', 10.0)),
-            'seasonality_mode':        data.get('seasonality_mode', 'multiplicative'),
-            'weekly_seasonality':      _parse_bool(data.get('weekly_seasonality'), False),
-            'yearly_seasonality':      _parse_bool(data.get('yearly_seasonality'), True),
+            'changepoint_prior_scale': float(data.get('changepoint_prior_scale',
+                                              _DEFAULT_HP['changepoint_prior_scale'])),
+            'seasonality_prior_scale': float(data.get('seasonality_prior_scale',
+                                              _DEFAULT_HP['seasonality_prior_scale'])),
+            'seasonality_mode':        data.get('seasonality_mode',
+                                                _DEFAULT_HP['seasonality_mode']),
+            'weekly_seasonality':      _parse_bool(data.get('weekly_seasonality'),
+                                                   _DEFAULT_HP['weekly_seasonality']),
+            'yearly_seasonality':      _parse_bool(data.get('yearly_seasonality'),
+                                                   _DEFAULT_HP['yearly_seasonality']),
         }
+
+        # ── FIX v3: Deteksi user_override di sini, bukan di frontend ──
+        # Bandingkan nilai yang masuk vs default → tidak perlu field eksplisit
+        is_user_override = _detect_user_override_app(hyperparams)
+
+        # Teruskan ke predictor via hyperparams dict
+        # _detect_user_override() di predictor.py akan membaca flag ini
+        hyperparams['user_override'] = is_user_override
+
+        print(f"   [App] is_user_override={is_user_override} (dari perbandingan nilai vs default)")
+        print(f"   [App] hyperparams={hyperparams}")
 
         # ── Validasi parameter ────────────────────────────────
         cp = hyperparams['changepoint_prior_scale']
@@ -241,9 +313,6 @@ def predict_forecast_advanced():
             return jsonify({'success': False, 'message': 'Tidak ada data historis untuk komoditas ini'}), 404
 
         # ── FIX v2: Filter berdasarkan start_date & end_date ─
-        # Ini adalah langkah kritis — setelah filter, historical_data['ds'].max()
-        # akan menjadi akhir data aktual user, bukan hari ini atau
-        # tanggal terakhir di DB secara keseluruhan.
         if start_date or end_date:
             original_count  = len(historical_data)
             historical_data = _filter_by_date_range(historical_data, start_date, end_date)
@@ -262,10 +331,9 @@ def predict_forecast_advanced():
                             'message': f'Minimum 10 data diperlukan. Ditemukan: {len(historical_data)}'}), 400
 
         # ── FIX v2: Auto force_retrain jika end_date berubah ─
-        # Jika cache model punya last_date berbeda >7 hari dari
-        # historical_data terfilter, paksa retrain agar model
-        # dilatih dengan data yang sesuai filter user.
-        if not force_retrain:
+        # Jika user_override=True, kita SELALU retrain agar params user dipakai.
+        # Tidak perlu cek date diff karena predictor sudah handle ini.
+        if not force_retrain and not is_user_override:
             current_last_date = historical_data['ds'].max()
             cached_info = CommodityForecastModel.get_model_info(commodity_id)
 
@@ -286,6 +354,7 @@ def predict_forecast_advanced():
         print(f"\n{'='*60}")
         print(f"📊 Forecast Request — {commodity_info.get('full_name')} (ID={commodity_id})")
         print(f"   force_retrain : {force_retrain}")
+        print(f"   is_user_override: {is_user_override}")
         print(f"   periods       : {periods} hari")
         print(f"   frequency     : {frequency}")
         print(f"   hyperparams   : {hyperparams}")
@@ -298,14 +367,12 @@ def predict_forecast_advanced():
         periode_value   = freq_to_periode.get(use_freq, 'weekly')
 
         # ── Panggil predictor dengan historical_data terfilter ─
-        # predictor.predict() akan mengambil last_data_date dari
-        # historical_df['ds'].max() dan meneruskannya ke Prophet
         result = predictor.predict(
             commodity_id  = commodity_id,
-            historical_df = historical_data,   # ← sudah terfilter
+            historical_df = historical_data,
             periods       = periods,
             frequency     = frequency,
-            hyperparams   = hyperparams,
+            hyperparams   = hyperparams,     # sudah berisi user_override=True/False
             force_retrain = force_retrain,
         )
 
@@ -365,6 +432,7 @@ def predict_forecast_advanced():
                 'engine':                 engine_used,
                 'model_source':           model_source,
                 'saved_to_db':            saved_to_db,
+                'is_user_override':       is_user_override,
                 'data_range': {
                     'start': str(historical_data['ds'].min().date()),
                     'end':   str(historical_data['ds'].max().date()),
@@ -433,11 +501,16 @@ def evaluate_model():
         use_freq      = _normalize_freq(detected_freq)
 
         hyperparams = {
-            'changepoint_prior_scale': float(data.get('changepoint_prior_scale', 0.05)),
-            'seasonality_prior_scale': float(data.get('seasonality_prior_scale', 10.0)),
-            'seasonality_mode':        data.get('seasonality_mode', 'multiplicative'),
-            'weekly_seasonality':      _parse_bool(data.get('weekly_seasonality'), False),
-            'yearly_seasonality':      _parse_bool(data.get('yearly_seasonality'), True),
+            'changepoint_prior_scale': float(data.get('changepoint_prior_scale',
+                                              _DEFAULT_HP['changepoint_prior_scale'])),
+            'seasonality_prior_scale': float(data.get('seasonality_prior_scale',
+                                              _DEFAULT_HP['seasonality_prior_scale'])),
+            'seasonality_mode':        data.get('seasonality_mode',
+                                                _DEFAULT_HP['seasonality_mode']),
+            'weekly_seasonality':      _parse_bool(data.get('weekly_seasonality'),
+                                                   _DEFAULT_HP['weekly_seasonality']),
+            'yearly_seasonality':      _parse_bool(data.get('yearly_seasonality'),
+                                                   _DEFAULT_HP['yearly_seasonality']),
         }
 
         forecaster = CommodityForecastModel(**hyperparams)
@@ -521,15 +594,10 @@ def clear_model_cache(commodity_id: int):
     try:
         deleted_files = []
 
-        # Dapatkan BASE_DIR = folder tempat app.py berada
-        # Ini memastikan path selalu relatif terhadap lokasi app.py,
-        # tidak peduli dari mana Flask dijalankan.
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
         patterns = [
-            # Format aktual yang dipakai CommodityForecastModel.save_model()
             os.path.join(BASE_DIR, 'saved_models', f'commodity_{commodity_id}.pkl'),
-            # Format lama / alternatif (jaga-jaga)
             os.path.join(BASE_DIR, 'saved_models', f'model_{commodity_id}.pkl'),
             os.path.join(BASE_DIR, 'saved_models', f'model_{commodity_id}_*.pkl'),
             os.path.join(BASE_DIR, 'saved_models', f'rf_fallback', f'rf_{commodity_id}.pkl'),
@@ -547,7 +615,6 @@ def clear_model_cache(commodity_id: int):
                 except Exception as e:
                     print(f"⚠️  Gagal hapus {filepath}: {e}")
 
-        # Invalidate in-memory cache di CommodityPredictor
         try:
             if hasattr(predictor, 'invalidate_cache'):
                 predictor.invalidate_cache(commodity_id)
@@ -573,20 +640,15 @@ def clear_model_cache(commodity_id: int):
 
 @app.route('/api/forecast/clear-cache-all', methods=['DELETE'])
 def clear_all_cache():
-    """
-    Hapus semua cached model.
-    Semua komoditas akan dilatih ulang pada request berikutnya.
-    """
+    """Hapus semua cached model."""
     try:
         deleted_files = []
 
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
         patterns = [
-            # Format aktual CommodityForecastModel
             os.path.join(BASE_DIR, 'saved_models', '*.pkl'),
             os.path.join(BASE_DIR, 'saved_models', 'rf_fallback', '*.pkl'),
-            # Format lama / alternatif
             os.path.join(BASE_DIR, 'models', 'saved', '*.pkl'),
             os.path.join(BASE_DIR, 'models', 'saved', '*.json'),
             os.path.join(BASE_DIR, 'models', 'cache', '*'),
@@ -606,7 +668,6 @@ def clear_all_cache():
                 except Exception as e:
                     print(f"⚠️  Gagal hapus {filepath}: {e}")
 
-        # Clear semua in-memory cache
         try:
             if hasattr(predictor, 'clear_all_cache'):
                 predictor.clear_all_cache()
@@ -875,7 +936,7 @@ if __name__ == '__main__':
     from scheduler import start_scheduler
 
     print("=" * 60)
-    print("  COMMODITY PRICE FORECASTING API  v3.2.0")
+    print("  COMMODITY PRICE FORECASTING API  v3.3.0")
     print("=" * 60)
     print(f"   PORT       : {PORT}")
     print(f"   DEBUG      : {DEBUG}")

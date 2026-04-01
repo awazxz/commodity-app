@@ -21,6 +21,14 @@ class AdminController extends Controller
     /** URL Flask dari .env */
     private string $flaskUrl;
 
+    // Default hyperparameter Prophet — satu sumber kebenaran
+    // Harus sinkron dengan DEFAULT_HYPERPARAMS di predictor.py
+    private const DEFAULT_CP     = 0.05;
+    private const DEFAULT_SS     = 1.0;
+    private const DEFAULT_MODE   = 'multiplicative';
+    private const DEFAULT_WEEKLY = false;
+    private const DEFAULT_YEARLY = true;
+
     public function __construct()
     {
         $this->flaskUrl = rtrim(env('FLASK_URL', 'http://localhost:5000'), '/');
@@ -28,6 +36,9 @@ class AdminController extends Controller
 
     public function index(Request $request)
     {
+        // FIX Bug 5: set_time_limit agar PHP tidak kill request
+        // sebelum Flask selesai grid search (bisa 5-10 menit)
+        set_time_limit(660);
         return $this->processForecasting($request);
     }
 
@@ -38,6 +49,9 @@ class AdminController extends Controller
 
     public function predict(Request $request)
     {
+        // FIX Bug 5: set_time_limit agar PHP tidak kill request
+        // sebelum Flask selesai grid search (bisa 5-10 menit)
+        set_time_limit(660);
         return $this->processForecasting($request);
     }
 
@@ -91,10 +105,22 @@ class AdminController extends Controller
         }
 
         // ── STEP 4: Load preferensi user & resolve parameter ──
-        // GET  → gunakan nilai tersimpan di DB (bukan default hardcode)
-        // POST → gunakan nilai dari request, lalu simpan ke DB
         $prefs  = $this->loadUserPreferences($userId);
         $params = $this->resolveParameters($request, $prefs);
+
+        // FIX Bug 2: Log nilai params setelah resolveParameters()
+        // untuk memastikan nilai dari slider/form benar-benar masuk
+        Log::info('[ADMIN] resolveParameters result:', [
+            'cpScale'      => $params['cpScale'],
+            'seasonScale'  => $params['seasonScale'],
+            'seasonMode'   => $params['seasonMode'],
+            'weeklySeason' => $params['weeklySeason'],
+            'yearlySeason' => $params['yearlySeason'],
+            'method'       => $request->method(),
+            'raw_cp_input' => $request->input('changepoint_prior_scale', 'NOT_SENT'),
+            'raw_ss_input' => $request->input('seasonality_prior_scale', 'NOT_SENT'),
+            'raw_mode'     => $request->input('seasonality_mode', 'NOT_SENT'),
+        ]);
 
         if ($request->isMethod('POST') && $currentTab === 'insight') {
             $this->persistUserPreferences($userId, $request->all());
@@ -109,7 +135,39 @@ class AdminController extends Controller
         $yearlySeason    = $params['yearlySeason'];
         $seasonalityMode = $seasonMode;
 
-        // ── STEP 6: Resolve tanggal ───────────────────────────
+        // ── STEP 6: Baca force_retrain dari request ───────────
+        $forceRetrain = $this->parseBoolFromString(
+            $request->input('force_retrain', 'false')
+        );
+
+        // FIX Bug 1: Deteksi user_override berdasarkan apakah parameter
+        // yang dikirim berbeda dari DEFAULT — bukan sekadar sama dengan force_retrain.
+        // user_override = true → Flask skip grid search, langsung pakai params user.
+        // user_override = false → Flask jalankan grid search, pakai best_params.
+        $isUserOverride = (
+            (float) $cpScale      !== (float) self::DEFAULT_CP     ||
+            (float) $seasonScale  !== (float) self::DEFAULT_SS     ||
+            $seasonMode           !== self::DEFAULT_MODE            ||
+            (bool)  $weeklySeason !== self::DEFAULT_WEEKLY         ||
+            (bool)  $yearlySeason !== self::DEFAULT_YEARLY
+        );
+
+        Log::info('[ADMIN] force_retrain=' . ($forceRetrain ? 'TRUE' : 'false')
+            . ' | isUserOverride=' . ($isUserOverride ? 'TRUE' : 'false')
+            . ' | method=' . $request->method());
+
+        Log::info('[ADMIN] Hyperparameters yang akan dikirim ke Flask:', [
+            'cp'            => $cpScale,
+            'season'        => $seasonScale,
+            'mode'          => $seasonMode,
+            'weekly'        => $weeklySeason ? 'true' : 'false',
+            'yearly'        => $yearlySeason ? 'true' : 'false',
+            'weeks'         => $forecastWeeks,
+            'force_retrain' => $forceRetrain ? 'TRUE' : 'false',
+            'user_override' => $isUserOverride ? 'TRUE' : 'false',
+        ]);
+
+        // ── STEP 7: Resolve tanggal ───────────────────────────
         $startDate = ($params['startDate'] && $params['startDate'] >= $dbMinDate)
             ? $params['startDate']
             : $dbMinDate;
@@ -126,14 +184,6 @@ class AdminController extends Controller
         }
 
         Log::info("[ADMIN] Date range → start={$startDate} | end={$queryEndDate}");
-        Log::info('[ADMIN] Hyperparameters:', [
-            'cp'     => $cpScale,
-            'season' => $seasonScale,
-            'mode'   => $seasonMode,
-            'weekly' => $weeklySeason,
-            'yearly' => $yearlySeason,
-            'weeks'  => $forecastWeeks,
-        ]);
 
         // ── Inisialisasi semua variabel output ─────────────────
         $users      = collect();
@@ -234,6 +284,8 @@ class AdminController extends Controller
 
             $flaskResult = null;
             if ($countData >= 10) {
+                // FIX Bug 1: kirim $isUserOverride yang dihitung dari deteksi
+                // perubahan parameter — bukan sekadar $forceRetrain
                 $flaskResult = $this->callFlaskProphet(
                     $selectedKomoditasId,
                     $forecastWeeks,
@@ -243,7 +295,9 @@ class AdminController extends Controller
                     $weeklySeason,
                     $yearlySeason,
                     $startDate,
-                    $queryEndDate
+                    $queryEndDate,
+                    $forceRetrain,
+                    $isUserOverride  // ← FIX: bukan $forceRetrain lagi
                 );
             }
 
@@ -260,12 +314,12 @@ class AdminController extends Controller
                     default      => 'Stabil',
                 };
 
-                $inSampleMape        = round((float) ($flaskMetrics['in_sample_mape']       ?? 0), 2);
+                $inSampleMape        = round((float) ($flaskMetrics['in_sample_mape']        ?? 0), 2);
                 $intervalWidth       = round((float) ($flaskMetrics['future_interval_width']
-                                                   ?? $flaskMetrics['avg_interval_width']    ?? 0), 0);
-                $changepointCount    = (int)           ($flaskMetrics['changepoint_count']    ?? 0);
-                $seasonalityStrength = round((float) ($flaskMetrics['seasonality_strength'] ?? 0), 2);
-                $trendFlexibility    = round((float) ($flaskMetrics['trend_flexibility']    ?? 0), 6);
+                                                   ?? $flaskMetrics['avg_interval_width']     ?? 0), 0);
+                $changepointCount    = (int)           ($flaskMetrics['changepoint_count']     ?? 0);
+                $seasonalityStrength = round((float) ($flaskMetrics['seasonality_strength']  ?? 0), 2);
+                $trendFlexibility    = round((float) ($flaskMetrics['trend_flexibility']     ?? 0), 6);
 
                 $this->buildChartFromProphet(
                     $dates, $prices,
@@ -316,7 +370,11 @@ class AdminController extends Controller
 
         $rSquared = round($rSquared, 3);
 
-        Log::info('[ADMIN] Final → mape=' . $mape . ' rSquared=' . $rSquared . ' trendDir=' . $trendDir);
+        Log::info('[ADMIN] Final → mape=' . $mape
+            . ' | rSquared=' . $rSquared
+            . ' | trendDir=' . $trendDir
+            . ' | force_retrain=' . ($forceRetrain ? 'true' : 'false')
+            . ' | user_override=' . ($isUserOverride ? 'true' : 'false'));
 
         return view('admin_dashboard', compact(
             'role', 'username', 'email',
@@ -349,8 +407,10 @@ class AdminController extends Controller
         string $seasonMode,
         bool   $weeklySeason,
         bool   $yearlySeason,
-        string $startDate = '',
-        string $endDate   = ''
+        string $startDate      = '',
+        string $endDate        = '',
+        bool   $forceRetrain   = false,
+        bool   $isUserOverride = false  // FIX Bug 1: dideteksi dari perbandingan params vs default
     ): ?array {
         try {
             $payload = [
@@ -362,12 +422,18 @@ class AdminController extends Controller
                 'seasonality_mode'        => $seasonMode,
                 'weekly_seasonality'      => $weeklySeason,
                 'yearly_seasonality'      => $yearlySeason,
+                'force_retrain'           => $forceRetrain,
+                // FIX Bug 1: kirim user_override yang benar ke Flask
+                // Flask menggunakan ini untuk:
+                // - true  → skip grid search, langsung train dengan params yang dikirim
+                // - false → jalankan grid search, pakai best_params
+                'user_override'           => $isUserOverride,
             ];
 
             if ($startDate) $payload['start_date'] = $startDate;
             if ($endDate)   $payload['end_date']   = $endDate;
 
-            Log::info("[ADMIN FLASK] Mengirim request", $payload);
+            Log::info("[ADMIN FLASK] Mengirim request ke Flask:", $payload);
 
             $dataCount = PriceData::where('komoditas_id', $komoditasId)
                 ->whereBetween('tanggal', [
@@ -377,9 +443,17 @@ class AdminController extends Controller
                 ->where('harga', '>', 0)
                 ->count();
 
-            $dynamicTimeout = max(90, min(300, (int) ceil($dataCount / 50) * 10 + 30));
+            // FIX Bug 4: timeout panjang berlaku untuk force_retrain ATAU user_override
+            // Keduanya menyebabkan retrain di Flask yang bisa lama
+            $needsLongTimeout = $forceRetrain || $isUserOverride;
+            $dynamicTimeout   = $needsLongTimeout
+                ? max(300, min(600, (int) ceil($dataCount / 50) * 20 + 60))
+                : max(60,  min(180, (int) ceil($dataCount / 50) * 5  + 30));
 
-            Log::info("[ADMIN FLASK] data_count={$dataCount} → timeout={$dynamicTimeout}s");
+            Log::info("[ADMIN FLASK] data_count={$dataCount}"
+                . " | force_retrain=" . ($forceRetrain ? 'true' : 'false')
+                . " | user_override=" . ($isUserOverride ? 'true' : 'false')
+                . " | timeout={$dynamicTimeout}s");
 
             $response = Http::timeout($dynamicTimeout)
                 ->connectTimeout(10)
@@ -393,7 +467,7 @@ class AdminController extends Controller
             $data = $response->json();
 
             if (!($data['success'] ?? false)) {
-                Log::warning("[ADMIN FLASK] Error: " . ($data['message'] ?? 'unknown'));
+                Log::warning("[ADMIN FLASK] Error dari Flask: " . ($data['message'] ?? 'unknown'));
                 return null;
             }
 
@@ -401,14 +475,17 @@ class AdminController extends Controller
             $predictions  = $data['data']['predictions']   ?? [];
 
             if (empty($predictions)) {
-                Log::warning("[ADMIN FLASK] Prediksi kosong");
+                Log::warning("[ADMIN FLASK] Prediksi kosong dari Flask");
                 return null;
             }
 
             $coverage = $modelMetrics['coverage']  ?? 0.95;
             $mape     = $modelMetrics['mape']       ?? $modelMetrics['in_sample_mape'] ?? 0.0;
 
-            Log::info("[ADMIN FLASK] Berhasil: " . count($predictions) . " prediksi | MAPE={$mape} | coverage={$coverage}");
+            Log::info("[ADMIN FLASK] Berhasil: " . count($predictions)
+                . " prediksi | MAPE={$mape}"
+                . " | coverage={$coverage}"
+                . " | user_override=" . ($isUserOverride ? 'true' : 'false'));
 
             return [
                 'predictions'     => $predictions,
@@ -425,7 +502,7 @@ class AdminController extends Controller
             Log::warning("[ADMIN FLASK] Tidak bisa dihubungi: " . $e->getMessage());
             return null;
         } catch (\Exception $e) {
-            Log::error("[ADMIN FLASK] Error: " . $e->getMessage());
+            Log::error("[ADMIN FLASK] Error tidak terduga: " . $e->getMessage());
             return null;
         }
     }
@@ -882,9 +959,8 @@ class AdminController extends Controller
 
         $issuesCollection = collect($issues);
         $perPage          = 8;
-
-        $currentPage  = (int) $request->input('issuePage', 1);
-        $currentItems = $issuesCollection->slice(($currentPage - 1) * $perPage, $perPage)->values();
+        $currentPage      = (int) $request->input('issuePage', 1);
+        $currentItems     = $issuesCollection->slice(($currentPage - 1) * $perPage, $perPage)->values();
 
         return new \Illuminate\Pagination\LengthAwarePaginator(
             $currentItems,
@@ -1274,6 +1350,8 @@ class AdminController extends Controller
         }
     }
 
+    // FIX Bug 3: triggerForceRetrain sekarang kirim user_override=false
+    // agar Flask menjalankan grid search dengan best params saat retrain dari clear cache
     private function triggerForceRetrain(int $komoditasId): void
     {
         try {
@@ -1287,12 +1365,15 @@ class AdminController extends Controller
                 'commodity_id'            => $komoditasId,
                 'periods'                 => 84,
                 'frequency'               => 'W',
-                'changepoint_prior_scale' => 0.05,
-                'seasonality_prior_scale' => 10.0,
-                'seasonality_mode'        => 'multiplicative',
-                'weekly_seasonality'      => false,
-                'yearly_seasonality'      => false,
+                'changepoint_prior_scale' => self::DEFAULT_CP,
+                'seasonality_prior_scale' => self::DEFAULT_SS,
+                'seasonality_mode'        => self::DEFAULT_MODE,
+                'weekly_seasonality'      => self::DEFAULT_WEEKLY,
+                'yearly_seasonality'      => self::DEFAULT_YEARLY,
                 'force_retrain'           => true,
+                // FIX Bug 3: user_override=false → Flask akan jalankan grid search
+                // dan pakai best_params, bukan params default yang di-hardcode di sini
+                'user_override'           => false,
             ];
 
             if ($dateRange) {
@@ -1300,14 +1381,17 @@ class AdminController extends Controller
                 if ($dateRange->max_date) $payload['end_date']   = $dateRange->max_date;
             }
 
-            Log::info("[ADMIN CACHE] Trigger force retrain ID={$komoditasId}", $payload);
+            Log::info("[ADMIN CACHE] Trigger force retrain ID={$komoditasId} (fire-and-forget)", $payload);
 
-            Http::timeout(2)
+            // Timeout 3 detik disengaja — Flask akan tetap lanjut training
+            // di background meskipun koneksi ini terputus (timeout normal)
+            Http::timeout(3)
                 ->connectTimeout(2)
                 ->post("{$this->flaskUrl}/api/forecast/predict-advanced", $payload);
 
         } catch (\Exception $e) {
-            Log::info("[ADMIN CACHE] Trigger retrain dikirim (timeout normal): " . $e->getMessage());
+            // Ini timeout yang disengaja — bukan error
+            Log::info("[ADMIN CACHE] Trigger retrain dikirim (timeout normal seperti yang diharapkan): " . $e->getMessage());
         }
     }
 }

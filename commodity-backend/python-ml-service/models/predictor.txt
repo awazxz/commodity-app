@@ -6,54 +6,14 @@ CommodityPredictor — wrapper level tinggi yang mengintegrasikan:
 - Random Forest (fallback jika data < MIN_DATA_POINTS untuk Prophet)
 - Model persistence untuk kedua jenis model
 
-FIX v4 (perbaikan user_override flow):
-1. _detect_user_override() diperkuat dengan toleransi float (1e-9) dan
-   perbandingan tipe yang benar untuk bool, agar tidak ada mismatch
-   antara nilai string dari JSON vs float/bool Python.
-2. Prioritas flag eksplisit 'user_override' dari hyperparams dict
-   (yang sudah dihitung oleh app.py via _detect_user_override_app())
-   dipertahankan sebagai jalur utama — tidak ada logika yang bisa
-   membaliknya setelah di-set True oleh app.py.
-3. Log tambahan di setiap titik keputusan agar mudah di-debug.
-
-FIX v3 (sinkronisasi dengan prophet_forecasting.py terbaru):
-1. user_override di-set True jika hyperparams dari user berbeda dari default,
-   sehingga slider/input web app dihormati dan tidak di-override grid search.
-2. auto_grid_search() dipanggil sebelum train() saat bukan user_override,
-   agar best_params selalu tersedia dan dipakai oleh train().
-3. Default seasonality_prior_scale diseragamkan ke 1.0 (bukan 10.0) di semua
-   tempat, konsisten dengan __init__ CommodityForecastModel.
-4. Double load_model() digabung menjadi satu pemanggilan — load sekali,
-   dipakai untuk cek date diff sekaligus dipakai langsung jika cache masih valid.
-5. _mape() dideklarasikan sekali di level modul dan di-share oleh semua class,
-   tidak ada lagi duplikasi definisi yang bisa drift.
-
-Alur penggunaan:
-    # Skenario 1 — Train baru (pertama kali / retrain)
-    predictor = CommodityPredictor()
-    result = predictor.predict(commodity_id=1, historical_df=df)
-    # → auto_grid_search() → train(best_params) → save → predict
-
-    # Skenario 2 — Load & predict dari cache
-    result = predictor.predict(commodity_id=1, historical_df=df)
-    # → needs_retraining()=False → load_model() → predict langsung
-
-    # Skenario 3 — User override (slider web app)
-    result = predictor.predict(
-        commodity_id=1, historical_df=df,
-        hyperparams={'changepoint_prior_scale': 0.3, 'seasonality_mode': 'additive',
-                     'user_override': True}   # ← dikirim oleh app.py
-    )
-    # → is_user_override=True → train(params user) → save → predict
-    # → grid search TIDAK dijalankan, params user dihormati
-
-    # Skenario 4 — Reset ke best params (hapus override)
-    result = predictor.predict(
-        commodity_id=1, historical_df=df,
-        force_retrain=True
-        # hyperparams dikosongkan / pakai default → is_user_override=False
-    )
-    # → auto_grid_search() → train(best_params) → save → predict
+FIX v2:
+- _predict_prophet() meneruskan start_after=last_data_date ke
+  CommodityForecastModel.predict() — nilai ini berasal dari
+  historical_df yang sudah difilter oleh user (bukan train_df cache)
+- Ini memastikan forecast dimulai tepat setelah data aktual terakhir
+  yang dipilih user, tidak ada loncatan tahun
+- Auto force_retrain jika end_date filter user berbeda >7 hari
+  dari last_date yang tersimpan di cache model
 """
 
 import os
@@ -72,33 +32,8 @@ warnings.filterwarnings('ignore')
 
 
 # ═══════════════════════════════════════════════════════════════
-# KONSTANTA DEFAULT — satu sumber kebenaran, dipakai semua fungsi
+# HELPERS
 # ═══════════════════════════════════════════════════════════════
-
-# Nilai ini harus selalu sinkron dengan __init__ CommodityForecastModel
-# DAN dengan _DEFAULT_HP di app.py
-DEFAULT_HYPERPARAMS = {
-    'changepoint_prior_scale': 0.05,
-    'seasonality_prior_scale': 1.0,
-    'seasonality_mode':        'multiplicative',
-    'weekly_seasonality':      False,
-    'yearly_seasonality':      True,
-}
-
-
-# ═══════════════════════════════════════════════════════════════
-# HELPERS — level modul, di-share semua class
-# ═══════════════════════════════════════════════════════════════
-
-def _mape(actual, predicted) -> float:
-    """Mean Absolute Percentage Error — satu definisi di level modul."""
-    actual    = np.array(actual,    dtype=float)
-    predicted = np.array(predicted, dtype=float)
-    mask      = actual != 0
-    if not mask.any():
-        return 0.0
-    return float(np.mean(np.abs((actual[mask] - predicted[mask]) / actual[mask])) * 100)
-
 
 def _normalize_freq(freq: str) -> str:
     mapping = {'D': 'D', 'W': 'W', 'M': 'MS', 'MS': 'MS', 'ME': 'MS'}
@@ -114,57 +49,20 @@ def _convert_periods(periods: int, freq: str) -> int:
     return max(1, periods)
 
 
-def _detect_user_override(hyperparams: dict) -> bool:
+def _compute_gap_periods(last_date: pd.Timestamp, freq: str) -> int:
     """
-    FIX v4: Deteksi apakah params dari user berbeda dari default.
-
-    Urutan prioritas:
-    1. Flag eksplisit 'user_override' di hyperparams dict
-       (sudah dihitung oleh _detect_user_override_app() di app.py)
-       → ini jalur utama, langsung return tanpa cek lanjut
-    2. Fallback: bandingkan nilai vs DEFAULT_HYPERPARAMS dengan
-       toleransi float 1e-9 dan perbandingan tipe yang benar
-
-    Toleransi float penting karena JSON '0.05' bisa menjadi
-    float 0.05000000000000001 setelah parsing, yang tidak ==
-    dengan default 0.05 jika dibandingkan langsung sebagai string.
+    Hitung berapa banyak periode yang dibutuhkan untuk menutup gap
+    antara tanggal data terakhir dan hari ini.
     """
-    if not hyperparams:
-        return False
+    today = pd.Timestamp.now().normalize()
+    if today <= last_date:
+        return 0
 
-    # Jalur 1: flag eksplisit dari app.py (sudah dihitung di sana)
-    if 'user_override' in hyperparams:
-        result = bool(hyperparams['user_override'])
-        print(f"   [Predictor] _detect_user_override: flag eksplisit = {result}")
-        return result
+    gap_days  = (today - last_date).days
+    freq_days = {'D': 1, 'W': 7, 'MS': 30}
+    days_per  = freq_days.get(freq, 7)
 
-    # Jalur 2: fallback — bandingkan nilai vs default dengan toleransi
-    for key, default_val in DEFAULT_HYPERPARAMS.items():
-        if key not in hyperparams:
-            continue
-        user_val = hyperparams[key]
-
-        if isinstance(default_val, float):
-            try:
-                if abs(float(user_val) - default_val) > 1e-9:
-                    print(f"   [Predictor] _detect_user_override: {key} berbeda "
-                          f"({float(user_val)} vs default {default_val})")
-                    return True
-            except (TypeError, ValueError):
-                pass
-        elif isinstance(default_val, bool):
-            if bool(user_val) != default_val:
-                print(f"   [Predictor] _detect_user_override: {key} berbeda "
-                      f"({bool(user_val)} vs default {default_val})")
-                return True
-        else:
-            if user_val != default_val:
-                print(f"   [Predictor] _detect_user_override: {key} berbeda "
-                      f"({user_val} vs default {default_val})")
-                return True
-
-    print(f"   [Predictor] _detect_user_override: semua param sama dengan default → False")
-    return False
+    return max(0, int(gap_days // days_per) + 2)  # +2 buffer
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -175,11 +73,13 @@ class CommodityPredictor:
     """
     High-level predictor yang mengelola lifecycle model secara otomatis.
 
-    Perubahan v4 vs v3:
-    - _detect_user_override() diperkuat dengan toleransi float dan
-      prioritas flag eksplisit dari app.py.
-    - Log tambahan di setiap titik keputusan untuk memudahkan debug.
-    - Tidak ada perubahan pada alur utama — hanya perbaikan deteksi.
+    FIX v2 utama:
+    - predict() meneruskan start_after=last_data_date ke
+      CommodityForecastModel.predict(), di mana last_data_date
+      diambil dari historical_df terfilter (bukan dari cache).
+    - Auto force_retrain jika date range berbeda dari cache.
+    - Ini memastikan tidak ada loncatan tahun meski model sudah
+      di-cache berbulan-bulan atau bertahun-tahun.
     """
 
     RF_MODEL_DIR = os.path.join(MODEL_DIR, 'rf_fallback')
@@ -210,12 +110,13 @@ class CommodityPredictor:
         historical_df  : DataFrame dengan kolom 'ds' (datetime) dan 'y' (float)
                          — sudah difilter berdasarkan start_date & end_date user
         periods        : jumlah hari ke depan (default 84 = 12 minggu)
-        frequency      : frekuensi data dari frontend ('D', 'W', 'M')
-        hyperparams    : dict hyperparameter Prophet (opsional).
-                         Jika ada 'user_override'=True atau ada nilai yang berbeda
-                         dari DEFAULT_HYPERPARAMS, grid search dilewati dan
-                         params user dihormati sepenuhnya.
-        force_retrain  : paksa training ulang meski model masih fresh.
+        frequency      : frekuensi data dari PHP ('D', 'W', 'M')
+        hyperparams    : dict hyperparameter Prophet (opsional)
+        force_retrain  : paksa training ulang meski model masih fresh
+
+        Return
+        ------
+        dict dengan keys: predictions, model_metrics, model_source, dll.
         """
         hyperparams = hyperparams or {}
 
@@ -241,7 +142,7 @@ class CommodityPredictor:
             )
 
     # ──────────────────────────────────────────────────────────
-    # PROPHET ENGINE
+    # PROPHET ENGINE — FIXED v2
     # ──────────────────────────────────────────────────────────
 
     def _predict_prophet(
@@ -254,80 +155,62 @@ class CommodityPredictor:
         force_retrain:    bool,
     ) -> dict:
 
+        # ── FIX v2: Ambil last_data_date dari df yang sudah terfilter ─
+        # BUKAN dari train_df cache — ini kuncinya!
+        # Ketika user memilih end_date tertentu, historical_df sudah difilter
+        # di app.py sebelum masuk ke sini, jadi last_data_date = akhir data user.
         last_data_date = df['ds'].max()
 
-        # FIX v4: _detect_user_override() sekarang membaca flag eksplisit
-        # yang sudah dihitung oleh app.py, atau fallback ke perbandingan nilai
-        is_user_override = _detect_user_override(hyperparams)
-
         print(f"   [Predictor] last_data_date={last_data_date.date()} | "
-              f"forecast_periods={forecast_periods} {use_freq} | "
-              f"is_user_override={is_user_override}")
+              f"forecast_periods={forecast_periods} {use_freq}")
 
-        # Single load_model() — dipakai untuk dua tujuan:
-        # 1) Cek date diff antara cache dan data terfilter user
-        # 2) Dipakai langsung jika cache masih valid
-        loaded_once = CommodityForecastModel.load_model(commodity_id)
+        # ── FIX v2: Auto force_retrain jika date range berbeda dari cache ─
+        # Jika user ubah end_date dan cache model punya last_date berbeda >7 hari,
+        # retrain supaya model melihat data yang sama dengan yang difilter user.
+        if not force_retrain:
+            loaded_check = CommodityForecastModel.load_model(commodity_id)
+            if loaded_check:
+                _, payload_check = loaded_check
+                cached_last_date = payload_check['last_date']
+                date_diff_days   = abs((last_data_date - cached_last_date).days)
 
-        if not force_retrain and loaded_once:
-            _, payload_check = loaded_once
-            cached_last_date = payload_check['last_date']
-            date_diff_days   = abs((last_data_date - cached_last_date).days)
+                if date_diff_days > 7:
+                    force_retrain = True
+                    print(f"   [Predictor] 🔄 Auto force_retrain: "
+                          f"cache last_date={cached_last_date.date()} vs "
+                          f"current last_date={last_data_date.date()} "
+                          f"(diff={date_diff_days}d > 7d)")
 
-            if date_diff_days > 7:
-                force_retrain = True
-                print(f"   [Predictor] 🔄 Auto force_retrain: "
-                      f"cache last_date={cached_last_date.date()} vs "
-                      f"current last_date={last_data_date.date()} "
-                      f"(diff={date_diff_days}d > 7d)")
+        # ── Cek kebutuhan retraining ───────────────────────────
+        needs, reason = CommodityForecastModel.needs_retraining(
+            commodity_id, df, hyperparams=hyperparams
+        )
 
-        # Tentukan apakah perlu retrain
         if force_retrain:
             needs  = True
             reason = "force_retrain"
-        elif is_user_override:
-            # Selalu retrain jika user set params manual — cache punya params berbeda
-            needs  = True
-            reason = "user_override_params"
-            print(f"   [Predictor] Retrain karena user_override=True, params cache akan diabaikan")
-        else:
-            hp_for_check  = self._build_hp(hyperparams)
-            needs, reason = CommodityForecastModel.needs_retraining(
-                commodity_id, df, hyperparams=hp_for_check
-            )
 
         model_source = None
         forecaster   = None
 
         if not needs:
-            if loaded_once:
-                forecaster, payload = loaded_once
-                model_source = (
-                    f"cached (trained {payload['trained_at'].strftime('%Y-%m-%d %H:%M')})"
-                )
+            loaded = CommodityForecastModel.load_model(commodity_id)
+            if loaded:
+                forecaster, payload = loaded
+                model_source = f"cached (trained {payload['trained_at'].strftime('%Y-%m-%d %H:%M')})"
                 print(f"   [Predictor] ✅ Pakai cached model — {reason}")
             else:
                 needs  = True
                 reason = "load_failed"
 
         if needs:
-            print(f"   [Predictor] 🔁 Retrain — {reason} | "
-                  f"user_override={is_user_override}")
+            print(f"   [Predictor] 🔁 Retrain — {reason}")
 
-            # Baca params dari hyperparams (dengan fallback ke default)
-            cp = float(hyperparams.get('changepoint_prior_scale',
-                                       DEFAULT_HYPERPARAMS['changepoint_prior_scale']))
-            ss = float(hyperparams.get('seasonality_prior_scale',
-                                       DEFAULT_HYPERPARAMS['seasonality_prior_scale']))
-            sm = hyperparams.get('seasonality_mode',
-                                 DEFAULT_HYPERPARAMS['seasonality_mode'])
-            ws = bool(hyperparams.get('weekly_seasonality',
-                                      DEFAULT_HYPERPARAMS['weekly_seasonality']))
-            ys = bool(hyperparams.get('yearly_seasonality',
-                                      DEFAULT_HYPERPARAMS['yearly_seasonality']))
-
-            print(f"   [Predictor] Params yang akan dipakai: "
-                  f"cp={cp} | ss={ss} | mode={sm} | ws={ws} | ys={ys}")
+            cp = float(hyperparams.get('changepoint_prior_scale', 0.05))
+            ss = float(hyperparams.get('seasonality_prior_scale', 10.0))
+            sm = hyperparams.get('seasonality_mode', 'multiplicative')
+            ws = bool(hyperparams.get('weekly_seasonality', False))
+            ys = bool(hyperparams.get('yearly_seasonality', True))
 
             forecaster = CommodityForecastModel(
                 changepoint_prior_scale = cp,
@@ -335,40 +218,27 @@ class CommodityPredictor:
                 seasonality_mode        = sm,
                 weekly_seasonality      = ws,
                 yearly_seasonality      = ys,
-                user_override           = is_user_override,
             )
-
-            if not is_user_override:
-                # Jalankan grid search hanya jika bukan user_override
-                print(f"   [Predictor] Menjalankan auto_grid_search()...")
-                best = forecaster.auto_grid_search(df, freq=use_freq)
-                print(f"   [Predictor] Grid search selesai: "
-                      f"best_mape={best.get('mape')} | "
-                      f"cps={best.get('changepoint_prior_scale')} | "
-                      f"sps={best.get('seasonality_prior_scale')} | "
-                      f"mode={best.get('seasonality_mode')}")
-            else:
-                print(f"   [Predictor] Grid search dilewati — user_override=True")
-                print(f"   [Predictor] Pakai params user: cp={cp}, ss={ss}, mode={sm}")
-
-            # train() memakai best_params jika user_override=False,
-            # atau memakai params __init__ jika user_override=True
             forecaster.train(df, freq=use_freq)
             forecaster.save_model(commodity_id, metadata={
-                'triggered_by':    'predictor',
-                'reason':           reason,
-                'is_user_override': is_user_override,
+                'triggered_by': 'predictor',
+                'reason':        reason,
             })
             model_source = f"newly_trained ({reason})"
 
+        # ── FIX v2: Teruskan start_after=last_data_date ke predict() ──
+        # last_data_date berasal dari df (historical_df terfilter user),
+        # BUKAN dari train_df internal model yang mungkin stale.
+        # Ini memastikan forecast mulai tepat setelah data aktual terakhir user.
         forecast_df = forecaster.predict(
             periods     = forecast_periods,
             freq        = use_freq,
-            start_after = last_data_date,
+            start_after = last_data_date,   # ← FIX UTAMA v2
         )
 
         metrics = forecaster.get_model_metrics()
 
+        # ── Validasi & log tanggal hasil forecast ─────────────
         if not forecast_df.empty:
             first_forecast = forecast_df['ds'].min()
             last_forecast  = forecast_df['ds'].max()
@@ -376,10 +246,12 @@ class CommodityPredictor:
                   f"{first_forecast.date()} → {last_forecast.date()} "
                   f"({len(forecast_df)} titik)")
 
+            # Peringatkan jika masih ada gap besar (data tidak up-to-date)
             gap_days = (first_forecast - last_data_date).days
             if gap_days > 60:
                 print(f"   [Predictor] ⚠️  Gap {gap_days} hari antara data terakhir "
-                      f"dan forecast pertama.")
+                      f"dan forecast pertama. Pertimbangkan untuk input data aktual "
+                      f"sampai mendekati hari ini.")
 
         predictions           = self._format_predictions(forecast_df)
         trend_direction       = self._detect_trend(forecast_df['yhat'].values)
@@ -398,12 +270,10 @@ class CommodityPredictor:
             'trend_direction':       trend_direction,
             'future_interval_width': round(future_interval_width, 2),
             'model_metrics':         self._format_metrics(metrics, use_freq),
-            'is_user_override':      is_user_override,
-            'best_params':           forecaster.best_params,
         }
 
     # ──────────────────────────────────────────────────────────
-    # RANDOM FOREST FALLBACK
+    # RANDOM FOREST FALLBACK — FIXED v2
     # ──────────────────────────────────────────────────────────
 
     def _predict_rf_fallback(
@@ -413,9 +283,13 @@ class CommodityPredictor:
         forecast_periods: int,
         use_freq:         str,
     ) -> dict:
-        """Fallback ke Random Forest untuk data yang terlalu sedikit untuk Prophet."""
+        """
+        Fallback ke Random Forest untuk data yang terlalu sedikit untuk Prophet.
+        FIX v2: forecast dimulai dari tanggal setelah last_data_date df terfilter.
+        """
         rf_path = os.path.join(self.RF_MODEL_DIR, f"rf_{commodity_id}.pkl")
 
+        # FIX v2: ambil dari df terfilter, bukan dari cache
         last_data_date = df['ds'].max()
 
         df_feat = df.copy()
@@ -442,6 +316,7 @@ class CommodityPredictor:
             joblib.dump({'model': model, 'start_date': start_date}, rf_path)
             print(f"   [RF] 💾 RF model trained & saved")
 
+        # FIX v2: mulai dari last_data_date df terfilter, bukan dari sekarang
         freq_map   = {'D': 1, 'W': 7, 'MS': 30}
         delta_days = freq_map.get(use_freq, 7)
 
@@ -469,20 +344,16 @@ class CommodityPredictor:
                 'trend':           round(pred_price, 2),
             })
 
-        y_pred   = model.predict(X)
-        mse      = mean_squared_error(y, y_pred)
-        mape_val = round(_mape(y, y_pred), 4)
-        rmse_val = round(float(np.sqrt(mse)), 2)
-        mae_val  = round(float(np.mean(np.abs(y - y_pred))), 2)
-
+        y_pred  = model.predict(X)
+        mse     = mean_squared_error(y, y_pred)
         metrics = {
-            'mape':                  mape_val,
-            'rmse':                  rmse_val,
-            'mae':                   mae_val,
+            'mape':                  round(float(self._mape(y, y_pred)), 4),
+            'rmse':                  round(float(np.sqrt(mse)), 2),
+            'mae':                   round(float(np.mean(np.abs(y - y_pred))), 2),
             'coverage':              0.90,
-            'in_sample_mape':        mape_val,
-            'in_sample_rmse':        rmse_val,
-            'in_sample_mae':         mae_val,
+            'in_sample_mape':        round(float(self._mape(y, y_pred)), 4),
+            'in_sample_rmse':        round(float(np.sqrt(mse)), 2),
+            'in_sample_mae':         round(float(np.mean(np.abs(y - y_pred))), 2),
             'avg_interval_width':    0.0,
             'future_interval_width': 0.0,
             'changepoint_count':     0,
@@ -494,9 +365,7 @@ class CommodityPredictor:
             'data_frequency':        use_freq,
         }
 
-        trend_direction = self._detect_trend(
-            [p['predicted_price'] for p in predictions]
-        )
+        trend_direction = self._detect_trend([p['predicted_price'] for p in predictions])
 
         return {
             'engine':                'random_forest_fallback',
@@ -509,8 +378,6 @@ class CommodityPredictor:
             'trend_direction':       trend_direction,
             'future_interval_width': 0.0,
             'model_metrics':         metrics,
-            'is_user_override':      False,
-            'best_params':           None,
         }
 
     # ──────────────────────────────────────────────────────────
@@ -528,22 +395,16 @@ class CommodityPredictor:
         Train model dan simpan ke disk tanpa generate prediksi.
         Digunakan oleh scheduler malam.
         """
-        hyperparams      = hyperparams or {}
-        is_user_override = _detect_user_override(hyperparams)
+        hyperparams = hyperparams or {}
 
         detected_freq = CommodityForecastModel.detect_frequency(df)
         use_freq      = _normalize_freq(freq or detected_freq)
 
-        cp = float(hyperparams.get('changepoint_prior_scale',
-                                   DEFAULT_HYPERPARAMS['changepoint_prior_scale']))
-        ss = float(hyperparams.get('seasonality_prior_scale',
-                                   DEFAULT_HYPERPARAMS['seasonality_prior_scale']))
-        sm = hyperparams.get('seasonality_mode',
-                             DEFAULT_HYPERPARAMS['seasonality_mode'])
-        ws = bool(hyperparams.get('weekly_seasonality',
-                                  DEFAULT_HYPERPARAMS['weekly_seasonality']))
-        ys = bool(hyperparams.get('yearly_seasonality',
-                                  DEFAULT_HYPERPARAMS['yearly_seasonality']))
+        cp = float(hyperparams.get('changepoint_prior_scale', 0.05))
+        ss = float(hyperparams.get('seasonality_prior_scale', 10.0))
+        sm = hyperparams.get('seasonality_mode', 'multiplicative')
+        ws = bool(hyperparams.get('weekly_seasonality', False))
+        ys = bool(hyperparams.get('yearly_seasonality', True))
 
         forecaster = CommodityForecastModel(
             changepoint_prior_scale = cp,
@@ -551,62 +412,45 @@ class CommodityPredictor:
             seasonality_mode        = sm,
             weekly_seasonality      = ws,
             yearly_seasonality      = ys,
-            user_override           = is_user_override,
         )
-
-        if not is_user_override:
-            print(f"   [Scheduler] Menjalankan auto_grid_search() "
-                  f"untuk commodity_id={commodity_id}...")
-            best = forecaster.auto_grid_search(df, freq=use_freq)
-            print(f"   [Scheduler] Grid search selesai: best_mape={best.get('mape')}")
-        else:
-            print(f"   [Scheduler] Grid search dilewati — user_override=True")
-
         forecaster.train(df, freq=use_freq)
         path = forecaster.save_model(commodity_id, metadata={
-            'triggered_by':    'scheduler',
-            'is_user_override': is_user_override,
+            'triggered_by': 'scheduler',
         })
 
         return {
-            'commodity_id':    commodity_id,
-            'trained_at':      datetime.now().isoformat(),
-            'data_points':     len(df),
-            'last_date':       df['ds'].max().strftime('%Y-%m-%d'),
-            'freq':            use_freq,
-            'model_path':      path,
-            'is_user_override': is_user_override,
-            'best_params':     forecaster.best_params,
+            'commodity_id': commodity_id,
+            'trained_at':   datetime.now().isoformat(),
+            'data_points':  len(df),
+            'last_date':    df['ds'].max().strftime('%Y-%m-%d'),
+            'freq':         use_freq,
+            'model_path':   path,
         }
 
     # ──────────────────────────────────────────────────────────
-    # CACHE INVALIDATION
+    # CACHE INVALIDATION (dipanggil dari app.py clear-cache)
     # ──────────────────────────────────────────────────────────
 
     def invalidate_cache(self, commodity_id: int) -> None:
-        """No-op — CommodityPredictor stateless."""
-        print(f"   [Predictor] invalidate_cache commodity_id={commodity_id} "
-              f"(no-op, stateless)")
+        """
+        Invalidate in-memory cache untuk satu komoditas.
+        Dipanggil dari endpoint clear-cache di app.py.
+        """
+        # CommodityPredictor tidak menyimpan in-memory cache sendiri,
+        # tapi method ini disediakan agar app.py tidak error saat memanggil
+        # predictor.invalidate_cache(id) di endpoint clear-cache.
+        print(f"   [Predictor] invalidate_cache commodity_id={commodity_id} (no-op, stateless)")
 
     def clear_all_cache(self) -> None:
-        """No-op — CommodityPredictor stateless."""
+        """
+        Clear semua in-memory cache.
+        Dipanggil dari endpoint clear-cache-all di app.py.
+        """
         print(f"   [Predictor] clear_all_cache (no-op, stateless)")
 
     # ──────────────────────────────────────────────────────────
-    # HELPERS PRIVATE
+    # HELPERS
     # ──────────────────────────────────────────────────────────
-
-    @staticmethod
-    def _build_hp(hyperparams: dict) -> dict:
-        """
-        Bangun dict hyperparams lengkap dengan fallback ke DEFAULT_HYPERPARAMS.
-        Dipakai untuk needs_retraining() agar semua key tersedia.
-        Tidak menyertakan 'user_override' karena itu bukan hyperparameter Prophet.
-        """
-        return {
-            k: hyperparams.get(k, v)
-            for k, v in DEFAULT_HYPERPARAMS.items()
-        }
 
     @staticmethod
     def _format_predictions(forecast_df: pd.DataFrame) -> list:
@@ -638,13 +482,8 @@ class CommodityPredictor:
             'seasonality_strength':  float(metrics.get('seasonality_strength', 0)),
             'trend_direction':       'stable',
             'confidence_level':      0.95,
-            'cv_method':             metrics.get(
-                                         'cv_method',
-                                         f'walk_forward_80_20_{use_freq}'
-                                     ),
+            'cv_method':             metrics.get('cv_method', f'walk_forward_80_20_{use_freq}'),
             'data_frequency':        use_freq,
-            'best_params_from_grid_search': metrics.get('best_params_from_grid_search'),
-            'user_override':         metrics.get('user_override', False),
         }
 
     @staticmethod
@@ -662,3 +501,12 @@ class CommodityPredictor:
         elif last_val < first_val - threshold:
             return 'decreasing'
         return 'stable'
+
+    @staticmethod
+    def _mape(actual, predicted) -> float:
+        actual    = np.array(actual,    dtype=float)
+        predicted = np.array(predicted, dtype=float)
+        mask      = actual != 0
+        if not mask.any():
+            return 0.0
+        return float(np.mean(np.abs((actual[mask] - predicted[mask]) / actual[mask])) * 100)

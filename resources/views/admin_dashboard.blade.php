@@ -259,11 +259,12 @@
             </div>
 
             <input type="hidden" name="changepoint_prior_scale" id="hidden_cp" value="{{ $cpScale ?? 0.05 }}">
-            <input type="hidden" name="seasonality_prior_scale" id="hidden_season" value="{{ $seasonScale ?? 10 }}">
+            <input type="hidden" name="seasonality_prior_scale" id="hidden_season" value="{{ $seasonScale ?? 1 }}">
             <input type="hidden" name="seasonality_mode" id="hidden_mode" value="{{ $seasonMode ?? 'multiplicative' }}">
             <input type="hidden" name="weekly_seasonality" id="hidden_weekly" value="{{ ($weeklySeason ?? false) ? 'true' : 'false' }}">
             <input type="hidden" name="yearly_seasonality" id="hidden_yearly" value="{{ ($yearlySeason ?? false) ? 'true' : 'false' }}">
             <input type="hidden" name="forecast_weeks" id="hidden_forecast_weeks" value="{{ $forecastWeeks ?? 12 }}">
+            <input type="hidden" name="force_retrain" id="hidden_force_retrain" value="false">
             <input type="hidden" name="tab" value="insight">
         </form>
     </div>
@@ -342,10 +343,10 @@
                     <div>
                         <div class="flex justify-between mb-2">
                             <span class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">{{ __('messages.seasonality_prior') }}</span>
-                            <span class="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded" id="season_display">{{ number_format($seasonScale ?? 10, 2) }}</span>
+                            <span class="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded" id="season_display">{{ number_format($seasonScale ?? 1, 2) }}</span>
                         </div>
                         <input type="range" min="0.01" max="50" step="0.01"
-                               value="{{ $seasonScale ?? 10 }}"
+                               value="{{ $seasonScale ?? 1 }}"
                                class="w-full h-1 bg-gray-100 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer"
                                id="range_season"
                                oninput="updateVal('hidden_season', 'season_display', this.value, 2); markParamDirty();">
@@ -440,7 +441,7 @@
                         </div>
                         <div class="flex justify-between text-[10px]">
                             <span class="text-gray-500 dark:text-gray-400">season_scale</span>
-                            <span class="font-mono text-emerald-600 dark:text-emerald-400" id="preview_season">{{ $seasonScale ?? 10 }}</span>
+                            <span class="font-mono text-emerald-600 dark:text-emerald-400" id="preview_season">{{ $seasonScale ?? 1 }}</span>
                         </div>
                         <div class="flex justify-between text-[10px]">
                             <span class="text-gray-500 dark:text-gray-400">mode</span>
@@ -466,12 +467,27 @@
                     </div>
 
                     {{-- Tombol submit --}}
-                    <button type="button" onclick="triggerSubmit()"
+                    <!-- <button type="button" onclick="triggerSubmit()"
                             id="btn-update"
                             class="w-full bg-blue-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all shadow-sm flex items-center justify-center gap-2">
                         <i class="fas fa-sync-alt" id="btn-refresh-icon"></i>
                         {{ __('messages.perbarui_prediksi') }}
-                    </button>
+                    </button> -->
+                    {{-- Tombol Reset + Submit --}}
+                    <div class="flex gap-2">
+                        <button type="button" onclick="triggerReset()"
+                                id="btn-reset"
+                                title="Reset ke parameter otomatis terbaik (grid search)"
+                                class="flex-none bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 py-3 px-4 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-800 transition-all flex items-center gap-2">
+                            <i class="fas fa-rotate-left"></i>
+                        </button>
+                        <button type="button" onclick="triggerSubmit()"
+                                id="btn-update"
+                                class="flex-1 bg-blue-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all shadow-sm flex items-center justify-center gap-2">
+                            <i class="fas fa-sync-alt" id="btn-refresh-icon"></i>
+                            {{ __('messages.perbarui_prediksi') }}
+                        </button>
+                    </div>
 
                     <div class="text-[9px] text-gray-400 dark:text-gray-500 text-center">
                         {{ __('messages.prediksi_terakhir_note') }}<br>
@@ -582,7 +598,7 @@
             {{ __('messages.s_d') }} {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.
 
             {{ __('messages.model_prophet_dilatih') }} <strong>changepoint_prior_scale={{ $cpScale ?? 0.05 }}</strong>,
-            <strong>seasonality_prior_scale={{ $seasonScale ?? 10 }}</strong>,
+            <strong>seasonality_prior_scale={{ $seasonScale ?? 1 }}</strong>,
             {{ __('messages.mode_musiman') }} <strong>{{ $seasonMode ?? 'multiplicative' }}</strong>,
             {{ __('messages.horizon_prediksi_label') }} <strong>{{ $forecastWeeks ?? 12 }} {{ __('messages.minggu_ke_depan') }}</strong>.
 
@@ -1318,11 +1334,16 @@ function triggerSubmit() {
     const fw     = document.getElementById('hidden_forecast_weeks');
 
     if (!cp.value || isNaN(parseFloat(cp.value)))         cp.value = '0.05';
-    if (!season.value || isNaN(parseFloat(season.value))) season.value = '10';
+    if (!season.value || isNaN(parseFloat(season.value))) season.value = '1.0';
     if (!mode.value)   mode.value = 'multiplicative';
     if (weekly.value !== 'true' && weekly.value !== 'false') weekly.value = 'false';
-    if (yearly.value !== 'true' && yearly.value !== 'false') yearly.value = 'false';
+    if (yearly.value !== 'true' && yearly.value !== 'false') yearly.value = 'true';
     if (!fw || !fw.value || isNaN(parseInt(fw.value)) || parseInt(fw.value) < 1) fw.value = '12';
+
+    // Jika user ubah parameter → paksa retrain agar MAPE dihitung ulang
+    if (parametersDirty) {
+        document.getElementById('hidden_force_retrain').value = 'true';
+    }
 
     const icon = document.getElementById('btn-refresh-icon');
     if (icon) icon.classList.add('fa-spin');
@@ -1332,6 +1353,60 @@ function triggerSubmit() {
     if (overlay) { overlay.classList.remove('hidden'); overlay.style.opacity = '1'; }
 
     clearParamDirty();
+    let uoInput = document.getElementById('hidden_user_override');
+    if (!uoInput) {
+        uoInput = document.createElement('input');
+        uoInput.type = 'hidden';
+        uoInput.name = 'user_override';
+        uoInput.id   = 'hidden_user_override';
+        document.getElementById('mainForm').appendChild(uoInput);
+    }
+    uoInput.value = parametersDirty ? 'true' : 'false';
+    setTimeout(() => document.getElementById('mainForm').submit(), 100);
+}
+
+function triggerReset() {
+    const defaults = { cp: 0.05, season: 1.0, mode: 'multiplicative', weekly: false, yearly: true, fw: 12 };
+
+    document.getElementById('range_cp').value          = defaults.cp;
+    document.getElementById('hidden_cp').value         = defaults.cp;
+    document.getElementById('cp_display').textContent  = defaults.cp.toFixed(3);
+    document.getElementById('preview_cp').textContent  = defaults.cp;
+
+    document.getElementById('range_season').value          = defaults.season;
+    document.getElementById('hidden_season').value         = defaults.season;
+    document.getElementById('season_display').textContent  = defaults.season.toFixed(2);
+    document.getElementById('preview_season').textContent  = defaults.season;
+
+    document.getElementById('select_mode').value          = defaults.mode;
+    document.getElementById('hidden_mode').value          = defaults.mode;
+    document.getElementById('preview_mode').textContent   = defaults.mode;
+
+    document.getElementById('checkbox_weekly').checked    = defaults.weekly;
+    document.getElementById('hidden_weekly').value        = 'false';
+    document.getElementById('preview_weekly').textContent = 'false';
+
+    document.getElementById('checkbox_yearly').checked    = defaults.yearly;
+    document.getElementById('hidden_yearly').value        = 'true';
+    document.getElementById('preview_yearly').textContent = 'true';
+
+    document.getElementById('range_fw').value              = defaults.fw;
+    document.getElementById('hidden_forecast_weeks').value = defaults.fw;
+    document.getElementById('fw_display_text').textContent = defaults.fw + ' ' + trans.minggu;
+    document.getElementById('preview_fw').textContent      = defaults.fw;
+
+    // Force retrain → grid search jalan ulang, user_override kembali false
+    document.getElementById('hidden_force_retrain').value = 'true';
+
+    clearParamDirty();
+
+    const icon = document.getElementById('btn-refresh-icon');
+    if (icon) icon.classList.add('fa-spin');
+
+    document.getElementById('real-content').classList.add('opacity-30');
+    const overlay = document.getElementById('skeleton-overlay');
+    if (overlay) { overlay.classList.remove('hidden'); overlay.style.opacity = '1'; }
+
     setTimeout(() => document.getElementById('mainForm').submit(), 100);
 }
 
