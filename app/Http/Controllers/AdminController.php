@@ -121,7 +121,17 @@ class AdminController extends Controller
             'raw_ss_input' => $request->input('seasonality_prior_scale', 'NOT_SENT'),
             'raw_mode'     => $request->input('seasonality_mode', 'NOT_SENT'),
         ]);
-
+        // DIAGNOSTIC LOG — hapus setelah bug ditemukan
+        Log::info('[DEBUG forecast_weeks]', [
+            'method'          => $request->method(),
+            'has_fw_key'      => $request->has('forecast_weeks'),
+            'raw_fw_input'    => $request->input('forecast_weeks', 'NOT_FOUND_IN_REQUEST'),
+            'all_input_keys'  => array_keys($request->all()),
+            'prefs_fw'        => $prefs->forecast_weeks,
+            'resolved_fw'     => $params['forecastWeeks'],
+            'isPost'          => $request->isMethod('POST'),
+            'currentTab'      => $currentTab,
+        ]);
         if ($request->isMethod('POST') && $currentTab === 'insight') {
             $this->persistUserPreferences($userId, $request->all());
         }

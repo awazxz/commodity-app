@@ -46,6 +46,13 @@ trait SavesUserPreferences
      */
     protected function resolveParameters(Request $request, UserPreference $prefs): array
     {
+        \Illuminate\Support\Facades\Log::info('[TRAIT resolveParameters]', [
+            'isPost'              => $request->isMethod('POST'),
+            'request_method'      => $request->method(),
+            'has_forecast_weeks'  => $request->has('forecast_weeks'),
+            'forecast_weeks_raw'  => $request->input('forecast_weeks', 'NOT_IN_REQUEST'),
+            'all_keys_sent'       => array_keys($request->all()),
+        ]);
         $isPost = $request->isMethod('POST');
 
         // Helper: ambil dari request jika POST dan ada, fallback ke pref, lalu ke default
@@ -73,7 +80,7 @@ trait SavesUserPreferences
         $cpScale = (float) $get('changepoint_prior_scale', $prefs->changepoint_prior_scale, 0.05);
         $cpScale = max(0.001, min(0.5, $cpScale));
 
-        $seasonScale = (float) $get('seasonality_prior_scale', $prefs->seasonality_prior_scale, 10.0);
+        $seasonScale = (float) $get('seasonality_prior_scale', $prefs->seasonality_prior_scale, 1.0);
         $seasonScale = max(0.01, min(50.0, $seasonScale));
 
         $seasonMode = $get('seasonality_mode', $prefs->seasonality_mode, 'multiplicative');
