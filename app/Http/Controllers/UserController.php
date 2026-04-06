@@ -16,8 +16,14 @@ class UserController extends Controller
 {
     use SavesUserPreferences;
 
-    /** URL Flask dari .env */
     private string $flaskUrl;
+
+    // ── Sinkron dengan AdminController dan UserPreference::DEFAULTS ──
+    private const DEFAULT_CP     = 0.05;
+    private const DEFAULT_SS     = 1.0;
+    private const DEFAULT_MODE   = 'multiplicative';
+    private const DEFAULT_WEEKLY = false;
+    private const DEFAULT_YEARLY = true;
 
     public function __construct()
     {
@@ -30,20 +36,20 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
+        set_time_limit(660);
         return $this->processForecasting($request);
     }
 
     public function analisis(Request $request)
     {
+        set_time_limit(660);
         return $this->processForecasting($request);
     }
 
     // =========================================================
-    // AMBIL ADMIN USER ID
-    // User selalu membaca preferensi milik admin (role='admin'),
-    // bukan preferensi miliknya sendiri — agar insight yang tampil
-    // identik dengan yang sudah di-set oleh admin.
+    // AMBIL ADMIN USER ID — cached per request lifecycle
     // =========================================================
+
     private function getAdminUserId(): ?int
     {
         static $adminId = null;
@@ -53,7 +59,7 @@ class UserController extends Controller
             $adminId = $admin?->id;
 
             if ($adminId === null) {
-                Log::warning('[USER] Tidak ada user dengan role=admin, fallback ke preferensi default.');
+                Log::warning('[USER] Tidak ada user dengan role=admin, fallback ke default parameter.');
             }
         }
 
@@ -61,10 +67,31 @@ class UserController extends Controller
     }
 
     // =========================================================
-    // MAIN FORECASTING PROCESSOR
-    // Selaras penuh dengan AdminController — parameter & tanggal
-    // semuanya diambil dari preferensi ADMIN, bukan user login.
+    // RESOLVE PARAMETER DARI ADMIN
+    // Tidak membaca $request sama sekali — user tidak bisa
+    // override parameter apapun via URL atau form.
     // =========================================================
+
+    private function resolveAdminParams(): array
+    {
+        $adminId = $this->getAdminUserId();
+
+        if ($adminId === null) {
+            Log::warning('[USER] Tidak ada admin, menggunakan parameter default.');
+            return UserPreference::defaultParamArray();
+        }
+
+        $params = $this->loadUserPreferences($adminId)->toParamArray();
+
+        Log::info('[USER] Preferensi admin berhasil dimuat untuk admin_id=' . $adminId, $params);
+
+        return $params;
+    }
+
+    // =========================================================
+    // MAIN FORECASTING PROCESSOR
+    // =========================================================
+
     private function processForecasting(Request $request)
     {
         // ── STEP 1: Ambil daftar komoditas ────────────────────
@@ -75,28 +102,26 @@ class UserController extends Controller
             $commodities = collect();
         }
 
-        // Alias agar view user tetap kompatibel
         $allCommodities = $commodities;
 
         // ── STEP 2: Komoditas yang dipilih ────────────────────
-        // Mendukung dua nama parameter: komoditas_id (selaras admin)
-        // dan commodity (legacy user) — prioritas komoditas_id.
+        // Satu-satunya input yang boleh dari user: memilih komoditas.
+        // Tidak ada parameter model yang dibaca dari request.
         $selectedKomoditasId = (int) (
             $request->query('komoditas_id')
-            ?? $request->input('komoditas_id')
-            ?? $request->input('commodity')
             ?? $request->query('commodity')
             ?? optional($commodities->first())->id
         );
 
-        $selectedKomoditas = $commodities->first(fn($k) => (int) $k->id === $selectedKomoditasId);
+        $selectedKomoditas = $commodities->first(
+            fn($k) => (int) $k->id === $selectedKomoditasId
+        );
 
         $selectedCommodity = $selectedKomoditas
             ? ($selectedKomoditas->display_name
                ?? trim($selectedKomoditas->nama_komoditas . ' ' . ($selectedKomoditas->nama_varian ?? '')))
             : 'Tidak Ada Data';
 
-        // Alias agar view user tetap kompatibel
         $selectedCommodityId = $selectedKomoditasId;
 
         // ── STEP 3: Auto-detect date range dari DB ────────────
@@ -115,12 +140,8 @@ class UserController extends Controller
             $dbMaxDate = Carbon::now()->format('Y-m-d');
         }
 
-        // ── STEP 4: Load preferensi ADMIN (bukan user login) ──
-        // Ini kunci agar insight user = insight admin.
-        // User tidak menyimpan preferensi apapun.
-        $adminId = $this->getAdminUserId();
-        $prefs   = $this->loadUserPreferences($adminId);
-        $params  = $this->resolveParameters($request, $prefs);
+        // ── STEP 4: Ambil parameter dari prefs admin ──────────
+        $params = $this->resolveAdminParams();
 
         // ── STEP 5: Destructure parameter ─────────────────────
         $forecastWeeks   = $params['forecastWeeks'];
@@ -133,7 +154,7 @@ class UserController extends Controller
         $weeklyActive    = $weeklySeason;
         $yearlyActive    = $yearlySeason;
 
-        // ── STEP 6: Resolve tanggal ───────────────────────────
+        // ── STEP 6: Resolve tanggal dari prefs admin ──────────
         $startDate = ($params['startDate'] && $params['startDate'] >= $dbMinDate)
             ? $params['startDate']
             : $dbMinDate;
@@ -145,18 +166,32 @@ class UserController extends Controller
         $endDate = $queryEndDate;
 
         if ($startDate > $endDate) {
+            Log::warning('[USER] startDate > endDate, reset ke full range.');
             $startDate = $dbMinDate;
             $endDate   = $queryEndDate;
         }
 
-        Log::info("[USER] Pakai preferensi admin_id={$adminId} | start={$startDate} | end={$queryEndDate}");
-        Log::info('[USER] Hyperparameters:', [
-            'cp'     => $cpScale,
-            'season' => $seasonScale,
-            'mode'   => $seasonMode,
-            'weekly' => $weeklySeason,
-            'yearly' => $yearlySeason,
-            'weeks'  => $forecastWeeks,
+        Log::info('[USER] Date range final → start=' . $startDate . ' | end=' . $queryEndDate);
+
+        // ── STEP 7: Hitung user_override dari prefs admin ─────
+        // Dihitung dari selisih prefs admin vs default konstanta.
+        // BUKAN dari request user — user tidak bisa trigger ini.
+        $isUserOverride = (
+            (float) $cpScale      !== (float) self::DEFAULT_CP     ||
+            (float) $seasonScale  !== (float) self::DEFAULT_SS     ||
+            $seasonMode           !== self::DEFAULT_MODE            ||
+            (bool)  $weeklySeason !== (bool)  self::DEFAULT_WEEKLY ||
+            (bool)  $yearlySeason !== (bool)  self::DEFAULT_YEARLY
+        );
+
+        Log::info('[USER] Hyperparameters dari prefs admin:', [
+            'cpScale'        => $cpScale,
+            'seasonScale'    => $seasonScale,
+            'seasonMode'     => $seasonMode,
+            'weeklySeason'   => $weeklySeason,
+            'yearlySeason'   => $yearlySeason,
+            'forecastWeeks'  => $forecastWeeks,
+            'isUserOverride' => $isUserOverride,
         ]);
 
         // ── Inisialisasi variabel output ──────────────────────
@@ -172,7 +207,7 @@ class UserController extends Controller
         $monthlyLabels = []; $monthlyActual = []; $monthlyForecast = []; $monthlyLower = []; $monthlyUpper = [];
         $yearlyLabels  = []; $yearlyActual  = []; $yearlyForecast  = []; $yearlyLower  = []; $yearlyUpper  = [];
 
-        // ── Ambil data historis ───────────────────────────────
+        // ── STEP 8: Ambil data historis ───────────────────────
         $prices = [];
         $dates  = [];
 
@@ -184,13 +219,16 @@ class UserController extends Controller
                 ->orderBy('tanggal', 'asc')
                 ->get();
 
-            Log::info("[USER INSIGHT] komoditas_id={$selectedKomoditasId} | nama={$selectedCommodity} | count={$dbData->count()} | periode={$startDate} s/d {$queryEndDate}");
+            Log::info('[USER] Data historis: komoditas_id=' . $selectedKomoditasId
+                . ' | nama=' . $selectedCommodity
+                . ' | count=' . $dbData->count()
+                . ' | periode=' . $startDate . ' s/d ' . $queryEndDate);
 
             if ($dbData->isNotEmpty()) {
-                $dates = $dbData->pluck('tanggal')
-                                ->map(fn($d) => Carbon::parse($d))
-                                ->values()
-                                ->toArray();
+                $dates  = $dbData->pluck('tanggal')
+                                 ->map(fn($d) => Carbon::parse($d))
+                                 ->values()
+                                 ->toArray();
 
                 $prices = $dbData->pluck('harga')
                                  ->map(fn($h) => (float) $h)
@@ -198,13 +236,10 @@ class UserController extends Controller
                                  ->toArray();
             }
         } catch (\Exception $e) {
-            Log::error('[USER INSIGHT] Gagal ambil price_data: ' . $e->getMessage());
+            Log::error('[USER] Gagal ambil price_data: ' . $e->getMessage());
         }
 
-        // ============================================================
-        // FORECASTING — prioritas Flask Prophet, fallback PHP
-        // Identik dengan AdminController
-        // ============================================================
+        // ── STEP 9: Forecasting ───────────────────────────────
         if (count($prices) >= 2) {
 
             $countData = count($prices);
@@ -213,6 +248,7 @@ class UserController extends Controller
             $minPrice  = min($prices);
 
             $flaskResult = null;
+
             if ($countData >= 10) {
                 $flaskResult = $this->callFlaskProphet(
                     $selectedKomoditasId,
@@ -223,12 +259,17 @@ class UserController extends Controller
                     $weeklySeason,
                     $yearlySeason,
                     $startDate,
-                    $queryEndDate
+                    $queryEndDate,
+                    false,          // force_retrain: user tidak pernah trigger retrain
+                    $isUserOverride // dihitung dari prefs admin vs default
                 );
             }
 
             if ($flaskResult !== null) {
-                Log::info("[USER PROPHET] Berhasil: " . count($flaskResult['predictions']) . " prediksi | MAPE=" . $flaskResult['mape']);
+                Log::info('[USER PROPHET] Berhasil: '
+                    . count($flaskResult['predictions']) . ' prediksi'
+                    . ' | MAPE=' . $flaskResult['mape']
+                    . ' | trend=' . $flaskResult['trend_direction']);
 
                 $mape     = $flaskResult['mape'];
                 $rSquared = $flaskResult['r_squared'];
@@ -247,7 +288,7 @@ class UserController extends Controller
                 );
 
             } else {
-                Log::warning("[USER FALLBACK] Flask tidak tersedia, menggunakan kalkulasi PHP");
+                Log::warning('[USER FALLBACK] Flask tidak tersedia, menggunakan kalkulasi PHP.');
 
                 $forecastDays = $forecastWeeks * 7;
 
@@ -257,15 +298,18 @@ class UserController extends Controller
                 [$mape, $rSquared] = $this->calculateMetricsFallback($prices, $dates);
 
                 $this->aggregateWeeklyData(
-                    $dates, $prices, $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+                    $dates, $prices,
+                    $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
                     $weeklyLabels, $weeklyActual, $weeklyForecast, $weeklyLower, $weeklyUpper
                 );
                 $this->aggregateMonthlyData(
-                    $dates, $prices, $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+                    $dates, $prices,
+                    $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
                     $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper
                 );
                 $this->aggregateYearlyData(
-                    $dates, $prices, $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+                    $dates, $prices,
+                    $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
                     $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
                 );
 
@@ -278,7 +322,9 @@ class UserController extends Controller
             }
 
         } else {
-            Log::warning("[USER INSIGHT] Data tidak cukup komoditas_id={$selectedKomoditasId} (count=" . count($prices) . ")");
+            Log::warning('[USER] Data tidak cukup untuk komoditas_id=' . $selectedKomoditasId
+                . ' (count=' . count($prices) . ')');
+
             $countData = count($prices);
             $avgPrice  = count($prices) > 0 ? $prices[0] : 0;
             $maxPrice  = $avgPrice;
@@ -287,7 +333,9 @@ class UserController extends Controller
 
         $rSquared = round($rSquared, 3);
 
-        Log::info('[USER] Final → mape=' . $mape . ' rSquared=' . $rSquared . ' trendDir=' . $trendDir);
+        Log::info('[USER] Final → mape=' . $mape
+            . ' | rSquared=' . $rSquared
+            . ' | trendDir=' . $trendDir);
 
         return view('dashboard.users.index', compact(
             'allCommodities', 'selectedCommodity', 'selectedCommodityId',
@@ -303,8 +351,10 @@ class UserController extends Controller
     }
 
     // =========================================================
-    // PANGGIL FLASK PROPHET API — identik AdminController
+    // PANGGIL FLASK PROPHET API
+    // Identik dengan AdminController — payload sama persis
     // =========================================================
+
     private function callFlaskProphet(
         int    $komoditasId,
         int    $forecastWeeks,
@@ -313,8 +363,10 @@ class UserController extends Controller
         string $seasonMode,
         bool   $weeklySeason,
         bool   $yearlySeason,
-        string $startDate = '',
-        string $endDate   = ''
+        string $startDate      = '',
+        string $endDate        = '',
+        bool   $forceRetrain   = false,
+        bool   $isUserOverride = false
     ): ?array {
         try {
             $payload = [
@@ -326,12 +378,14 @@ class UserController extends Controller
                 'seasonality_mode'        => $seasonMode,
                 'weekly_seasonality'      => $weeklySeason,
                 'yearly_seasonality'      => $yearlySeason,
+                'force_retrain'           => $forceRetrain,
+                'user_override'           => $isUserOverride,
             ];
 
             if ($startDate) $payload['start_date'] = $startDate;
             if ($endDate)   $payload['end_date']   = $endDate;
 
-            Log::info("[USER FLASK] Mengirim request", $payload);
+            Log::info('[USER FLASK] Payload ke Flask:', $payload);
 
             $dataCount = PriceData::where('komoditas_id', $komoditasId)
                 ->whereBetween('tanggal', [
@@ -341,23 +395,31 @@ class UserController extends Controller
                 ->where('harga', '>', 0)
                 ->count();
 
-            $dynamicTimeout = max(90, min(300, (int) ceil($dataCount / 50) * 10 + 30));
+            // Sinkron dengan AdminController:
+            // - isUserOverride atau force_retrain → Flask retrain → timeout panjang
+            // - normal (pakai cache)              → timeout pendek
+            $needsLongTimeout = $forceRetrain || $isUserOverride;
+            $dynamicTimeout   = $needsLongTimeout
+                ? max(300, min(600, (int) ceil($dataCount / 50) * 20 + 60))
+                : max(60,  min(180, (int) ceil($dataCount / 50) * 5  + 30));
 
-            Log::info("[USER FLASK] data_count={$dataCount} → timeout={$dynamicTimeout}s");
+            Log::info('[USER FLASK] data_count=' . $dataCount
+                . ' | needs_long_timeout=' . ($needsLongTimeout ? 'true' : 'false')
+                . ' | timeout=' . $dynamicTimeout . 's');
 
             $response = Http::timeout($dynamicTimeout)
                 ->connectTimeout(10)
                 ->post("{$this->flaskUrl}/api/forecast/predict-advanced", $payload);
 
             if (!$response->successful()) {
-                Log::warning("[USER FLASK] HTTP {$response->status()}: " . $response->body());
+                Log::warning('[USER FLASK] HTTP ' . $response->status() . ': ' . $response->body());
                 return null;
             }
 
             $data = $response->json();
 
             if (!($data['success'] ?? false)) {
-                Log::warning("[USER FLASK] Error: " . ($data['message'] ?? 'unknown'));
+                Log::warning('[USER FLASK] Error dari Flask: ' . ($data['message'] ?? 'unknown'));
                 return null;
             }
 
@@ -365,14 +427,17 @@ class UserController extends Controller
             $predictions  = $data['data']['predictions']   ?? [];
 
             if (empty($predictions)) {
-                Log::warning("[USER FLASK] Prediksi kosong");
+                Log::warning('[USER FLASK] Prediksi kosong dari Flask.');
                 return null;
             }
 
             $coverage = $modelMetrics['coverage']  ?? 0.95;
             $mape     = $modelMetrics['mape']       ?? $modelMetrics['in_sample_mape'] ?? 0.0;
 
-            Log::info("[USER FLASK] Berhasil: " . count($predictions) . " prediksi | MAPE={$mape}");
+            Log::info('[USER FLASK] Berhasil: ' . count($predictions) . ' prediksi'
+                . ' | MAPE=' . $mape
+                . ' | coverage=' . $coverage
+                . ' | user_override=' . ($isUserOverride ? 'true' : 'false'));
 
             return [
                 'predictions'     => $predictions,
@@ -383,13 +448,13 @@ class UserController extends Controller
             ];
 
         } catch (\Illuminate\Http\Client\RequestException $e) {
-            Log::warning("[USER FLASK] Request timeout/error: " . $e->getMessage());
+            Log::warning('[USER FLASK] Timeout/error: ' . $e->getMessage());
             return null;
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::warning("[USER FLASK] Tidak bisa dihubungi: " . $e->getMessage());
+            Log::warning('[USER FLASK] Tidak bisa dihubungi: ' . $e->getMessage());
             return null;
         } catch (\Exception $e) {
-            Log::error("[USER FLASK] Error: " . $e->getMessage());
+            Log::error('[USER FLASK] Error tidak terduga: ' . $e->getMessage());
             return null;
         }
     }
@@ -397,6 +462,7 @@ class UserController extends Controller
     // =========================================================
     // BUILD CHART DARI HASIL PROPHET
     // =========================================================
+
     private function buildChartFromProphet(
         array $actualDates,
         array $actualPrices,
@@ -437,6 +503,7 @@ class UserController extends Controller
     // =========================================================
     // AGGREGATION — Weekly
     // =========================================================
+
     private function aggregateWeeklyData(
         $actualDates, $actualPrices,
         $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
@@ -447,9 +514,12 @@ class UserController extends Controller
         foreach ($actualDates as $i => $date) {
             $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
             $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
+
             if (!isset($weekGroups[$key])) {
                 $weekGroups[$key] = [
-                    'label'          => $d->copy()->startOfWeek()->format('d/m') . ' - ' . $d->copy()->endOfWeek()->format('d/m/Y'),
+                    'label'          => $d->copy()->startOfWeek()->format('d/m')
+                                      . ' - '
+                                      . $d->copy()->endOfWeek()->format('d/m/Y'),
                     'actualPrices'   => [],
                     'forecastPrices' => [],
                     'lowerPrices'    => [],
@@ -475,7 +545,9 @@ class UserController extends Controller
 
             if (!isset($weekGroups[$key])) {
                 $weekGroups[$key] = [
-                    'label'          => $d->copy()->startOfWeek()->format('d/m') . ' - ' . $d->copy()->endOfWeek()->format('d/m/Y'),
+                    'label'          => $d->copy()->startOfWeek()->format('d/m')
+                                      . ' - '
+                                      . $d->copy()->endOfWeek()->format('d/m/Y'),
                     'actualPrices'   => [],
                     'forecastPrices' => [],
                     'lowerPrices'    => [],
@@ -513,6 +585,7 @@ class UserController extends Controller
     // =========================================================
     // AGGREGATION — Monthly
     // =========================================================
+
     private function aggregateMonthlyData(
         $actualDates, $actualPrices,
         $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
@@ -523,6 +596,7 @@ class UserController extends Controller
         foreach ($actualDates as $i => $date) {
             $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
             $key = $d->format('Y-m');
+
             if (!isset($monthGroups[$key])) {
                 $monthGroups[$key] = [
                     'label'          => $d->format('M Y'),
@@ -587,6 +661,7 @@ class UserController extends Controller
     // =========================================================
     // AGGREGATION — Yearly
     // =========================================================
+
     private function aggregateYearlyData(
         $actualDates, $actualPrices,
         $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
@@ -597,6 +672,7 @@ class UserController extends Controller
         foreach ($actualDates as $i => $date) {
             $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
             $key = (string) $d->year;
+
             if (!isset($yearGroups[$key])) {
                 $yearGroups[$key] = [
                     'label'          => 'Tahun ' . $d->year,
@@ -661,6 +737,7 @@ class UserController extends Controller
     // =========================================================
     // FALLBACK FORECAST (PHP) — identik AdminController
     // =========================================================
+
     private function simpleForecast(array $dates, array $prices, int $forecastDays): array
     {
         $n         = count($prices);
@@ -675,11 +752,15 @@ class UserController extends Controller
         $trendWindow = max(4, (int) floor($n * 0.3));
         $trendSlice  = array_slice($prices, -$trendWindow);
         $trendCount  = count($trendSlice);
+
         $sumX = 0; $sumY = 0; $sumXY = 0; $sumX2 = 0;
         for ($i = 0; $i < $trendCount; $i++) {
-            $sumX  += $i; $sumY  += $trendSlice[$i];
-            $sumXY += $i * $trendSlice[$i]; $sumX2 += $i * $i;
+            $sumX  += $i;
+            $sumY  += $trendSlice[$i];
+            $sumXY += $i * $trendSlice[$i];
+            $sumX2 += $i * $i;
         }
+
         $denom    = ($trendCount * $sumX2 - $sumX * $sumX);
         $slope    = $denom != 0 ? ($trendCount * $sumXY - $sumX * $sumY) / $denom : 0;
         $maxSlope = $lastPrice * 0.01;
@@ -691,7 +772,11 @@ class UserController extends Controller
         }
         $residualStd = $this->standardDeviation($residuals);
 
-        $forecastDates  = []; $forecastPrices = []; $forecastLowers = []; $forecastUppers = [];
+        $forecastDates  = [];
+        $forecastPrices = [];
+        $forecastLowers = [];
+        $forecastUppers = [];
+
         for ($h = 1; $h <= $forecastDays; $h++) {
             $point            = max(0, $lastPrice + $slope * $h);
             $ciWidth          = 1.96 * $residualStd * sqrt($h);
@@ -723,7 +808,10 @@ class UserController extends Controller
         for ($i = 0; $i < $testCount; $i++) {
             $actual    = $testPrices[$i];
             $predicted = $forecastPrices[$i] ?? 0;
-            if ($actual != 0) { $mapeSum += abs(($actual - $predicted) / $actual); $mapeCount++; }
+            if ($actual != 0) {
+                $mapeSum += abs(($actual - $predicted) / $actual);
+                $mapeCount++;
+            }
         }
         $mape = $mapeCount > 0 ? ($mapeSum / $mapeCount) * 100 : 0.0;
 
@@ -732,7 +820,7 @@ class UserController extends Controller
         for ($i = 0; $i < $testCount; $i++) {
             $predicted = $forecastPrices[$i] ?? $meanActual;
             $ssTot    += pow($testPrices[$i] - $meanActual, 2);
-            $ssRes    += pow($testPrices[$i] - $predicted, 2);
+            $ssRes    += pow($testPrices[$i] - $predicted,  2);
         }
         $rSquared = $ssTot > 0 ? max(0.0, min(1.0, 1 - ($ssRes / $ssTot))) : 0.0;
 
@@ -746,23 +834,5 @@ class UserController extends Controller
         $mean     = array_sum($values) / $n;
         $variance = array_sum(array_map(fn($v) => pow($v - $mean, 2), $values)) / ($n - 1);
         return sqrt(max(0, $variance));
-    }
-
-    // =========================================================
-    // PARSE HELPERS — identik AdminController
-    // =========================================================
-    private function parseFloatSafe($value, float $default): float
-    {
-        if ($value === null || $value === '' || $value === false) return $default;
-        $parsed = (float) $value;
-        if ($parsed == 0 && trim((string) $value) !== '0') return $default;
-        return $parsed;
-    }
-
-    private function parseBoolFromString($value): bool
-    {
-        if ($value === null || $value === '') return false;
-        if (is_bool($value)) return $value;
-        return in_array(strtolower(trim((string) $value)), ['true', '1', 'yes', 'on'], true);
     }
 }
