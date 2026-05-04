@@ -238,14 +238,13 @@
                 </div>
             </div>
 
-            <input type="hidden" name="komoditas_id"            id="hidden_komoditas"      value="{{ $selectedKomoditasId ?? '' }}">
-            <input type="hidden" name="changepoint_prior_scale" id="hidden_cp"             value="{{ $cpScale ?? 0.05 }}">
-            <input type="hidden" name="seasonality_prior_scale" id="hidden_season"         value="{{ $seasonScale ?? 1 }}">
-            <input type="hidden" name="seasonality_mode"        id="hidden_mode"           value="{{ $seasonMode ?? 'multiplicative' }}">
-            <input type="hidden" name="weekly_seasonality"      id="hidden_weekly"         value="{{ ($weeklySeason ?? false) ? 'true' : 'false' }}">
-            <input type="hidden" name="yearly_seasonality"      id="hidden_yearly"         value="{{ ($yearlySeason ?? false) ? 'true' : 'false' }}">
-            <input type="hidden" name="forecast_weeks"          id="hidden_forecast_weeks" value="{{ $forecastWeeks ?? 12 }}">
-            <input type="hidden" name="force_retrain"           id="hidden_force_retrain"  value="false">
+            <input type="hidden" name="komoditas_id"            id="hidden_komoditas"       value="{{ $selectedKomoditasId ?? '' }}">
+            <input type="hidden" name="changepoint_prior_scale" id="hidden_cp"              value="{{ $cpScale ?? 0.05 }}">
+            <input type="hidden" name="seasonality_prior_scale" id="hidden_season"          value="{{ $seasonScale ?? 1 }}">
+            <input type="hidden" name="seasonality_mode"        id="hidden_mode"            value="{{ $seasonMode ?? 'multiplicative' }}">
+            <input type="hidden" name="yearly_seasonality"      id="hidden_yearly"          value="{{ ($yearlySeason ?? false) ? 'true' : 'false' }}">
+            <input type="hidden" name="forecast_months"         id="hidden_forecast_months" value="{{ $forecastMonths ?? 12 }}">
+            <input type="hidden" name="force_retrain"           id="hidden_force_retrain"   value="false">
             <input type="hidden" name="tab" value="insight">
         </form>
     </div>
@@ -350,49 +349,31 @@
                         <p class="text-[9px] text-gray-400 mt-1">{{ __('messages.metode_musiman') }}</p>
                     </div>
 
-                    {{-- Horizon Prediksi --}}
+                    {{-- Horizon Prediksi (Bulanan, maks 12) --}}
                     <div class="pt-2 border-t border-gray-100">
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-xs text-gray-500 font-semibold uppercase">{{ __('messages.periode_prediksi') }}</span>
-                            <span class="horizon-pill" id="fw_display">
+                            <span class="horizon-pill" id="fm_display">
                                 <i class="fas fa-calendar-alt" style="font-size:8px;"></i>
-                                <span id="fw_display_text">{{ $forecastWeeks ?? 12 }} {{ __('messages.mingguan') }}</span>
+                                <span id="fm_display_text">{{ $forecastMonths ?? 12 }} {{ __('messages.bulanan') }}</span>
                             </span>
                         </div>
-                        <input type="range" min="1" max="52" step="1"
-                               value="{{ $forecastWeeks ?? 12 }}"
+                        <input type="range" min="1" max="12" step="1"
+                               value="{{ $forecastMonths ?? 12 }}"
                                class="w-full h-1 bg-gray-100 rounded-lg appearance-none cursor-pointer indigo-thumb"
-                               id="range_fw"
-                               oninput="updateForecastWeeks(this.value)">
+                               id="range_fm"
+                               oninput="updateForecastMonths(this.value)">
                         <div class="flex justify-between text-[8px] text-gray-300 mt-1">
-                            <span>1 {{ __('messages.mingguan') }}</span>
-                            <span>26 {{ __('messages.mingguan') }}</span>
-                            <span>52 {{ __('messages.mingguan') }}</span>
+                            <span>1 {{ __('messages.bulanan') }}</span>
+                            <span>6 {{ __('messages.bulanan') }}</span>
+                            <span>12 {{ __('messages.bulanan') }}</span>
                         </div>
-                        <p class="text-[9px] text-gray-400 mt-1">{{ __('messages.periode_prediksi') }} (1 – 52)</p>
+                        <p class="text-[9px] text-gray-400 mt-1">{{ __('messages.periode_prediksi') }} (1 – 12)</p>
                     </div>
 
                     {{-- Toggle Seasonality --}}
                     <div class="space-y-2 pt-2 border-t border-gray-100">
                         <label class="text-xs text-gray-500 font-semibold uppercase block mb-2">{{ __('messages.komponen_musiman') }}</label>
-
-                        <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-100">
-                            <div>
-                                <span class="text-xs text-gray-500 font-medium uppercase">{{ __('messages.mingguan') }}</span>
-                                <p class="text-[9px] text-gray-400">{{ __('messages.deteksi_pola_minggu') }}</p>
-                            </div>
-                            <label class="relative inline-flex items-center cursor-pointer">
-                                <input type="checkbox"
-                                       id="checkbox_weekly"
-                                       {{ ($weeklySeason ?? false) ? 'checked' : '' }}
-                                       onchange="updateToggle('hidden_weekly', 'preview_weekly', this.checked)"
-                                       class="sr-only peer">
-                                <div class="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:bg-blue-600
-                                            after:content-[''] after:absolute after:top-[2px] after:left-[2px]
-                                            after:bg-white after:rounded-full after:h-4 after:w-4
-                                            after:transition-all peer-checked:after:translate-x-4"></div>
-                            </label>
-                        </div>
 
                         <div class="flex items-center justify-between p-2.5 bg-gray-50 rounded-lg border border-gray-100">
                             <div>
@@ -429,16 +410,12 @@
                             <span class="font-mono text-purple-600" id="preview_mode">{{ $seasonMode ?? 'multiplicative' }}</span>
                         </div>
                         <div class="flex justify-between text-[10px]">
-                            <span class="text-gray-500">weekly</span>
-                            <span class="font-mono" id="preview_weekly">{{ ($weeklySeason ?? false) ? 'true' : 'false' }}</span>
-                        </div>
-                        <div class="flex justify-between text-[10px]">
                             <span class="text-gray-500">yearly</span>
                             <span class="font-mono" id="preview_yearly">{{ ($yearlySeason ?? false) ? 'true' : 'false' }}</span>
                         </div>
                         <div class="flex justify-between text-[10px]">
-                            <span class="text-gray-500">forecast_weeks</span>
-                            <span class="font-mono text-indigo-600" id="preview_fw">{{ $forecastWeeks ?? 12 }}</span>
+                            <span class="text-gray-500">forecast_months</span>
+                            <span class="font-mono text-indigo-600" id="preview_fm">{{ $forecastMonths ?? 12 }}</span>
                         </div>
 
                         <div id="param-dirty-notice" class="hidden mt-2 pt-2 border-t border-orange-200 text-[9px] text-orange-600 font-bold flex items-center gap-1">
@@ -491,7 +468,7 @@
                     </div>
                     <div class="flex justify-between items-end">
                         <span class="text-[10px] opacity-70 font-semibold uppercase">{{ __('messages.periode_prediksi') }}</span>
-                        <span class="text-sm font-bold">{{ $forecastWeeks ?? 12 }} {{ __('messages.mingguan') }}</span>
+                        <span class="text-sm font-bold">{{ $forecastMonths ?? 12 }} {{ __('messages.bulanan') }}</span>
                     </div>
                 </div>
             </div>
@@ -506,12 +483,12 @@
                         {{ $selectedCommodity }} — {{ __('messages.data_historis_vs_proyeksi') }}
                         <span class="ml-2 horizon-pill">
                             <i class="fas fa-calendar-alt" style="font-size:8px;"></i>
-                            {{ $forecastWeeks ?? 12 }} {{ __('messages.mingguan') }}
+                            {{ $forecastMonths ?? 12 }} {{ __('messages.bulanan') }}
                         </span>
                     </p>
                 </div>
+                {{-- Filter chart hanya tahunan untuk data bulanan --}}
                 <div class="flex bg-white border border-gray-300 p-1 rounded-md shadow-sm">
-                    <button onclick="changeChartPeriod('weekly')"  class="filter-btn active" id="btn-weekly">{{ __('messages.mingguan') }}</button>
                     <button onclick="changeChartPeriod('monthly')" class="filter-btn border-none" id="btn-monthly">{{ __('messages.bulanan') }}</button>
                     <button onclick="changeChartPeriod('yearly')"  class="filter-btn border-none" id="btn-yearly">{{ __('messages.tahunan') }}</button>
                 </div>
@@ -527,14 +504,14 @@
         <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
             <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">
                 {{ __('messages.ringkasan_analisis') }}
-                <span id="selectedPeriodText" class="text-blue-600">{{ __('messages.mingguan') }}</span>
+                <span id="selectedPeriodText" class="text-blue-600">{{ __('messages.bulanan') }}</span>
             </h3>
             <div class="flex items-center gap-3">
                 <span class="text-xs text-gray-400">{{ $selectedCommodity }}</span>
                 <span class="text-[9px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full">
                     MAPE: {{ number_format($mape ?? 0, 2) }}%
                 </span>
-                <span class="horizon-pill">{{ $forecastWeeks ?? 12 }} {{ __('messages.mingguan') }}</span>
+                <span class="horizon-pill">{{ $forecastMonths ?? 12 }} {{ __('messages.bulanan') }}</span>
             </div>
         </div>
         <div class="overflow-x-auto custom-scrollbar">
@@ -577,7 +554,7 @@
             {{ __('messages.model_prophet_dilatih') }} <strong>changepoint_prior_scale={{ $cpScale ?? 0.05 }}</strong>,
             <strong>seasonality_prior_scale={{ $seasonScale ?? 1 }}</strong>,
             {{ __('messages.mode_musiman') }} <strong>{{ $seasonMode ?? 'multiplicative' }}</strong>,
-            {{ __('messages.horizon_prediksi_label') }} <strong>{{ $forecastWeeks ?? 12 }} {{ __('messages.minggu_ke_depan') }}</strong>.
+            {{ __('messages.horizon_prediksi_label') }} <strong>{{ $forecastMonths ?? 12 }} {{ __('messages.bulan_ke_depan') }}</strong>.
 
             {{ __('messages.nilai_mape_label') }} <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
             {{ __('messages.menunjukkan') }}
@@ -764,7 +741,6 @@
                                 {{ __('messages.dari') }} {{ $latestData->total() }} {{ __('messages.data') }}
                             </div>
                             <div class="flex items-center gap-1">
-                                {{-- Prev --}}
                                 @if($latestData->onFirstPage())
                                     <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
                                 @else
@@ -773,7 +749,6 @@
                                     </a>
                                 @endif
 
-                                {{-- Pages --}}
                                 @php
                                     $currentDataPage = $latestData->currentPage();
                                     $lastDataPage    = $latestData->lastPage();
@@ -800,7 +775,6 @@
                                     <a href="{{ $latestData->appends(request()->except('dataPage'))->url($lastDataPage) }}" class="pg-btn">{{ $lastDataPage }}</a>
                                 @endif
 
-                                {{-- Next --}}
                                 @if($latestData->hasMorePages())
                                     <a href="{{ $latestData->appends(request()->except('dataPage'))->nextPageUrl() }}" class="pg-btn">
                                         <i class="fas fa-chevron-right"></i>
@@ -925,7 +899,6 @@
                         </table>
                     </div>
 
-                    {{-- Pagination Hasil Pemindaian --}}
                     @if(isset($dataIssues) && $dataIssues instanceof \Illuminate\Pagination\LengthAwarePaginator && $dataIssues->hasPages())
                         <div class="px-4 py-3 border-t border-orange-100 bg-orange-50/20 flex items-center justify-between">
                             <div class="text-xs text-orange-600">
@@ -933,7 +906,6 @@
                                 dari {{ $dataIssues->total() }} {{ __('messages.temuan') }}
                             </div>
                             <div class="flex items-center gap-1">
-                                {{-- Prev --}}
                                 @if($dataIssues->onFirstPage())
                                     <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
                                 @else
@@ -942,7 +914,6 @@
                                     </a>
                                 @endif
 
-                                {{-- Pages --}}
                                 @php
                                     $currentIssuePage = $dataIssues->currentPage();
                                     $lastIssuePage    = $dataIssues->lastPage();
@@ -969,7 +940,6 @@
                                     <a href="{{ $dataIssues->appends(request()->except('issuePage'))->url($lastIssuePage) }}" class="pg-btn">{{ $lastIssuePage }}</a>
                                 @endif
 
-                                {{-- Next --}}
                                 @if($dataIssues->hasMorePages())
                                     <a href="{{ $dataIssues->appends(request()->except('issuePage'))->nextPageUrl() }}" class="pg-btn">
                                         <i class="fas fa-chevron-right"></i>
@@ -993,6 +963,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+
+
 <script>
 const SELECTED_COMMODITY = '{{ addslashes($selectedCommodity ?? "") }}';
 
@@ -1001,7 +973,6 @@ const trans = {
     turun:        '{{ __("messages.turun") }}',
     stabil:       '{{ __("messages.stabil") }}',
     proyeksi:     '{{ __("messages.proyeksi") }}',
-    mingguan:     '{{ __("messages.mingguan") }}',
     bulanan:      '{{ __("messages.bulanan") }}',
     tahunan:      '{{ __("messages.tahunan") }}',
     hargaAktual:  '{{ __("messages.harga_aktual") }}',
@@ -1009,21 +980,16 @@ const trans = {
     rentangBawah: '{{ __("messages.rentang_bawah") }}',
     rentangAtas:  '{{ __("messages.rentang_atas") }}',
     tidakAdaData: '{{ __("messages.tidak_ada_data") }}',
-    minggu:       '{{ __("messages.mingguan") }}',
+    bulan:        '{{ __("messages.bulanan") }}',
+    hargaProyeksi:'{{ __("messages.harga_proyeksi") }}',
 };
 
 const chartData = {
-    weekly: {
-        labels:   {!! json_encode($weeklyLabels   ?? []) !!},
-        actual:   {!! json_encode($weeklyActual   ?? []) !!},
-        forecast: {!! json_encode($weeklyForecast ?? []) !!},
-        lower:    {!! json_encode($weeklyLower    ?? []) !!},
-        upper:    {!! json_encode($weeklyUpper    ?? []) !!}
-    },
     monthly: {
         labels:   {!! json_encode($monthlyLabels   ?? []) !!},
         actual:   {!! json_encode($monthlyActual   ?? []) !!},
         forecast: {!! json_encode($monthlyForecast ?? []) !!},
+        fitted:   {!! json_encode($monthlyFitted   ?? []) !!},
         lower:    {!! json_encode($monthlyLower    ?? []) !!},
         upper:    {!! json_encode($monthlyUpper    ?? []) !!}
     },
@@ -1031,17 +997,19 @@ const chartData = {
         labels:   {!! json_encode($yearlyLabels   ?? []) !!},
         actual:   {!! json_encode($yearlyActual   ?? []) !!},
         forecast: {!! json_encode($yearlyForecast ?? []) !!},
+        fitted:   {!! json_encode($yearlyFitted   ?? []) !!},
         lower:    {!! json_encode($yearlyLower    ?? []) !!},
         upper:    {!! json_encode($yearlyUpper    ?? []) !!}
     }
 };
 
-// ── Variabel state ──
 let parametersDirty    = false;
-let currentPeriod      = 'weekly';
+let currentPeriod      = 'monthly';
 let mainChart          = null;
 let insightCurrentPage = 1;
 const INSIGHT_PER_PAGE = 10;
+
+function isDark() { return document.documentElement.classList.contains('dark'); }
 
 // ─────────────────────────────────────────────
 // FUNGSI HYPERPARAMETER
@@ -1067,11 +1035,11 @@ function updateToggle(hiddenId, previewId, isChecked) {
     markParamDirty();
 }
 
-function updateForecastWeeks(val) {
-    const weeks = parseInt(val);
-    document.getElementById('hidden_forecast_weeks').value = weeks;
-    document.getElementById('fw_display_text').textContent = weeks + ' ' + trans.minggu;
-    document.getElementById('preview_fw').textContent = weeks;
+function updateForecastMonths(val) {
+    const months = parseInt(val);
+    document.getElementById('hidden_forecast_months').value = months;
+    document.getElementById('fm_display_text').textContent  = months + ' ' + trans.bulan;
+    document.getElementById('preview_fm').textContent       = months;
     markParamDirty();
 }
 
@@ -1109,18 +1077,15 @@ function triggerSubmit() {
     const cp     = document.getElementById('hidden_cp');
     const season = document.getElementById('hidden_season');
     const mode   = document.getElementById('hidden_mode');
-    const weekly = document.getElementById('hidden_weekly');
     const yearly = document.getElementById('hidden_yearly');
-    const fw     = document.getElementById('hidden_forecast_weeks');
+    const fm     = document.getElementById('hidden_forecast_months');
 
     if (cp     && (!cp.value     || isNaN(parseFloat(cp.value))))         cp.value     = '0.05';
     if (season && (!season.value || isNaN(parseFloat(season.value))))     season.value = '1.0';
     if (mode   && !mode.value)                                            mode.value   = 'multiplicative';
-    if (weekly && weekly.value !== 'true' && weekly.value !== 'false')    weekly.value = 'false';
     if (yearly && yearly.value !== 'true' && yearly.value !== 'false')    yearly.value = 'false';
-    if (fw     && (!fw.value || isNaN(parseInt(fw.value)) || parseInt(fw.value) < 1)) fw.value = '12';
+    if (fm     && (!fm.value || isNaN(parseInt(fm.value)) || parseInt(fm.value) < 1 || parseInt(fm.value) > 12)) fm.value = '12';
 
-    // Jika user ubah parameter → paksa retrain agar MAPE dihitung ulang
     if (parametersDirty) {
         const forceRetrain = document.getElementById('hidden_force_retrain');
         if (forceRetrain) forceRetrain.value = 'true';
@@ -1140,7 +1105,7 @@ function triggerSubmit() {
 }
 
 function triggerReset() {
-    const defaults = { cp: 0.05, season: 1.0, mode: 'multiplicative', weekly: false, yearly: false, fw: 12 };
+    const defaults = { cp: 0.05, season: 1.0, mode: 'multiplicative', yearly: false, fm: 12 };
 
     document.getElementById('range_cp').value          = defaults.cp;
     document.getElementById('hidden_cp').value         = defaults.cp;
@@ -1156,20 +1121,15 @@ function triggerReset() {
     document.getElementById('hidden_mode').value          = defaults.mode;
     document.getElementById('preview_mode').textContent   = defaults.mode;
 
-    document.getElementById('checkbox_weekly').checked    = defaults.weekly;
-    document.getElementById('hidden_weekly').value        = 'false';
-    document.getElementById('preview_weekly').textContent = 'false';
-
     document.getElementById('checkbox_yearly').checked    = defaults.yearly;
     document.getElementById('hidden_yearly').value        = 'false';
     document.getElementById('preview_yearly').textContent = 'false';
 
-    document.getElementById('range_fw').value              = defaults.fw;
-    document.getElementById('hidden_forecast_weeks').value = defaults.fw;
-    document.getElementById('fw_display_text').textContent = defaults.fw + ' ' + trans.minggu;
-    document.getElementById('preview_fw').textContent      = defaults.fw;
+    document.getElementById('range_fm').value               = defaults.fm;
+    document.getElementById('hidden_forecast_months').value = defaults.fm;
+    document.getElementById('fm_display_text').textContent  = defaults.fm + ' ' + trans.bulan;
+    document.getElementById('preview_fm').textContent       = defaults.fm;
 
-    // Force retrain agar grid search jalan ulang
     const forceRetrain = document.getElementById('hidden_force_retrain');
     if (forceRetrain) forceRetrain.value = 'true';
 
@@ -1220,10 +1180,9 @@ function switchInputMode(mode) {
 }
 
 // ─────────────────────────────────────────────
-// INSIGHT TAB FUNCTIONS (hanya jalan kalau tab insight)
+// INSIGHT TAB FUNCTIONS
 // ─────────────────────────────────────────────
 @if(($currentTab ?? 'insight') == 'insight')
-function isDark() { return document.documentElement.classList.contains('dark'); }
 
 function checkFlaskStatus() {
     const badge = document.getElementById('flask-status-badge');
@@ -1267,37 +1226,9 @@ function initializeChart() {
         return;
     }
 
-    // ── BRIDGE: cari index terakhir actual data ──
-    let lastActualIndex = -1;
-    for (let i = data.actual.length - 1; i >= 0; i--) {
-        if (data.actual[i] !== null && data.actual[i] !== undefined) {
-            lastActualIndex = i;
-            break;
-        }
-    }
-
-    const forecastBridged = data.forecast.map((val, i) => {
-        if (i === lastActualIndex) return data.actual[lastActualIndex];
-        return val;
-    });
-
-    const lowerBridged = data.lower.map((val, i) => {
-        if (i === lastActualIndex) return data.actual[lastActualIndex];
-        return val;
-    });
-
-    const upperBridged = data.upper.map((val, i) => {
-        if (i === lastActualIndex) return data.actual[lastActualIndex];
-        return val;
-    });
-
     const gradientActual = ctx.createLinearGradient(0, 0, 0, 400);
-    gradientActual.addColorStop(0, dark ? 'rgba(96,165,250,0.3)' : 'rgba(4, 50, 119, 0.15)');
-    gradientActual.addColorStop(1, 'rgba(4, 50, 119, 0)');
-
-    const gradientForecast = ctx.createLinearGradient(0, 0, 0, 400);
-    gradientForecast.addColorStop(0, 'rgba(249, 115, 22, 0.15)');
-    gradientForecast.addColorStop(1, 'rgba(249, 115, 22, 0)');
+    gradientActual.addColorStop(0, dark ? 'rgba(96,165,250,0.20)' : 'rgba(4,50,119,0.10)');
+    gradientActual.addColorStop(1, 'rgba(4,50,119,0)');
 
     if (mainChart) mainChart.destroy();
 
@@ -1308,40 +1239,73 @@ function initializeChart() {
             datasets: [
                 {
                     label: trans.rentangBawah,
-                    data: lowerBridged,
-                    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+                    data: data.lower,
+                    backgroundColor: 'rgba(249,115,22,0.08)',
                     borderColor: 'transparent',
-                    fill: '+1', pointRadius: 0, tension: 0.4,
-                    spanGaps: false
+                    fill: '+1',
+                    pointRadius: 0,
+                    tension: 0.4,
+                    spanGaps: false,
+                    order: 5
                 },
                 {
                     label: trans.rentangAtas,
-                    data: upperBridged,
+                    data: data.upper,
                     borderColor: 'transparent',
-                    fill: false, pointRadius: 0, tension: 0.4,
-                    spanGaps: false
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.4,
+                    spanGaps: false,
+                    order: 5
                 },
                 {
                     label: trans.hargaAktual,
                     data: data.actual,
                     borderColor: dark ? '#60a5fa' : '#043277',
                     backgroundColor: gradientActual,
-                    borderWidth: 2.5, fill: true, tension: 0.4,
-                    pointRadius: 0, pointHoverRadius: 6,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
                     pointHoverBackgroundColor: dark ? '#60a5fa' : '#043277',
-                    pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
-                    spanGaps: false
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    spanGaps: false,
+                    order: 2
                 },
                 {
                     label: trans.hargaProyeksi,
-                    data: forecastBridged,
+                    data: data.fitted,
                     borderColor: '#f97316',
-                    backgroundColor: gradientForecast,
-                    borderDash: [8, 4], borderWidth: 2.5, fill: true, tension: 0.4,
-                    pointRadius: 0, pointHoverRadius: 6,
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
                     pointHoverBackgroundColor: '#f97316',
-                    pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
-                    spanGaps: false
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    spanGaps: false,
+                    order: 3
+                },
+                {
+                    label: trans.proyeksi + ' (' + trans.bulanan + ')',
+                    data: data.forecast,
+                    borderColor: '#f97316',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [6, 3],
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: '#f97316',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    spanGaps: false,
+                    order: 3
                 }
             ]
         },
@@ -1351,7 +1315,8 @@ function initializeChart() {
             interaction: { intersect: false, mode: 'index' },
             plugins: {
                 title: {
-                    display: true, text: SELECTED_COMMODITY,
+                    display: true,
+                    text: SELECTED_COMMODITY,
                     color: dark ? '#93c5fd' : '#043277',
                     font: { size: 14, weight: '600', family: 'Inter' },
                     padding: { top: 10, bottom: 15 }
@@ -1360,9 +1325,12 @@ function initializeChart() {
                     display: true, position: 'top', align: 'end',
                     labels: {
                         boxWidth: 12, boxHeight: 12, padding: 15,
-                        font: { size: 11, weight: '600' }, color: dark ? '#9ca3af' : '#64748b',
+                        font: { size: 11, weight: '600' },
+                        color: dark ? '#9ca3af' : '#64748b',
                         usePointStyle: true, pointStyle: 'circle',
-                        filter: (item) => !item.text.includes(trans.rentangBawah.split(' ')[0])
+                        filter: (item) =>
+                            item.text !== trans.rentangBawah &&
+                            item.text !== trans.rentangAtas
                     }
                 },
                 tooltip: {
@@ -1371,15 +1339,18 @@ function initializeChart() {
                     bodyColor: dark ? '#9ca3af' : '#475569',
                     borderColor: dark ? '#374151' : '#e2e8f0',
                     borderWidth: 1, padding: 12, boxPadding: 6, usePointStyle: true,
-                    titleFont: { size: 11, weight: '600' }, bodyFont: { size: 11 },
+                    titleFont: { size: 11, weight: '600' },
+                    bodyFont: { size: 11 },
                     callbacks: {
                         label: function(context) {
+                            if (context.dataset.label === trans.rentangBawah ||
+                                context.dataset.label === trans.rentangAtas) return null;
                             let label = context.dataset.label || '';
-                            if (label === trans.rentangBawah || label === trans.rentangAtas) return null;
                             if (label) label += ': ';
                             if (context.parsed.y !== null) {
                                 label += new Intl.NumberFormat('id-ID', {
-                                    style: 'currency', currency: 'IDR', maximumFractionDigits: 0
+                                    style: 'currency', currency: 'IDR',
+                                    maximumFractionDigits: 0
                                 }).format(context.parsed.y);
                             }
                             return label;
@@ -1392,16 +1363,18 @@ function initializeChart() {
                     beginAtZero: false,
                     grid: { color: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', drawBorder: false },
                     ticks: {
-                        color: dark ? '#6b7280' : '#94a3b8', font: { size: 10, weight: '500' },
-                        padding: 8,
+                        color: dark ? '#6b7280' : '#94a3b8',
+                        font: { size: 10, weight: '500' }, padding: 8,
                         callback: value => 'Rp ' + value.toLocaleString('id-ID')
                     }
                 },
                 x: {
                     grid: { display: false },
                     ticks: {
-                        color: dark ? '#6b7280' : '#94a3b8', font: { size: 9, weight: '500' },
-                        maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 15
+                        color: dark ? '#6b7280' : '#94a3b8',
+                        font: { size: 9, weight: '500' },
+                        maxRotation: 45, minRotation: 0,
+                        autoSkip: true, maxTicksLimit: 15
                     }
                 }
             }
@@ -1416,14 +1389,13 @@ function changeChartPeriod(period) {
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     document.getElementById('btn-' + period).classList.add('active');
 
-    const periodText = { weekly: trans.mingguan, monthly: trans.bulanan, yearly: trans.tahunan };
+    const periodText = { monthly: trans.bulanan, yearly: trans.tahunan };
     document.getElementById('selectedPeriodText').textContent = periodText[period];
 
     initializeChart();
     updateInsightTable(1);
 }
 
-// ─── Tabel Insight dengan Pagination Client-side ───
 function updateInsightTable(page) {
     page = page || 1;
     insightCurrentPage = page;
@@ -1475,24 +1447,19 @@ function updateInsightTable(page) {
     var html = '';
     for (var idx = 0; idx < display.length; idx++) {
         var row           = display[idx];
-        var label         = row.label;
-        var actual        = row.actual;
-        var forecast      = row.forecast;
-        var lower         = row.lower;
-        var upper         = row.upper;
-        var isForecastOnly = (actual === null && forecast !== null);
+        var isForecastOnly = (row.actual === null && row.forecast !== null);
         var globalIdx     = startIdx + idx;
-        var diff          = (actual !== null && forecast !== null) ? (forecast - actual) : null;
+        var diff          = (row.actual !== null && row.forecast !== null) ? (row.forecast - row.actual) : null;
 
         var insight      = trans.stabil;
         var insightClass = 'insight-stabil';
 
         if (diff !== null) {
-            var threshold = (actual || 1) * 0.01;
+            var threshold = (row.actual || 1) * 0.01;
             if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
             else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
         } else if (isForecastOnly && lastActual !== null) {
-            var diffFromLast  = forecast - lastActual.actual;
+            var diffFromLast  = row.forecast - lastActual.actual;
             var threshLast    = lastActual.actual * 0.01;
             if (diffFromLast > threshLast)       { insight = trans.naik;     insightClass = 'insight-naik'; }
             else if (diffFromLast < -threshLast) { insight = trans.turun;    insightClass = 'insight-turun'; }
@@ -1515,14 +1482,14 @@ function updateInsightTable(page) {
             ? '<span class="ml-1 text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold uppercase">' + trans.proyeksi + '</span>'
             : '';
 
-        var actualCell   = actual   !== null ? 'Rp ' + Math.round(actual).toLocaleString('id-ID')   : '<span class="text-gray-300">—</span>';
-        var forecastCell = forecast !== null ? 'Rp ' + Math.round(forecast).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>';
-        var lowerCell    = lower    !== null ? 'Rp ' + Math.round(lower).toLocaleString('id-ID')    : '<span class="text-gray-300">—</span>';
-        var upperCell    = upper    !== null ? 'Rp ' + Math.round(upper).toLocaleString('id-ID')    : '<span class="text-gray-300">—</span>';
+        var actualCell   = row.actual   !== null ? 'Rp ' + Math.round(row.actual).toLocaleString('id-ID')   : '<span class="text-gray-300">—</span>';
+        var forecastCell = row.forecast !== null ? 'Rp ' + Math.round(row.forecast).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>';
+        var lowerCell    = row.lower    !== null ? 'Rp ' + Math.round(row.lower).toLocaleString('id-ID')    : '<span class="text-gray-300">—</span>';
+        var upperCell    = row.upper    !== null ? 'Rp ' + Math.round(row.upper).toLocaleString('id-ID')    : '<span class="text-gray-300">—</span>';
 
         html +=
             '<tr class="' + rowBg + ' ' + borderTop + ' border-b border-gray-50 hover:bg-orange-50/50 animate-fade-in">' +
-                '<td class="px-6 py-4 text-gray-500 font-medium text-xs">' + label + forecastBadge + '</td>' +
+                '<td class="px-6 py-4 text-gray-500 font-medium text-xs">' + row.label + forecastBadge + '</td>' +
                 '<td class="px-6 py-4 text-right text-xs font-medium">' + actualCell + '</td>' +
                 '<td class="px-6 py-4 text-right text-blue-600 font-bold text-xs">' + forecastCell + '</td>' +
                 '<td class="px-6 py-4 text-right text-xs text-gray-400">' + lowerCell + '</td>' +
@@ -1540,10 +1507,7 @@ function renderInsightPagination(currentPage, totalPages, totalRows, fromRow, to
     var container = document.getElementById('insightPagination');
     if (!container) return;
 
-    if (totalPages <= 1) {
-        container.innerHTML = '';
-        return;
-    }
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
 
     var btnBase     = 'pg-btn';
     var btnActive   = 'pg-btn pg-btn-active';
@@ -1581,13 +1545,16 @@ function renderInsightPagination(currentPage, totalPages, totalRows, fromRow, to
         '</div>';
 }
 
-// Init saat DOM ready
 document.addEventListener('DOMContentLoaded', function () {
-    initializeChart();
-    updateInsightTable(1);
+    changeChartPeriod('monthly');
     checkFlaskStatus();
     setInterval(checkFlaskStatus, 30000);
 });
+
+const _obs = new MutationObserver(() => {
+    if (mainChart) initializeChart();
+});
+_obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
 @endif
 
@@ -1667,5 +1634,4 @@ function showNotification(message, type) {
     }, 3000);
 }
 </script>
-
 @endsection

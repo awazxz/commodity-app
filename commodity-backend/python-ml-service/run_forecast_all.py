@@ -1,32 +1,3 @@
-"""
-run_forecast_all.py
-
-Script batch untuk menjalankan forecast semua komoditas sekaligus.
-Bisa dijalankan manual dari terminal, atau dijadwalkan via cron.
-
-FIX: Forecast sekarang selalu dimulai dari tanggal setelah data terakhir
-(bukan dari tanggal sekarang). Jadi jika data terakhir Desember 2023,
-forecast akan mulai dari Januari 2024 secara kontinu.
-
-Perbedaan dari scheduler.py:
-- run_forecast_all.py → dijalankan langsung dari terminal (bukan background)
-- scheduler.py        → berjalan otomatis di background saat Flask jalan
-
-Gunakan script ini untuk:
-- Inisialisasi awal semua model (pertama kali deploy)
-- Refresh manual semua prediksi
-- Testing batch sebelum production
-- ★ Fix data forecast yang melompat tahun (jalankan dengan --force)
-
-Usage:
-    python run_forecast_all.py                    # retrain yang perlu saja
-    python run_forecast_all.py --force            # force retrain + replace semua forecast
-    python run_forecast_all.py --id 9,10,11       # retrain ID tertentu saja
-    python run_forecast_all.py --dry-run          # cek tanpa eksekusi
-    python run_forecast_all.py --direct           # langsung ke DB tanpa Flask
-    python run_forecast_all.py --force --direct   # ★ untuk fix loncatan tahun
-"""
-
 import argparse
 import sys
 import time
@@ -42,23 +13,31 @@ from models.prophet_forecasting import CommodityForecastModel, MIN_DATA_POINTS
 # ── Konfigurasi default ────────────────────────────────────────
 FLASK_URL = "http://localhost:5000"
 
+
+# v8.2 FIX: Sinkronkan dengan prophet_forecasting.py v10.2
+# Nilai lama yang menyebabkan forecast drop jauh:
+#   changepoint_prior_scale: 0.3  → 0.1
+#   seasonality_prior_scale: 5.0  → 10.0
+#   weekly_seasonality:      True → False
+#   changepoint_range:       0.95 → 0.85
 DEFAULT_HYPERPARAMS = {
-    'changepoint_prior_scale': 0.05,
-    'seasonality_prior_scale': 10.0,
-    'seasonality_mode':        'multiplicative',
-    'weekly_seasonality':      False,
+    'changepoint_prior_scale': 0.1,    # FIX v8.2: was 0.3
+    'seasonality_prior_scale': 10.0,   # FIX v8.2: was 5.0
+    'seasonality_mode':        'additive',
+    'weekly_seasonality':      False,  # FIX v8.2: was True
     'yearly_seasonality':      True,
+    'yearly_fourier_order':    20,
+    'monthly_seasonality':     True,
+    'n_changepoints':          25,
+    'changepoint_range':       0.85,   # FIX v8.2: was 0.95
 }
 
-# FIX: Naikkan periods agar forecast mencakup dari data terakhir
-# sampai jauh ke depan. Predictor akan otomatis menutup gap.
-# 84 hari = 12 minggu ke depan SETELAH tanggal data terakhir.
 DEFAULT_PERIODS_DAYS = 84
-DELAY_BETWEEN        = 0.5  # detik jeda antar komoditas
+DELAY_BETWEEN        = 0.5
 
 
 # ═══════════════════════════════════════════════════════════════
-# MODE 1: VIA FLASK API (jika server sudah jalan)
+# MODE 1: VIA FLASK API
 # ═══════════════════════════════════════════════════════════════
 
 def check_flask_health() -> bool:
@@ -70,10 +49,6 @@ def check_flask_health() -> bool:
 
 
 def run_via_api(commodity_ids: list, force: bool, dry_run: bool) -> dict:
-    """
-    Jalankan forecast via Flask API endpoint.
-    Gunakan mode ini jika Flask sudah berjalan.
-    """
     print(f"\n   Mode: VIA FLASK API ({FLASK_URL})")
     success_list = []
     failed_list  = []
@@ -120,13 +95,13 @@ def run_via_api(commodity_ids: list, force: bool, dry_run: bool) -> dict:
             result = r.json()
 
             if result.get('success'):
-                d            = result['data']
-                metrics      = d.get('model_metrics', {})
-                source       = d.get('model_source', '')
-                last_data    = d.get('last_data_date', '-')
-                preds        = d.get('predictions', [])
-                first_pred   = preds[0]['date']  if preds else '-'
-                last_pred    = preds[-1]['date'] if preds else '-'
+                d          = result['data']
+                metrics    = d.get('model_metrics', {})
+                source     = d.get('model_source', '')
+                last_data  = d.get('last_data_date', '-')
+                preds      = d.get('predictions', [])
+                first_pred = preds[0]['date']  if preds else '-'
+                last_pred  = preds[-1]['date'] if preds else '-'
 
                 print(f"         OK | MAPE={metrics.get('mape', 0):.2f}% | "
                       f"titik={len(preds)} | source={source}")
@@ -134,13 +109,9 @@ def run_via_api(commodity_ids: list, force: bool, dry_run: bool) -> dict:
                       f"forecast: {first_pred} → {last_pred}")
 
                 success_list.append({
-                    'id':         cid,
-                    'name':       nama,
-                    'mape':       metrics.get('mape', 0),
-                    'source':     source,
-                    'last_data':  last_data,
-                    'first_pred': first_pred,
-                    'last_pred':  last_pred,
+                    'id': cid, 'name': nama,
+                    'mape': metrics.get('mape', 0), 'source': source,
+                    'last_data': last_data, 'first_pred': first_pred, 'last_pred': last_pred,
                 })
             else:
                 msg = result.get('message', 'Unknown error')
@@ -158,26 +129,14 @@ def run_via_api(commodity_ids: list, force: bool, dry_run: bool) -> dict:
         if idx < len(commodities):
             time.sleep(DELAY_BETWEEN)
 
-    return {
-        'mode':    'api',
-        'success': success_list,
-        'failed':  failed_list,
-        'skipped': skipped_list,
-    }
+    return {'mode': 'api', 'success': success_list, 'failed': failed_list, 'skipped': skipped_list}
 
 
 # ═══════════════════════════════════════════════════════════════
-# MODE 2: DIRECT (tanpa Flask, langsung ke DB)
+# MODE 2: DIRECT
 # ═══════════════════════════════════════════════════════════════
 
 def run_direct(commodity_ids: list, force: bool, dry_run: bool) -> dict:
-    """
-    Jalankan forecast langsung ke DB tanpa Flask API.
-    Gunakan mode ini untuk inisialisasi awal atau jika Flask belum jalan.
-
-    FIX: Menggunakan predictor.predict() yang sudah diperbaiki,
-    sehingga forecast selalu mulai dari setelah data terakhir.
-    """
     print(f"\n   Mode: DIRECT (tanpa Flask API)")
 
     db          = DatabaseConnector()
@@ -211,7 +170,6 @@ def run_direct(commodity_ids: list, force: bool, dry_run: bool) -> dict:
             last_data_date = df['ds'].max()
             print(f"         Data terakhir: {last_data_date.date()}")
 
-            # ── Cek kebutuhan retrain ──────────────────────────
             needs, reason = CommodityForecastModel.needs_retraining(
                 cid, df, hyperparams=DEFAULT_HYPERPARAMS
             )
@@ -235,22 +193,17 @@ def run_direct(commodity_ids: list, force: bool, dry_run: bool) -> dict:
 
                 print(f"        [DRY-RUN] needs_retrain={needs} | reason={reason}")
                 print(f"        [DRY-RUN] freq={use_freq} | "
-                      f"gap={gap_days} hari ({gap_periods} {use_freq}) | "
-                      f"forecast akan mulai dari {last_data_date.date()}")
+                      f"gap={gap_days} hari ({gap_periods} {use_freq})")
                 skipped_list.append({'id': cid, 'name': nama, 'reason': f'dry_run ({reason})'})
                 continue
 
             print(f"         Retrain — {reason}")
 
-            # ── Deteksi frekuensi ──────────────────────────────
             detected_freq   = CommodityForecastModel.detect_frequency(df)
             use_freq        = _normalize_freq(detected_freq)
             freq_to_periode = {'D': 'daily', 'W': 'weekly', 'MS': 'monthly'}
             periode_value   = freq_to_periode.get(use_freq, 'weekly')
 
-            # ── Train & predict ────────────────────────────────
-            # FIX: predictor.predict() otomatis menutup gap dan
-            # memulai forecast dari last_data_date
             result = predictor.predict(
                 commodity_id  = cid,
                 historical_df = df,
@@ -264,7 +217,6 @@ def run_direct(commodity_ids: list, force: bool, dry_run: bool) -> dict:
             first_pred = preds[0]['date']  if preds else '-'
             last_pred  = preds[-1]['date'] if preds else '-'
 
-            # ── Simpan ke DB ───────────────────────────────────
             forecast_df = pd.DataFrame([{
                 'ds':         pd.to_datetime(p['date']),
                 'yhat':       p['predicted_price'],
@@ -282,20 +234,16 @@ def run_direct(commodity_ids: list, force: bool, dry_run: bool) -> dict:
             )
 
             mape = result['model_metrics'].get('mape', 0)
-            print(f"         OK | MAPE={mape:.2f}% | "
-                  f"titik={len(preds)} | freq={use_freq} | engine={result['engine']}")
+            print(f"         OK | MAPE={mape:.2f}% | titik={len(preds)} | "
+                  f"freq={use_freq} | engine={result['engine']}")
             print(f"           data terakhir={result.get('last_data_date', '-')} | "
                   f"forecast: {first_pred} → {last_pred}")
 
             success_list.append({
-                'id':         cid,
-                'name':       nama,
-                'mape':       round(mape, 4),
-                'freq':       use_freq,
-                'reason':     reason,
-                'last_data':  result.get('last_data_date', '-'),
-                'first_pred': first_pred,
-                'last_pred':  last_pred,
+                'id': cid, 'name': nama, 'mape': round(mape, 4),
+                'freq': use_freq, 'reason': reason,
+                'last_data': result.get('last_data_date', '-'),
+                'first_pred': first_pred, 'last_pred': last_pred,
             })
 
         except Exception as e:
@@ -307,14 +255,7 @@ def run_direct(commodity_ids: list, force: bool, dry_run: bool) -> dict:
         if idx < len(commodities) and not dry_run:
             time.sleep(DELAY_BETWEEN)
 
-    return {
-        'mode':    'direct',
-        'success': success_list,
-        'failed':  failed_list,
-        'skipped': skipped_list,
-    }
-
-
+    return {'mode': 'direct', 'success': success_list, 'failed': failed_list, 'skipped': skipped_list}
 
 
 def print_summary(results: dict, elapsed: float):
@@ -329,75 +270,39 @@ def print_summary(results: dict, elapsed: float):
     print(f"   Berhasil : {len(success)}")
     print(f"   Gagal    : {len(failed)}")
     print(f"   Skipped  : {len(skipped)}")
-    print(f"  Total      : {total}")
+    print(f"   Total    : {total}")
 
     if success:
         mapes = [r['mape'] for r in success if 'mape' in r]
         if mapes:
             avg_mape = sum(mapes) / len(mapes)
-            print(f"\n  Avg MAPE   : {avg_mape:.2f}%")
+            print(f"\n   Avg MAPE  : {avg_mape:.2f}%")
             best  = min(success, key=lambda x: x.get('mape', 999))
             worst = max(success, key=lambda x: x.get('mape', 0))
-            print(f"  Best MAPE  : {best['name']} ({best.get('mape', 0):.2f}%)")
-            print(f"  Worst MAPE : {worst['name']} ({worst.get('mape', 0):.2f}%)")
+            print(f"   Best MAPE : {best['name']} ({best.get('mape', 0):.2f}%)")
+            print(f"   Worst MAPE: {worst['name']} ({worst.get('mape', 0):.2f}%)")
 
-        print(f"\n  Detail forecast per komoditas:")
+        print(f"\n   Detail forecast per komoditas:")
         for r in success:
             print(f"     [{r['id']}] {r['name']}")
             print(f"       data terakhir : {r.get('last_data', '-')}")
             print(f"       forecast      : {r.get('first_pred', '-')} → {r.get('last_pred', '-')}")
 
     if failed:
-        print(f"\n  Komoditas gagal:")
+        print(f"\n   Komoditas gagal:")
         for f in failed:
             print(f"     [{f['id']}] {f['name']}: {f.get('error', '')}")
 
     print(f"\n   Prediksi tersimpan di tabel price_forecasts")
-    print(f"     Refresh halaman laporan untuk melihat hasilnya.")
     print(f"{'='*60}\n")
 
 
-
-
 def main():
-    parser = argparse.ArgumentParser(
-        description='Batch forecast semua komoditas',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Contoh penggunaan:
-
-  # Fix loncatan tahun (jalankan ini dulu):
-  python run_forecast_all.py --force --direct
-
-  # Retrain hanya yang perlu saja:
-  python run_forecast_all.py
-
-  # Retrain komoditas tertentu:
-  python run_forecast_all.py --force --id 1,2,3
-
-  # Cek status tanpa eksekusi:
-  python run_forecast_all.py --dry-run
-        """
-    )
-    parser.add_argument(
-        '--force', action='store_true',
-        help='Force retrain semua meski model masih fresh. '
-             'Gunakan ini untuk memperbaiki forecast yang melompat tahun.'
-    )
-    parser.add_argument(
-        '--id', type=str, default='',
-        help='Comma-separated ID komoditas (contoh: --id 9,10,11). '
-             'Kosong = semua komoditas.'
-    )
-    parser.add_argument(
-        '--dry-run', action='store_true',
-        help='Cek status tanpa melakukan training / prediksi. '
-             'Tampilkan gap antara data terakhir dan hari ini.'
-    )
-    parser.add_argument(
-        '--direct', action='store_true',
-        help='Langsung ke DB tanpa Flask API (untuk inisialisasi awal / fix data).'
-    )
+    parser = argparse.ArgumentParser(description='Batch forecast semua komoditas')
+    parser.add_argument('--force',   action='store_true', help='Force retrain semua model')
+    parser.add_argument('--id',      type=str, default='', help='Comma-separated ID komoditas')
+    parser.add_argument('--dry-run', action='store_true', help='Cek status tanpa eksekusi')
+    parser.add_argument('--direct',  action='store_true', help='Langsung ke DB tanpa Flask API')
     args = parser.parse_args()
 
     commodity_ids = []
@@ -419,35 +324,18 @@ Contoh penggunaan:
     print(f"  Periods     : {DEFAULT_PERIODS_DAYS} hari ke depan dari data terakhir")
     print("=" * 60)
 
-    if args.force and not args.dry_run:
-        print("\n  MODE --force: Semua model akan di-retrain ulang.")
-        print("   Forecast lama di price_forecasts akan dihapus dan diganti.")
-        print("   Forecast baru akan dimulai dari SETELAH tanggal data terakhir.\n")
-
     start = datetime.now()
 
     if args.direct:
-        results = run_direct(
-            commodity_ids = commodity_ids,
-            force         = args.force,
-            dry_run       = args.dry_run,
-        )
+        results = run_direct(commodity_ids=commodity_ids, force=args.force, dry_run=args.dry_run)
     else:
         print("\n Cek koneksi Flask API...")
         if check_flask_health():
             print(" Flask API online — gunakan mode API\n")
-            results = run_via_api(
-                commodity_ids = commodity_ids,
-                force         = args.force,
-                dry_run       = args.dry_run,
-            )
+            results = run_via_api(commodity_ids=commodity_ids, force=args.force, dry_run=args.dry_run)
         else:
             print("⚠️  Flask API tidak berjalan — fallback ke mode DIRECT\n")
-            results = run_direct(
-                commodity_ids = commodity_ids,
-                force         = args.force,
-                dry_run       = args.dry_run,
-            )
+            results = run_direct(commodity_ids=commodity_ids, force=args.force, dry_run=args.dry_run)
 
     elapsed = (datetime.now() - start).total_seconds()
     print_summary(results, elapsed)

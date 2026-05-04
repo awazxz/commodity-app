@@ -7,7 +7,7 @@ return [
     'manajemen_data'            => 'Manajemen Data',
     'manajemen_pengguna'        => 'Manajemen Pengguna',
     'logout'                    => 'Keluar',
-    'pilih_bahasa'              => 'Bahasa',
+    'pilih_bahasa'              => 'Pilih Bahasa',
     'tampilan'                  => 'Tampilan',
     'login_sebagai'             => 'Login sebagai:',
     'horizon_prediksi'          => 'Horizon Prediksi',
@@ -67,7 +67,15 @@ return [
     'stabil'                    => 'Stabil',
     'proyeksi'                  => 'Proyeksi',
 
-   // ── DETAIL MODEL & EVALUASI (TAMBAHAN) ──────────────────────
+    // ── INTERPRETASI ─────────────────────────────────────────────
+    'interpretasi_tren'         => 'Interpretasi Analisis Tren',
+    'berdasarkan_analisis'      => 'Berdasarkan analisis data historis untuk komoditas',
+    'model_deteksi'             => 'model mendeteksi tren harga',
+    'rata_rata_harga_label'     => 'dengan rata-rata harga',
+    'total_label'               => 'dan total',
+    'pada_periode'              => 'pada periode',
+
+    // ── DETAIL MODEL & EVALUASI ──────────────────────────────────
     'model_prophet_dilatih'     => 'Model Prophet dilatih dengan',
     'horizon_prediksi_label'    => 'horizon prediksi',
     'minggu_ke_depan'           => 'minggu ke depan',
@@ -133,7 +141,7 @@ return [
     'jenis_masalah'             => 'Jenis Masalah',
     'nilai'                     => 'Nilai',
     'status'                    => 'Status',
-    'tidak_ada_masalah'         => 'Tidak ada masalah yang terdeteksi',
+    'tidak_ada_masalah'         => 'Tidak ada masalah terdeteksi',
     'data_sudah_bersih'         => 'Data sudah bersih',
 
     // ── AKSI TABEL ───────────────────────────────────────────────
@@ -156,7 +164,7 @@ return [
     'kata_sandi'                => 'Kata Sandi',
     'min_8_karakter'            => '(min. 8 karakter)',
     'minimal_8'                 => 'Minimal 8 karakter',
-    'role'                      => 'Role',
+    'role'                      => 'Peran',
     'buat_pengguna'             => 'Buat Pengguna',
     'kelola_akses'              => 'Kelola Akses Pengguna',
     'informasi_pengguna'        => 'Informasi Pengguna',
@@ -166,7 +174,8 @@ return [
 
     // ── LAPORAN KOMODITAS ────────────────────────────────────────
     'laporan_harga'             => 'Laporan Harga Komoditas',
-    'analisis_deskriptif'       => 'Analisis perbandingan harga aktual dan prediksi periode mingguan.',
+    'analisis_deskriptif'       => 'Analisis deskriptif pergerakan harga komoditas.',
+    'analisis_inflasi_deflasi'  => 'Analisis perubahan harga bulanan (inflasi / deflasi)',
     'cetak_laporan'             => 'Cetak Laporan',
     'ringkasan_analisis_desk'   => 'Ringkasan Analisis Deskriptif',
     'prediksi_naik'             => 'Prediksi Naik',
@@ -179,23 +188,41 @@ return [
     'semua_komoditas'           => 'Semua Komoditas',
     'semua_bulan'               => 'Semua Bulan',
     'semua_minggu'              => 'Semua Minggu',
-    'minggu_ke'                 => 'Minggu Ke-',
+    'minggu_ke'                 => 'Minggu ke-',
     'komoditas_varian'          => 'Komoditas & Varian',
     'trend'                     => 'Tren',
     'belum_ada_prediksi'        => 'Belum ada prediksi',
-    'batas_atas'                => 'Batas Atas',
-    'batas_bawah'               => 'Batas Bawah',
+    'batas_atas'                => 'Batas atas',
+    'batas_bawah'               => 'Batas bawah',
     'aktual&prediksi'           => 'Aktual + Prediksi',
     'hanya_prediksi'            => 'Hanya Prediksi',
     'hanya_aktual'              => 'Hanya Aktual',
 
-    // ── STATUS & NOTIFIKASI 
+    // ── LAPORAN — INFLASI / DEFLASI ──────────────────────────────
+    'inflasi'                   => 'Inflasi',
+    'deflasi'                   => 'Deflasi',
+    'bulan_lalu'                => 'Bulan Lalu',
+    'bulan_ini'                 => 'Bulan Ini',
+    'bulan_depan'               => 'Bulan Depan',
+    'proyeksi_bulan_depan'      => 'Proyeksi Bulan Depan',
+    'harga_naik_vs_bulan_lalu'  => 'komoditas harga naik vs bulan lalu',
+    'harga_turun_vs_bulan_lalu' => 'komoditas harga turun vs bulan lalu',
+
+    // ── LAPORAN — KOLOM TABEL ────────────────────────────────────
+    'harga_bulan_lalu'          => 'Harga Bulan Lalu',
+    'harga_bulan_ini'           => 'Harga Bulan Ini',
+    'harga_bulan_depan'         => 'Harga Bulan Depan (Forecast)',
+    'selisih_mom'               => 'Selisih MoM',
+    'persen_mom'                => 'Perubahan MoM (%)',
+    'status_mom'                => 'Status MoM',
+
+    // ── STATUS & NOTIFIKASI ──────────────────────────────────────
     'API_aktif'                 => 'API Aktif',
     'api_offline'               => 'API Offline',
     'prediksi_tersedia'         => '✓ Tersedia',
     'prediksi_tidak_tersedia'   => '⚠ Tidak Tersedia',
     'model_offline'             => 'Model Prediksi Offline',
-    'server_python_offline'     => 'Server Python (Prophet API) sedang tidak aktif. Grafik menampilkan data historis saja tanpa proyeksi.',
+    'server_python_offline'     => 'Server Python (Prophet API) sedang tidak aktif. Grafik hanya menampilkan data historis tanpa proyeksi.',
 
     // ── AKSES CEPAT ──────────────────────────────────────────────
     'akses_cepat'               => 'Akses Cepat',
@@ -206,47 +233,46 @@ return [
     'komoditas_tersedia'        => 'Komoditas Tersedia',
     'klik_lihat_analisis'       => 'Klik untuk melihat analisis komoditas lainnya',
     'tidak_ada_komoditas'       => 'Tidak ada komoditas tersedia.',
-    
+
+    // ── TAMPILAN / THEME ─────────────────────────────────────────
     'mode_terang'               => 'Mode Terang',
-    'mode_gelap'                => 'Mode Gelap',// ── NAMA BULAN ───────────────────────────────────────────────────────
-'bulan_januari'     => 'Januari',
-'bulan_februari'    => 'Februari',
-'bulan_maret'       => 'Maret',
-'bulan_april'       => 'April',
-'bulan_mei'         => 'Mei',
-'bulan_juni'        => 'Juni',
-'bulan_juli'        => 'Juli',
-'bulan_agustus'     => 'Agustus',
-'bulan_september'   => 'September',
-'bulan_oktober'     => 'Oktober',
-'bulan_november'    => 'November',
-'bulan_desember'    => 'Desember',
+    'mode_gelap'                => 'Mode Gelap',
 
-// ── KESIMPULAN ANALISIS (pakai :placeholder untuk angka dinamis) ──────
-'kesimpulan_naik'   => 'Dari :total komoditas yang dianalisis, sebagian besar menunjukkan prediksi kenaikan harga (:naik naik, :turun turun, :stabil stabil). Perlu perhatian dalam pengendalian harga.',
-'kesimpulan_turun'  => 'Dari :total komoditas yang dianalisis, sebagian besar menunjukkan prediksi penurunan harga (:naik naik, :turun turun, :stabil stabil). Harga cenderung mereda.',
-'kesimpulan_stabil' => 'Dari :total komoditas yang dianalisis, sebagian besar harga diprediksi stabil (:naik naik, :turun turun, :stabil stabil). Kondisi pasar relatif terkendali.',
-'kesimpulan_kosong' => 'Belum ada data yang dapat dianalisis untuk periode ini.',
+    // ── NAMA BULAN ───────────────────────────────────────────────
+    'bulan_januari'             => 'Januari',
+    'bulan_februari'            => 'Februari',
+    'bulan_maret'               => 'Maret',
+    'bulan_april'               => 'April',
+    'bulan_mei'                 => 'Mei',
+    'bulan_juni'                => 'Juni',
+    'bulan_juli'                => 'Juli',
+    'bulan_agustus'             => 'Agustus',
+    'bulan_september'           => 'September',
+    'bulan_oktober'             => 'Oktober',
+    'bulan_november'            => 'November',
+    'bulan_desember'            => 'Desember',
 
-// ── HYPERPARAMETER NOTES (admin & operator dashboard) ────────────────
-'deteksi_pola_minggu'          => 'Deteksi pola per minggu',
-'deteksi_pola_tahun'           => 'Deteksi pola per tahun',
-'berubah_saat_hyperparameter'  => 'Berubah saat hyperparameter berubah',
-'prediksi_terakhir_note'       => 'Prediksi terakhir menggunakan parameter di atas.',
-'ubah_parameter_note'          => 'Ubah parameter → klik "Perbarui Prediksi" untuk mendapatkan insight baru.',
-'gunakan_template_standar'     => 'Gunakan template standar untuk memastikan format data yang benar',
-'format_csv_admin'             => 'Format: komoditas_id, tanggal, harga',
-'format_csv_operator'          => 'Format: komoditas_id, tanggal, harga',
+    // ── KESIMPULAN ANALISIS ──────────────────────────────────────
+    // Versi lama (ringkasan prediksi naik/turun/stabil)
+    'kesimpulan_naik'   => 'Dari :total komoditas yang dianalisis, sebagian besar diprediksi mengalami kenaikan harga (:naik naik, :turun turun, :stabil stabil). Langkah pengendalian harga mungkin diperlukan.',
+    'kesimpulan_turun'  => 'Dari :total komoditas yang dianalisis, sebagian besar diprediksi mengalami penurunan harga (:naik naik, :turun turun, :stabil stabil). Harga diperkirakan akan mereda.',
+    'kesimpulan_stabil' => 'Dari :total komoditas yang dianalisis, sebagian besar harga diprediksi tetap stabil (:naik naik, :turun turun, :stabil stabil). Kondisi pasar relatif terkendali.',
+    'kesimpulan_kosong' => 'Tidak ada data yang tersedia untuk dianalisis pada periode ini.',
 
+    // Versi baru (inflasi/deflasi MoM + proyeksi bulan depan)
+    'kesimpulan_inflasi' => 'Pada :bulan_ini, sebanyak :inflasi dari :total komoditas mengalami kenaikan harga (inflasi) dibanding bulan lalu, sementara :deflasi mengalami penurunan. Proyeksi :bulan_depan: :naik komoditas diprediksi naik, :turun turun, dan :stabil stabil.',
+    'kesimpulan_deflasi' => 'Pada :bulan_ini, sebanyak :deflasi dari :total komoditas mengalami penurunan harga (deflasi) dibanding bulan lalu, sementara :inflasi mengalami kenaikan. Proyeksi :bulan_depan: :naik komoditas diprediksi naik, :turun turun, dan :stabil stabil.',
 
-// ── INTERPRETASI TREN (admin & operator dashboard) ───────────────────
-'interpretasi_tren'         => 'Interpretasi Analisis Tren',
-'berdasarkan_analisis'      => 'Berdasarkan analisis data historis untuk komoditas',
-'model_deteksi'             => 'model mendeteksi tren harga',
-'rata_rata_harga_label'     => 'dengan rata-rata harga',
-'total_label'               => 'dan total',
-'pada_periode'              => 'pada periode',
+    // ── HYPERPARAMETER NOTES ─────────────────────────────────────
+    'deteksi_pola_minggu'          => 'Deteksi pola mingguan',
+    'deteksi_pola_tahun'           => 'Deteksi pola tahunan',
+    'berubah_saat_hyperparameter'  => 'Berubah saat hyperparameter berubah',
+    'prediksi_terakhir_note'       => 'Prediksi terakhir menggunakan parameter di atas.',
+    'ubah_parameter_note'          => 'Ubah parameter → klik "Perbarui Prediksi" untuk insight baru.',
+    'gunakan_template_standar'     => 'Gunakan template standar untuk memastikan format data yang benar',
+    'format_csv_admin'             => 'Format: komoditas_id, tanggal, harga',
+    'format_csv_operator'          => 'Format: komoditas_id, tanggal, harga',
 
-
+    // ── FLASK API STATUS ─────────────────────────────────────────
+    'memeriksa'                    => 'Memeriksa...',
 ];
-

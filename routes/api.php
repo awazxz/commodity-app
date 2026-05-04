@@ -51,3 +51,102 @@ Route::post('/forecast/predict-advanced', function (Request $request) {
         return response()->json(['error' => 'Gagal menghubungi server prediksi'], 500);
     }
 });
+
+/**
+ * ═══════════════════════════════════════
+ * BRIDGE ROUTES: IHK & INFLASI
+ * ═══════════════════════════════════════
+ */
+
+// Kalkulasi IHK
+Route::post('/ihk/calculate', function (Request $request) {
+    try {
+        $response = Http::timeout(60)->post('http://127.0.0.1:5000/api/ihk/calculate', $request->all());
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});
+
+Route::post('/ihk/recalculate', function (Request $request) {
+    try {
+        $response = Http::timeout(60)->post('http://127.0.0.1:5000/api/ihk/recalculate', $request->all());
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});
+
+// Data IHK Aktual
+Route::get('/ihk/summary', function (Request $request) {
+    try {
+        $response = Http::timeout(30)->get('http://127.0.0.1:5000/api/ihk/summary');
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});
+
+Route::get('/ihk/history', function (Request $request) {
+    try {
+        $response = Http::timeout(30)->get('http://127.0.0.1:5000/api/ihk/history', $request->query());
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});
+
+Route::get('/ihk/detail', function (Request $request) {
+    try {
+        $response = Http::timeout(30)->get('http://127.0.0.1:5000/api/ihk/detail', $request->query());
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});
+
+Route::get('/inflasi/comparison', function (Request $request) {
+    try {
+        $response = Http::timeout(30)->get('http://127.0.0.1:5000/api/inflasi/comparison', $request->query());
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});
+
+// Forecast IHK
+Route::post('/ihk/forecast', function (Request $request) {
+    try {
+        $response = Http::timeout(120)->post('http://127.0.0.1:5000/api/ihk/forecast', $request->all());
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});
+
+Route::get('/ihk/forecast/result', function (Request $request) {
+    try {
+        $response = Http::timeout(30)->get('http://127.0.0.1:5000/api/ihk/forecast/result', $request->query());
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});
+
+Route::get('/ihk/forecast/vs-aktual', function (Request $request) {
+    try {
+        $response = Http::timeout(30)->get('http://127.0.0.1:5000/api/ihk/forecast/vs-aktual');
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});
+
+Route::get('/ihk/forecast/summary', function (Request $request) {
+    try {
+        $response = Http::timeout(30)->get('http://127.0.0.1:5000/api/ihk/forecast/summary');
+        return response()->json($response->json(), $response->status());
+    } catch (\Exception $e) {
+        return response()->json(['error' => 'Gagal menghubungi server IHK'], 500);
+    }
+});

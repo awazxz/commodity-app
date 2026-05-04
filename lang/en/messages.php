@@ -67,7 +67,7 @@ return [
     'stabil'                    => 'Stable',
     'proyeksi'                  => 'Projection',
 
-   // ── INTERPRETASI ─────────────────────────────────────────────
+    // ── INTERPRETASI ─────────────────────────────────────────────
     'interpretasi_tren'         => 'Trend Analysis Interpretation',
     'berdasarkan_analisis'      => 'Based on historical data analysis for commodity',
     'model_deteksi'             => 'the model detects a price trend of',
@@ -75,7 +75,7 @@ return [
     'total_label'               => 'and a total of',
     'pada_periode'              => 'for the period',
 
-    // ── DETAIL MODEL & EVALUASI (TAMBAHAN) ──────────────────────
+    // ── DETAIL MODEL & EVALUASI ──────────────────────────────────
     'model_prophet_dilatih'     => 'The Prophet model is trained with',
     'horizon_prediksi_label'    => 'prediction horizon',
     'minggu_ke_depan'           => 'weeks ahead',
@@ -174,11 +174,12 @@ return [
 
     // ── LAPORAN KOMODITAS ────────────────────────────────────────
     'laporan_harga'             => 'Commodity Price Report',
-    'analisis_deskriptif'       => 'Descriptive comparison of actual vs predicted prices for weekly periods.',
+    'analisis_deskriptif'       => 'Descriptive analysis of commodity price movements.',
+    'analisis_inflasi_deflasi'  => 'Month-over-month price change analysis (inflation / deflation)',
     'cetak_laporan'             => 'Print Report',
     'ringkasan_analisis_desk'   => 'Descriptive Analysis Summary',
-    'prediksi_naik'             => 'Predicted Up',
-    'prediksi_turun'            => 'Predicted Down',
+    'prediksi_naik'             => 'Forecast Up',
+    'prediksi_turun'            => 'Forecast Down',
     'harga_stabil'              => 'Stable Price',
     'filter'                    => 'Filter',
     'reset'                     => 'Reset',
@@ -196,6 +197,24 @@ return [
     'aktual&prediksi'           => 'Actual + Prediction',
     'hanya_prediksi'            => 'Prediction Only',
     'hanya_aktual'              => 'Actual Only',
+
+    // ── LAPORAN — INFLASI / DEFLASI ──────────────────────────────
+    'inflasi'                   => 'Inflation',
+    'deflasi'                   => 'Deflation',
+    'bulan_lalu'                => 'Last Month',
+    'bulan_ini'                 => 'This Month',
+    'bulan_depan'               => 'Next Month',
+    'proyeksi_bulan_depan'      => 'Next Month Projection',
+    'harga_naik_vs_bulan_lalu'  => 'commodities with price increase vs last month',
+    'harga_turun_vs_bulan_lalu' => 'commodities with price decrease vs last month',
+
+    // ── LAPORAN — KOLOM TABEL ────────────────────────────────────
+    'harga_bulan_lalu'          => 'Last Month Price',
+    'harga_bulan_ini'           => 'This Month Price',
+    'harga_bulan_depan'         => 'Next Month Price (Forecast)',
+    'selisih_mom'               => 'MoM Difference',
+    'persen_mom'                => 'MoM Change (%)',
+    'status_mom'                => 'MoM Status',
 
     // ── STATUS & NOTIFIKASI ──────────────────────────────────────
     'API_aktif'                 => 'API Active',
@@ -219,44 +238,41 @@ return [
     'mode_terang'               => 'Light Mode',
     'mode_gelap'                => 'Dark Mode',
 
-    // ── NAMA BULAN ───────────────────────────────────────────────────────
-'bulan_januari'     => 'January',
-'bulan_februari'    => 'February',
-'bulan_maret'       => 'March',
-'bulan_april'       => 'April',
-'bulan_mei'         => 'May',
-'bulan_juni'        => 'June',
-'bulan_juli'        => 'July',
-'bulan_agustus'     => 'August',
-'bulan_september'   => 'September',
-'bulan_oktober'     => 'October',
-'bulan_november'    => 'November',
-'bulan_desember'    => 'December',
+    // ── NAMA BULAN ───────────────────────────────────────────────
+    'bulan_januari'             => 'January',
+    'bulan_februari'            => 'February',
+    'bulan_maret'               => 'March',
+    'bulan_april'               => 'April',
+    'bulan_mei'                 => 'May',
+    'bulan_juni'                => 'June',
+    'bulan_juli'                => 'July',
+    'bulan_agustus'             => 'August',
+    'bulan_september'           => 'September',
+    'bulan_oktober'             => 'October',
+    'bulan_november'            => 'November',
+    'bulan_desember'            => 'December',
 
-// ── KESIMPULAN ANALISIS (pakai :placeholder untuk angka dinamis) 
-'kesimpulan_naik'   => 'Of :total commodities analyzed, most show a predicted price increase (:naik up, :turun down, :stabil stable). Price control measures may be needed.',
-'kesimpulan_turun'  => 'Of :total commodities analyzed, most show a predicted price decrease (:naik up, :turun down, :stabil stable). Prices are expected to ease.',
-'kesimpulan_stabil' => 'Of :total commodities analyzed, most prices are predicted to remain stable (:naik up, :turun down, :stabil stable). Market conditions are relatively under control.',
-'kesimpulan_kosong' => 'No data available to analyze for this period.',
+    // ── KESIMPULAN ANALISIS ──────────────────────────────────────
+    // Versi lama (ringkasan prediksi naik/turun/stabil)
+    'kesimpulan_naik'   => 'Of :total commodities analyzed, most show a predicted price increase (:naik up, :turun down, :stabil stable). Price control measures may be needed.',
+    'kesimpulan_turun'  => 'Of :total commodities analyzed, most show a predicted price decrease (:naik up, :turun down, :stabil stable). Prices are expected to ease.',
+    'kesimpulan_stabil' => 'Of :total commodities analyzed, most prices are predicted to remain stable (:naik up, :turun down, :stabil stable). Market conditions are relatively under control.',
+    'kesimpulan_kosong' => 'No data available to analyze for this period.',
 
-// ── HYPERPARAMETER NOTES (admin & operator dashboard)
-'deteksi_pola_minggu'          => 'Detect weekly patterns',
-'deteksi_pola_tahun'           => 'Detect yearly patterns',
-'berubah_saat_hyperparameter'  => 'Changes when hyperparameters change',
-'prediksi_terakhir_note'       => 'Last prediction used the parameters above.',
-'ubah_parameter_note'          => 'Change parameters → click "Update Prediction" for new insights.',
-'gunakan_template_standar'     => 'Use the standard template to ensure correct data format',
-'format_csv_admin'             => 'Format: komoditas_id, date, price',
-'format_csv_operator'          => 'Format: komoditas_id, date, price',
+    // Versi baru (inflasi/deflasi MoM + proyeksi bulan depan)
+    'kesimpulan_inflasi' => 'In :bulan_ini, :inflasi out of :total commodities experienced price increases (inflation) compared to last month, while :deflasi showed price decreases. For next month (:bulan_depan), :naik commodities are forecast to rise, :turun to fall, and :stabil to remain stable.',
+    'kesimpulan_deflasi' => 'In :bulan_ini, :deflasi out of :total commodities experienced price decreases (deflation) compared to last month, while :inflasi showed price increases. For next month (:bulan_depan), :naik commodities are forecast to rise, :turun to fall, and :stabil to remain stable.',
 
-// ── FLASK API STATUS 
-'memeriksa'         => 'Checking...',
+    // ── HYPERPARAMETER NOTES ─────────────────────────────────────
+    'deteksi_pola_minggu'          => 'Detect weekly patterns',
+    'deteksi_pola_tahun'           => 'Detect yearly patterns',
+    'berubah_saat_hyperparameter'  => 'Changes when hyperparameters change',
+    'prediksi_terakhir_note'       => 'Last prediction used the parameters above.',
+    'ubah_parameter_note'          => 'Change parameters → click "Update Prediction" for new insights.',
+    'gunakan_template_standar'     => 'Use the standard template to ensure correct data format',
+    'format_csv_admin'             => 'Format: komoditas_id, date, price',
+    'format_csv_operator'          => 'Format: komoditas_id, date, price',
 
-// ── INTERPRETASI TREN (admin & operator dashboard) 
-'interpretasi_tren'         => 'Trend Analysis Interpretation',
-'berdasarkan_analisis'      => 'Based on historical data analysis for commodity',
-'model_deteksi'             => 'the model detects a price trend of',
-'rata_rata_harga_label'     => 'with an average price of',
-'total_label'               => 'and a total of',
-'pada_periode'              => 'for the period',
+    // ── FLASK API STATUS ─────────────────────────────────────────
+    'memeriksa'                    => 'Checking...',
 ];

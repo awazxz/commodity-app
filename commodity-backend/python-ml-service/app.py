@@ -2,23 +2,24 @@
 app.py
 
 Flask API untuk sistem forecasting harga komoditas.
-Menggunakan model persistence + scheduled auto-retraining.
 
-FIX v3:
-- Deteksi user_override dilakukan di app.py dengan membandingkan
-  nilai hyperparams yang masuk vs DEFAULT_HP, bukan mengandalkan
-  flag eksplisit dari frontend yang sering tidak dikirim.
-- Flag user_override kemudian diteruskan ke predictor via hyperparams dict.
-- Ini memperbaiki bug di mana params user selalu di-override oleh
-  grid search karena user_override selalu False.
+v8.3 (Monthly Frequency Fix):
+- Validasi periods frequency-aware: MS/M max 24, W max 104, D max 730
+- Menambahkan 'ME' sebagai alias frequency yang valid
+- Sinkron dengan perubahan AdminController & OperatorController ke frequency='MS'
 
-FIX v2:
-- _filter_by_date_range() diterapkan sebelum masuk ke predictor,
-  sehingga historical_df sudah sesuai filter user
-- Auto force_retrain di predict_forecast_advanced() jika end_date
-  filter berbeda dari last_date cache model (>7 hari)
-- start_after diteruskan secara implisit via historical_df terfilter
-  (predictor.py yang menghitung last_data_date dari df terfilter)
+v8.2 (Hyperparams Sync Fix):
+- _DEFAULT_HP disinkronkan dengan prophet_forecasting.py v10.2:
+    changepoint_prior_scale: 0.3 → 0.1
+    seasonality_prior_scale: 5.0 → 10.0
+    weekly_seasonality:      True → False
+    changepoint_range:       0.95 → 0.85
+
+v8.1 (Fitted Values Fix):
+- predict_forecast_advanced() sekarang menyertakan 'fitted_values' di response.
+
+v8 (Metrics Filter + Full Sync):
+- Extended metrics di-strip dari response frontend.
 """
 
 import os
@@ -37,6 +38,9 @@ from werkzeug.utils import secure_filename
 from data.database_connector import DatabaseConnector
 from models.predictor import CommodityPredictor, _normalize_freq, _convert_periods
 from models.prophet_forecasting import CommodityForecastModel
+from ihk_routes import ihk_bp, init_ihk_routes
+
+
 
 load_dotenv()
 
@@ -63,6 +67,9 @@ CORS(app, resources={
 
 db        = DatabaseConnector()
 predictor = CommodityPredictor()
+init_ihk_routes(db)
+
+app.register_blueprint(ihk_bp)
 
 PORT  = int(os.getenv('FLASK_PORT', 5000))
 DEBUG = os.getenv('FLASK_ENV', 'production') == 'development'
@@ -71,17 +78,27 @@ UPLOAD_FOLDER      = 'uploads'
 ALLOWED_EXTENSIONS = {'csv'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# ═══════════════════════════════════════════════════════════════
-# FIX v3: DEFAULT HYPERPARAMS — satu sumber kebenaran di app.py
-# Harus sinkron dengan DEFAULT_HYPERPARAMS di predictor.py
-# ═══════════════════════════════════════════════════════════════
 
+# v8.2 FIX: Sinkronkan dengan prophet_forecasting.py v10.2
 _DEFAULT_HP = {
-    'changepoint_prior_scale': 0.05,
-    'seasonality_prior_scale': 1.0,
-    'seasonality_mode':        'multiplicative',
+    'changepoint_prior_scale': 0.1,
+    'seasonality_prior_scale': 10.0,
+    'seasonality_mode':        'additive',
     'weekly_seasonality':      False,
     'yearly_seasonality':      True,
+    'yearly_fourier_order':    20,
+    'monthly_seasonality':     True,
+    'n_changepoints':          25,
+    'changepoint_range':       0.85,
+}
+
+# v8.3 FIX: Batas periods per frequency — sinkron dengan PHP controller
+_PERIODS_MAX = {
+    'D':  730,   # harian max 2 tahun
+    'W':  104,   # mingguan max 2 tahun
+    'M':   24,   # bulanan max 2 tahun
+    'MS':  24,   # bulanan (Month Start) max 2 tahun
+    'ME':  24,   # bulanan (Month End) max 2 tahun
 }
 
 
@@ -114,48 +131,27 @@ def _read_csv_safe(filepath: str):
     return None
 
 
-def _filter_by_date_range(df: pd.DataFrame, start_date: str = None, end_date: str = None) -> pd.DataFrame:
-    """
-    Filter DataFrame berisi kolom 'ds' (datetime) berdasarkan rentang tanggal.
-
-    FIX v2: Fungsi ini adalah kunci utama agar forecast dimulai dari
-    tanggal yang benar. Dengan memfilter historical_data sebelum
-    diserahkan ke predictor, maka:
-    - historical_df['ds'].max() = akhir data aktual user (bukan hari ini)
-    - predictor akan meneruskan nilai ini sebagai start_after ke Prophet
-    - forecast dimulai tepat setelah data aktual terakhir user
-    """
+def _filter_by_date_range(
+    df: pd.DataFrame,
+    start_date: str = None,
+    end_date: str   = None,
+) -> pd.DataFrame:
     if df.empty:
         return df
-
     if start_date:
         try:
             df = df[df['ds'] >= pd.to_datetime(start_date)]
         except Exception as e:
-            print(f"⚠️  Filter start_date gagal: {e}")
-
+            print(f"   Filter start_date gagal: {e}")
     if end_date:
         try:
             df = df[df['ds'] <= pd.to_datetime(end_date)]
         except Exception as e:
-            print(f"⚠️  Filter end_date gagal: {e}")
-
+            print(f"   Filter end_date gagal: {e}")
     return df.reset_index(drop=True)
 
 
 def _detect_user_override_app(hyperparams: dict) -> bool:
-    """
-    FIX v3: Deteksi apakah user mengubah hyperparams dari nilai default.
-
-    Dilakukan di app.py — sebelum dikirim ke predictor — agar flag
-    user_override sudah benar saat sampai ke _detect_user_override()
-    di predictor.py.
-
-    Tidak mengandalkan flag eksplisit dari frontend karena frontend
-    sering tidak mengirim field 'user_override' sama sekali.
-
-    Menggunakan toleransi 1e-9 untuk float agar '0.05' == 0.05.
-    """
     for key, default_val in _DEFAULT_HP.items():
         if key not in hyperparams:
             continue
@@ -171,11 +167,44 @@ def _detect_user_override_app(hyperparams: dict) -> bool:
             if bool(user_val) != default_val:
                 print(f"   [App] Override terdeteksi: {key}={user_val} (default={default_val})")
                 return True
+        elif isinstance(default_val, int):
+            try:
+                if int(user_val) != default_val:
+                    print(f"   [App] Override terdeteksi: {key}={user_val} (default={default_val})")
+                    return True
+            except (TypeError, ValueError):
+                pass
         else:
             if user_val != default_val:
                 print(f"   [App] Override terdeteksi: {key}={user_val} (default={default_val})")
                 return True
     return False
+
+
+def _build_hyperparams_from_request(data: dict) -> dict:
+    return {
+        'changepoint_prior_scale': float(data.get(
+            'changepoint_prior_scale', _DEFAULT_HP['changepoint_prior_scale'])),
+        'seasonality_prior_scale': float(data.get(
+            'seasonality_prior_scale', _DEFAULT_HP['seasonality_prior_scale'])),
+        'seasonality_mode':        data.get(
+            'seasonality_mode', _DEFAULT_HP['seasonality_mode']),
+        'weekly_seasonality':      _parse_bool(
+            data.get('weekly_seasonality'), _DEFAULT_HP['weekly_seasonality']),
+        'yearly_seasonality':      _parse_bool(
+            data.get('yearly_seasonality'), _DEFAULT_HP['yearly_seasonality']),
+        'yearly_fourier_order':    int(data.get(
+            'yearly_fourier_order', _DEFAULT_HP['yearly_fourier_order'])),
+        'monthly_seasonality':     _parse_bool(
+            data.get('monthly_seasonality'), _DEFAULT_HP['monthly_seasonality']),
+        'n_changepoints':          int(data.get(
+            'n_changepoints', _DEFAULT_HP['n_changepoints'])),
+        'changepoint_range': float(data.get('changepoint_range', _DEFAULT_HP['changepoint_range'])),
+    }
+
+
+def _strip_extended_metrics(model_metrics: dict) -> dict:
+    return {k: v for k, v in model_metrics.items() if k != 'extended_metrics'}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -187,7 +216,7 @@ def index():
     return jsonify({
         'success': True,
         'message': 'Commodity Price Forecasting API',
-        'version': '3.3.0',
+        'version': '8.3.0',
         'endpoints': {
             'health':            '/api/health',
             'predict_advanced':  '/api/forecast/predict-advanced',
@@ -230,22 +259,9 @@ def predict_forecast_advanced():
     """
     Advanced forecast dengan model persistence.
 
-    FIX v3 — deteksi user_override:
-    Sebelumnya: mengandalkan field 'user_override' dari frontend
-                → frontend tidak kirim → selalu False → grid search selalu jalan
-                → params user di-override oleh best_params grid search
-    Sekarang:   _detect_user_override_app() membandingkan nilai hyperparams
-                yang masuk vs _DEFAULT_HP → deteksi otomatis tanpa perlu
-                frontend kirim flag eksplisit
-                → user_override=True diteruskan ke predictor via hyperparams dict
-                → grid search dilewati → params user dihormati
-
-    FIX v2 — alur yang benar:
-    1. Ambil historical_data dari DB (semua data komoditas)
-    2. Filter berdasarkan start_date & end_date dari user
-    3. Serahkan historical_data terfilter ke predictor
-    4. predictor mengambil last_data_date dari df terfilter
-    5. Forecast dimulai tepat setelah data aktual terakhir user
+    v8.3: Validasi periods frequency-aware (MS/M max 24, W max 104, D max 730).
+    v8.2: _DEFAULT_HP disinkronkan dengan prophet_forecasting.py v10.2.
+    v8.1: Response menyertakan 'fitted_values' (in-sample yhat Prophet).
     """
     try:
         data = request.get_json()
@@ -254,73 +270,63 @@ def predict_forecast_advanced():
             return jsonify({'success': False, 'message': 'commodity_id is required'}), 400
 
         commodity_id  = data.get('commodity_id')
-        periods       = int(data.get('periods', 84))
-        frequency     = data.get('frequency', 'W')
+        periods       = int(data.get('periods', 12))
+        frequency     = data.get('frequency', 'MS')
         force_retrain = _parse_bool(data.get('force_retrain'), default=False)
         start_date    = data.get('start_date') or None
         end_date      = data.get('end_date')   or None
 
-        # ── FIX v3: Bangun hyperparams dari nilai yang dikirim frontend ──
-        # Gunakan nilai default jika field tidak ada di request
-        hyperparams = {
-            'changepoint_prior_scale': float(data.get('changepoint_prior_scale',
-                                              _DEFAULT_HP['changepoint_prior_scale'])),
-            'seasonality_prior_scale': float(data.get('seasonality_prior_scale',
-                                              _DEFAULT_HP['seasonality_prior_scale'])),
-            'seasonality_mode':        data.get('seasonality_mode',
-                                                _DEFAULT_HP['seasonality_mode']),
-            'weekly_seasonality':      _parse_bool(data.get('weekly_seasonality'),
-                                                   _DEFAULT_HP['weekly_seasonality']),
-            'yearly_seasonality':      _parse_bool(data.get('yearly_seasonality'),
-                                                   _DEFAULT_HP['yearly_seasonality']),
-        }
-
-        # ── FIX v3: Deteksi user_override di sini, bukan di frontend ──
-        # Bandingkan nilai yang masuk vs default → tidak perlu field eksplisit
+        hyperparams      = _build_hyperparams_from_request(data)
         is_user_override = _detect_user_override_app(hyperparams)
-
-        # Teruskan ke predictor via hyperparams dict
-        # _detect_user_override() di predictor.py akan membaca flag ini
         hyperparams['user_override'] = is_user_override
 
-        print(f"   [App] is_user_override={is_user_override} (dari perbandingan nilai vs default)")
+        print(f"   [App] is_user_override={is_user_override}")
         print(f"   [App] hyperparams={hyperparams}")
 
-        # ── Validasi parameter ────────────────────────────────
         cp = hyperparams['changepoint_prior_scale']
         ss = hyperparams['seasonality_prior_scale']
         sm = hyperparams['seasonality_mode']
 
         if not (0.001 <= cp <= 0.5):
-            return jsonify({'success': False, 'message': 'changepoint_prior_scale harus 0.001–0.5'}), 400
+            return jsonify({'success': False,
+                            'message': 'changepoint_prior_scale harus 0.001-0.5'}), 400
         if not (0.01 <= ss <= 50):
-            return jsonify({'success': False, 'message': 'seasonality_prior_scale harus 0.01–50'}), 400
+            return jsonify({'success': False,
+                            'message': 'seasonality_prior_scale harus 0.01-50'}), 400
         if sm not in ['additive', 'multiplicative']:
-            return jsonify({'success': False, 'message': 'seasonality_mode harus additive atau multiplicative'}), 400
-        if not (1 <= periods <= 730):
-            return jsonify({'success': False, 'message': 'periods harus 1–730'}), 400
-        if frequency.upper() not in ['D', 'W', 'M', 'MS']:
-            return jsonify({'success': False, 'message': 'frequency harus D, W, atau M'}), 400
+            return jsonify({'success': False,
+                            'message': 'seasonality_mode harus additive atau multiplicative'}), 400
 
-        # ── Cek komoditas ─────────────────────────────────────
+        # FIX v8.3: Validasi frequency dan periods secara frequency-aware
+        freq_upper = frequency.upper()
+        if freq_upper not in _PERIODS_MAX:
+            return jsonify({'success': False,
+                            'message': 'frequency harus D, W, M, atau MS'}), 400
+
+        max_periods = _PERIODS_MAX.get(freq_upper, 730)
+        if not (1 <= periods <= max_periods):
+            return jsonify({'success': False,
+                            'message': (
+                                f'periods untuk frequency {freq_upper} '
+                                f'harus antara 1–{max_periods}'
+                            )}), 400
+
         commodity_info = db.get_commodity_info(commodity_id)
         if not commodity_info:
-            return jsonify({'success': False, 'message': f'Komoditas ID {commodity_id} tidak ditemukan'}), 404
+            return jsonify({'success': False,
+                            'message': f'Komoditas ID {commodity_id} tidak ditemukan'}), 404
 
-        # ── Ambil data historis dari DB ───────────────────────
         historical_data = db.get_commodity_prices(commodity_id)
         if historical_data.empty:
-            return jsonify({'success': False, 'message': 'Tidak ada data historis untuk komoditas ini'}), 404
+            return jsonify({'success': False,
+                            'message': 'Tidak ada data historis untuk komoditas ini'}), 404
 
-        # ── FIX v2: Filter berdasarkan start_date & end_date ─
         if start_date or end_date:
             original_count  = len(historical_data)
             historical_data = _filter_by_date_range(historical_data, start_date, end_date)
             filtered_count  = len(historical_data)
-
-            print(f"   date_filter   : {start_date} s/d {end_date}")
-            print(f"   data sebelum  : {original_count} baris")
-            print(f"   data sesudah  : {filtered_count} baris")
+            print(f"   date_filter: {start_date} s/d {end_date} | "
+                  f"{original_count} -> {filtered_count} baris")
 
             if historical_data.empty:
                 return jsonify({'success': False,
@@ -330,53 +336,45 @@ def predict_forecast_advanced():
             return jsonify({'success': False,
                             'message': f'Minimum 10 data diperlukan. Ditemukan: {len(historical_data)}'}), 400
 
-        # ── FIX v2: Auto force_retrain jika end_date berubah ─
-        # Jika user_override=True, kita SELALU retrain agar params user dipakai.
-        # Tidak perlu cek date diff karena predictor sudah handle ini.
         if not force_retrain and not is_user_override:
             current_last_date = historical_data['ds'].max()
-            cached_info = CommodityForecastModel.get_model_info(commodity_id)
+            cached_info       = CommodityForecastModel.get_model_info(commodity_id)
 
             if cached_info.get('exists'):
                 try:
                     cached_last_date = pd.to_datetime(cached_info['last_date'])
                     date_diff_days   = abs((current_last_date - cached_last_date).days)
-
                     if date_diff_days > 7:
                         force_retrain = True
-                        print(f"   [App] 🔄 Auto force_retrain: "
-                              f"cache last={cached_last_date.date()} vs "
-                              f"current last={current_last_date.date()} "
-                              f"(diff={date_diff_days}d > 7d)")
+                        print(f"   [App] Auto force_retrain: diff={date_diff_days}d > 7d")
                 except Exception as e:
-                    print(f"   [App] ⚠️  Gagal cek date diff untuk auto retrain: {e}")
+                    print(f"   [App] Gagal cek date diff: {e}")
 
         print(f"\n{'='*60}")
-        print(f"📊 Forecast Request — {commodity_info.get('full_name')} (ID={commodity_id})")
-        print(f"   force_retrain : {force_retrain}")
-        print(f"   is_user_override: {is_user_override}")
-        print(f"   periods       : {periods} hari")
-        print(f"   frequency     : {frequency}")
-        print(f"   hyperparams   : {hyperparams}")
-        print(f"   data range    : {historical_data['ds'].min().date()} s/d {historical_data['ds'].max().date()}")
-        print(f"   last_data     : {historical_data['ds'].max().date()} ← forecast akan mulai setelah ini")
+        print(f"   Forecast Request — {commodity_info.get('full_name')} (ID={commodity_id})")
+        print(f"   force_retrain    : {force_retrain}")
+        print(f"   is_user_override : {is_user_override}")
+        print(f"   periods          : {periods} ({freq_upper})")
+        print(f"   hyperparams      : {hyperparams}")
+        print(f"   data range       : {historical_data['ds'].min().date()} s/d "
+              f"{historical_data['ds'].max().date()}")
 
         detected_freq   = CommodityForecastModel.detect_frequency(historical_data)
         use_freq        = _normalize_freq(detected_freq)
         freq_to_periode = {'D': 'daily', 'W': 'weekly', 'MS': 'monthly'}
-        periode_value   = freq_to_periode.get(use_freq, 'weekly')
+        periode_value   = freq_to_periode.get(use_freq, 'monthly')
 
-        # ── Panggil predictor dengan historical_data terfilter ─
         result = predictor.predict(
             commodity_id  = commodity_id,
             historical_df = historical_data,
             periods       = periods,
             frequency     = frequency,
-            hyperparams   = hyperparams,     # sudah berisi user_override=True/False
+            hyperparams   = hyperparams,
             force_retrain = force_retrain,
         )
 
         predictions           = result['predictions']
+        fitted_values         = result.get('fitted_values', [])
         model_metrics         = result['model_metrics']
         model_source          = result['model_source']
         trend_direction       = result['trend_direction']
@@ -387,17 +385,15 @@ def predict_forecast_advanced():
         model_metrics['trend_direction']       = trend_direction
         model_metrics['future_interval_width'] = future_interval_width
 
-        print(f"   engine        : {engine_used}")
-        print(f"   model_source  : {model_source}")
-        print(f"   prediksi      : {len(predictions)} titik")
-        print(f"   MAPE          : {model_metrics.get('mape', 0):.4f}%")
-        print(f"   trend         : {trend_direction}")
+        print(f"   engine       : {engine_used}")
+        print(f"   model_source : {model_source}")
+        print(f"   prediksi     : {len(predictions)} titik")
+        print(f"   fitted_values: {len(fitted_values)} titik (in-sample yhat)")
+        print(f"   MAPE         : {model_metrics.get('mape', 0):.4f}%")
         if predictions:
-            print(f"   forecast dari : {predictions[0]['date']}")
-            print(f"   forecast s/d  : {predictions[-1]['date']}")
+            print(f"   forecast     : {predictions[0]['date']} -> {predictions[-1]['date']}")
         print(f"{'='*60}\n")
 
-        # ── Simpan hasil ke DB ────────────────────────────────
         forecast_df = pd.DataFrame([{
             'ds':         pd.to_datetime(p['date']),
             'yhat':       p['predicted_price'],
@@ -417,7 +413,9 @@ def predict_forecast_advanced():
             )
             saved_to_db = True
         except Exception as e:
-            print(f"⚠️  Gagal simpan ke DB: {e}")
+            print(f"   Gagal simpan ke DB: {e}")
+
+        metrics_for_frontend = _strip_extended_metrics(model_metrics)
 
         return jsonify({
             'success': True,
@@ -441,30 +439,43 @@ def predict_forecast_advanced():
                     **hyperparams,
                     'detected_frequency': use_freq,
                 },
-                'predictions': predictions,
+                'predictions':   predictions,
+                'fitted_values': fitted_values,
                 'model_metrics': {
-                    'mape':                  float(model_metrics.get('mape', 0)),
-                    'rmse':                  float(model_metrics.get('rmse', 0)),
-                    'mae':                   float(model_metrics.get('mae',  0)),
-                    'coverage':              float(model_metrics.get('coverage', 0.95)),
-                    'in_sample_mape':        float(model_metrics.get('in_sample_mape', 0)),
-                    'in_sample_rmse':        float(model_metrics.get('in_sample_rmse', 0)),
-                    'in_sample_mae':         float(model_metrics.get('in_sample_mae',  0)),
-                    'avg_interval_width':    float(model_metrics.get('avg_interval_width', 0)),
+                    'mape':                  float(metrics_for_frontend.get('mape', 0)),
+                    'rmse':                  float(metrics_for_frontend.get('rmse', 0)),
+                    'mae':                   float(metrics_for_frontend.get('mae',  0)),
+                    'coverage':              float(metrics_for_frontend.get('coverage', 0.95)),
+                    'in_sample_mape':        float(metrics_for_frontend.get('in_sample_mape', 0)),
+                    'in_sample_rmse':        float(metrics_for_frontend.get('in_sample_rmse', 0)),
+                    'in_sample_mae':         float(metrics_for_frontend.get('in_sample_mae',  0)),
+                    'avg_interval_width':    float(metrics_for_frontend.get('avg_interval_width', 0)),
                     'future_interval_width': round(future_interval_width, 2),
-                    'changepoint_count':     int(model_metrics.get('changepoint_count', 0)),
-                    'trend_flexibility':     float(model_metrics.get('trend_flexibility', 0)),
-                    'seasonality_strength':  float(model_metrics.get('seasonality_strength', 0)),
+                    'changepoint_count':     int(metrics_for_frontend.get('changepoint_count', 0)),
+                    'trend_flexibility':     float(metrics_for_frontend.get('trend_flexibility', 0)),
+                    'seasonality_strength':  float(metrics_for_frontend.get('seasonality_strength', 0)),
                     'trend_direction':       trend_direction,
                     'confidence_level':      0.95,
-                    'cv_method':             model_metrics.get('cv_method', ''),
+                    'cv_method':             metrics_for_frontend.get('cv_method', ''),
                     'data_frequency':        use_freq,
+                    'smape':              float(metrics_for_frontend.get('smape', 0)),
+                    'directional_acc':    float(metrics_for_frontend.get('directional_acc', 0)),
+                    'winkler_score':      float(metrics_for_frontend.get('winkler_score', 0)),
+                    'pinball_lower':      float(metrics_for_frontend.get('pinball_lower', 0)),
+                    'pinball_upper':      float(metrics_for_frontend.get('pinball_upper', 0)),
+                    'interval_sharpness': float(metrics_for_frontend.get('interval_sharpness', 0)),
+                    'in_sample_smape':    float(metrics_for_frontend.get('in_sample_smape', 0)),
+                    'in_sample_dir_acc':  float(metrics_for_frontend.get('in_sample_dir_acc', 0)),
+                    'rolling_cv_mape':    float(metrics_for_frontend.get('rolling_cv_mape', 0)),
+                    'rolling_cv_dir_acc': float(metrics_for_frontend.get('rolling_cv_dir_acc', 0)),
+                    'rolling_cv_winkler': float(metrics_for_frontend.get('rolling_cv_winkler', 0)),
+                    'rolling_cv_coverage':float(metrics_for_frontend.get('rolling_cv_coverage', 0)),
                 },
             }
         }), 200
 
     except Exception as e:
-        print("❌ Error di predict_forecast_advanced:")
+        print("Error di predict_forecast_advanced:")
         print(traceback.format_exc())
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -475,10 +486,8 @@ def predict_forecast_advanced():
 
 @app.route('/api/forecast/evaluate', methods=['POST'])
 def evaluate_model():
-    """Evaluasi model dengan hyperparameter tertentu (tanpa prediksi ke depan)."""
     try:
         data = request.get_json()
-
         if not data or 'commodity_id' not in data:
             return jsonify({'success': False, 'message': 'commodity_id is required'}), 400
 
@@ -500,20 +509,12 @@ def evaluate_model():
         detected_freq = CommodityForecastModel.detect_frequency(historical_data)
         use_freq      = _normalize_freq(detected_freq)
 
-        hyperparams = {
-            'changepoint_prior_scale': float(data.get('changepoint_prior_scale',
-                                              _DEFAULT_HP['changepoint_prior_scale'])),
-            'seasonality_prior_scale': float(data.get('seasonality_prior_scale',
-                                              _DEFAULT_HP['seasonality_prior_scale'])),
-            'seasonality_mode':        data.get('seasonality_mode',
-                                                _DEFAULT_HP['seasonality_mode']),
-            'weekly_seasonality':      _parse_bool(data.get('weekly_seasonality'),
-                                                   _DEFAULT_HP['weekly_seasonality']),
-            'yearly_seasonality':      _parse_bool(data.get('yearly_seasonality'),
-                                                   _DEFAULT_HP['yearly_seasonality']),
-        }
-
-        forecaster = CommodityForecastModel(**hyperparams)
+        hyperparams = _build_hyperparams_from_request(data)
+        is_user_override = _detect_user_override_app(hyperparams)
+        forecaster = CommodityForecastModel(
+            **hyperparams,
+            user_override=is_user_override,
+        )
         forecaster.train(historical_data, freq=use_freq)
         metrics = forecaster.evaluate()
 
@@ -522,6 +523,11 @@ def evaluate_model():
             'data': {
                 'commodity_id':       commodity_id,
                 'data_frequency':     use_freq,
+                'data_points':        len(historical_data),
+                'data_range': {
+                    'start': str(historical_data['ds'].min().date()),
+                    'end':   str(historical_data['ds'].max().date()),
+                },
                 'hyperparameters':    hyperparams,
                 'evaluation_metrics': metrics,
             }
@@ -540,14 +546,7 @@ def evaluate_model():
 def get_model_info(commodity_id: int):
     info     = CommodityForecastModel.get_model_info(commodity_id)
     last_run = db.get_last_forecast_run(commodity_id)
-
-    return jsonify({
-        'success': True,
-        'data': {
-            'model_file': info,
-            'last_run':   last_run,
-        }
-    }), 200
+    return jsonify({'success': True, 'data': {'model_file': info, 'last_run': last_run}}), 200
 
 
 @app.route('/api/forecast/model-status', methods=['GET'])
@@ -555,14 +554,11 @@ def get_all_model_status():
     try:
         commodities = db.get_all_commodities()
         status_list = []
-
         for c in commodities:
             if c.get('jumlah_data', 0) == 0:
                 continue
-
             cid  = c['id']
             info = CommodityForecastModel.get_model_info(cid)
-
             status_list.append({
                 'commodity_id':   cid,
                 'commodity_name': c['full_name'],
@@ -574,9 +570,7 @@ def get_all_model_status():
                 'age_hours':      info.get('age_hours'),
                 'data_freq':      info.get('data_freq'),
             })
-
         return jsonify({'success': True, 'data': status_list}), 200
-
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
@@ -587,43 +581,31 @@ def get_all_model_status():
 
 @app.route('/api/forecast/clear-cache/<int:commodity_id>', methods=['DELETE'])
 def clear_model_cache(commodity_id: int):
-    """
-    Hapus cached model untuk satu komoditas.
-    Model akan dilatih ulang dari data terbaru pada request berikutnya.
-    """
     try:
         deleted_files = []
-
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
+        BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
         patterns = [
             os.path.join(BASE_DIR, 'saved_models', f'commodity_{commodity_id}.pkl'),
             os.path.join(BASE_DIR, 'saved_models', f'model_{commodity_id}.pkl'),
             os.path.join(BASE_DIR, 'saved_models', f'model_{commodity_id}_*.pkl'),
-            os.path.join(BASE_DIR, 'saved_models', f'rf_fallback', f'rf_{commodity_id}.pkl'),
+            os.path.join(BASE_DIR, 'saved_models', 'rf_fallback', f'rf_{commodity_id}.pkl'),
             os.path.join(BASE_DIR, 'models', 'saved', f'commodity_{commodity_id}.pkl'),
-            os.path.join(BASE_DIR, 'models', 'saved', f'model_{commodity_id}.pkl'),
             os.path.join(BASE_DIR, 'cache', f'*{commodity_id}*'),
         ]
-
         for pattern in patterns:
             for filepath in glob.glob(pattern):
                 try:
                     os.remove(filepath)
                     deleted_files.append(filepath)
-                    print(f"🗑️  Deleted: {filepath}")
                 except Exception as e:
-                    print(f"⚠️  Gagal hapus {filepath}: {e}")
+                    print(f"   Gagal hapus {filepath}: {e}")
 
         try:
-            if hasattr(predictor, 'invalidate_cache'):
-                predictor.invalidate_cache(commodity_id)
+            predictor.invalidate_cache(commodity_id)
         except Exception as e:
-            print(f"⚠️  In-memory invalidation: {e}")
+            print(f"   In-memory invalidation: {e}")
 
         count = len(deleted_files)
-        print(f"✅  Cache cleared commodity_id={commodity_id}: {count} file(s)")
-
         return jsonify({
             'success':       True,
             'message':       f'Cache model ID {commodity_id} dihapus ({count} file). '
@@ -640,22 +622,17 @@ def clear_model_cache(commodity_id: int):
 
 @app.route('/api/forecast/clear-cache-all', methods=['DELETE'])
 def clear_all_cache():
-    """Hapus semua cached model."""
     try:
         deleted_files = []
-
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
+        BASE_DIR      = os.path.dirname(os.path.abspath(__file__))
         patterns = [
             os.path.join(BASE_DIR, 'saved_models', '*.pkl'),
             os.path.join(BASE_DIR, 'saved_models', 'rf_fallback', '*.pkl'),
             os.path.join(BASE_DIR, 'models', 'saved', '*.pkl'),
             os.path.join(BASE_DIR, 'models', 'saved', '*.json'),
-            os.path.join(BASE_DIR, 'models', 'cache', '*'),
             os.path.join(BASE_DIR, 'cache', '*.pkl'),
             os.path.join(BASE_DIR, 'cache', '*.json'),
         ]
-
         for pattern in patterns:
             for filepath in glob.glob(pattern):
                 try:
@@ -666,17 +643,14 @@ def clear_all_cache():
                         shutil.rmtree(filepath)
                         deleted_files.append(filepath)
                 except Exception as e:
-                    print(f"⚠️  Gagal hapus {filepath}: {e}")
+                    print(f"   Gagal hapus {filepath}: {e}")
 
         try:
-            if hasattr(predictor, 'clear_all_cache'):
-                predictor.clear_all_cache()
+            predictor.clear_all_cache()
         except Exception as e:
-            print(f"⚠️  In-memory clear: {e}")
+            print(f"   In-memory clear: {e}")
 
         count = len(deleted_files)
-        print(f"✅  All cache cleared: {count} file(s)")
-
         return jsonify({
             'success':       True,
             'message':       f'{count} file cache dihapus. Semua model akan dilatih ulang.',
@@ -797,8 +771,7 @@ def upload_csv():
         df = _read_csv_safe(filepath)
         if df is None:
             os.remove(filepath)
-            return jsonify({'success': False,
-                            'message': 'Gagal membaca file CSV. Pastikan encoding UTF-8.'}), 400
+            return jsonify({'success': False, 'message': 'Gagal membaca file CSV.'}), 400
 
         df.columns = df.columns.str.strip().str.lower()
 
@@ -936,14 +909,16 @@ if __name__ == '__main__':
     from scheduler import start_scheduler
 
     print("=" * 60)
-    print("  COMMODITY PRICE FORECASTING API  v3.3.0")
+    print("  COMMODITY PRICE FORECASTING API  v8.3.0")
     print("=" * 60)
-    print(f"   PORT       : {PORT}")
-    print(f"   DEBUG      : {DEBUG}")
-    print(f"   URL        : http://127.0.0.1:{PORT}")
-    print(f"   SCHEDULER  : aktif (retrain otomatis jam 02:00)")
+    print(f"   PORT      : {PORT}")
+    print(f"   DEBUG     : {DEBUG}")
+    print(f"   URL       : http://127.0.0.1:{PORT}")
+    print(f"   SCHEDULER : aktif (retrain otomatis jam 02:00)")
+    print(f"   v8.3      : validasi periods frequency-aware (MS/M max 24)")
+    print(f"   v8.2      : hyperparams sync dengan prophet_forecasting v10.2")
+    print(f"   v8.1      : fitted_values (in-sample yhat) di response")
     print("=" * 60)
 
     start_scheduler()
-
     app.run(host='0.0.0.0', port=PORT, debug=DEBUG)

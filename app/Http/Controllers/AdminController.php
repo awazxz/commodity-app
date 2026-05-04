@@ -18,16 +18,14 @@ class AdminController extends Controller
 {
     use SavesUserPreferences;
 
-    /** URL Flask dari .env */
     private string $flaskUrl;
 
-    // Default hyperparameter Prophet — satu sumber kebenaran
-    // Harus sinkron dengan DEFAULT_HYPERPARAMS di predictor.py
-    private const DEFAULT_CP     = 0.05;
-    private const DEFAULT_SS     = 1.0;
-    private const DEFAULT_MODE   = 'multiplicative';
-    private const DEFAULT_WEEKLY = false;
-    private const DEFAULT_YEARLY = true;
+    // FIX: Hapus DEFAULT_WEEKLY — selalu false untuk data bulanan
+    private const DEFAULT_CP              = 0.1;
+    private const DEFAULT_SS              = 10.0;
+    private const DEFAULT_MODE            = 'additive';
+    private const DEFAULT_YEARLY          = true;
+    private const DEFAULT_FORECAST_MONTHS = 12;
 
     public function __construct()
     {
@@ -36,8 +34,6 @@ class AdminController extends Controller
 
     public function index(Request $request)
     {
-        // FIX Bug 5: set_time_limit agar PHP tidak kill request
-        // sebelum Flask selesai grid search (bisa 5-10 menit)
         set_time_limit(660);
         return $this->processForecasting($request);
     }
@@ -49,8 +45,6 @@ class AdminController extends Controller
 
     public function predict(Request $request)
     {
-        // FIX Bug 5: set_time_limit agar PHP tidak kill request
-        // sebelum Flask selesai grid search (bisa 5-10 menit)
         set_time_limit(660);
         return $this->processForecasting($request);
     }
@@ -67,7 +61,6 @@ class AdminController extends Controller
 
         $currentTab = $request->query('tab', $request->input('tab', 'insight'));
 
-        // ── STEP 1: Ambil daftar komoditas ────────────────────
         try {
             $commodities = MasterKomoditas::orderBy('nama_komoditas')->get();
         } catch (\Exception $e) {
@@ -75,7 +68,6 @@ class AdminController extends Controller
             $commodities = collect();
         }
 
-        // ── STEP 2: Komoditas yang dipilih ────────────────────
         $selectedKomoditasId = (int) (
             $request->query('komoditas_id')
             ?? $request->input('komoditas_id')
@@ -88,7 +80,6 @@ class AdminController extends Controller
                ?? trim($selectedKomoditas->nama_komoditas . ' ' . ($selectedKomoditas->nama_varian ?? '')))
             : 'Tidak Ada Data';
 
-        // ── STEP 3: Auto-detect date range dari DB ────────────
         try {
             $dateRange = PriceData::where('komoditas_id', $selectedKomoditasId)
                 ->whereNotNull('harga')
@@ -104,80 +95,38 @@ class AdminController extends Controller
             $dbMaxDate = Carbon::now()->format('Y-m-d');
         }
 
-        // ── STEP 4: Load preferensi user & resolve parameter ──
         $prefs  = $this->loadUserPreferences($userId);
         $params = $this->resolveParameters($request, $prefs);
 
-        // FIX Bug 2: Log nilai params setelah resolveParameters()
-        // untuk memastikan nilai dari slider/form benar-benar masuk
-        Log::info('[ADMIN] resolveParameters result:', [
-            'cpScale'      => $params['cpScale'],
-            'seasonScale'  => $params['seasonScale'],
-            'seasonMode'   => $params['seasonMode'],
-            'weeklySeason' => $params['weeklySeason'],
-            'yearlySeason' => $params['yearlySeason'],
-            'method'       => $request->method(),
-            'raw_cp_input' => $request->input('changepoint_prior_scale', 'NOT_SENT'),
-            'raw_ss_input' => $request->input('seasonality_prior_scale', 'NOT_SENT'),
-            'raw_mode'     => $request->input('seasonality_mode', 'NOT_SENT'),
-        ]);
-        // DIAGNOSTIC LOG — hapus setelah bug ditemukan
-        Log::info('[DEBUG forecast_weeks]', [
-            'method'          => $request->method(),
-            'has_fw_key'      => $request->has('forecast_weeks'),
-            'raw_fw_input'    => $request->input('forecast_weeks', 'NOT_FOUND_IN_REQUEST'),
-            'all_input_keys'  => array_keys($request->all()),
-            'prefs_fw'        => $prefs->forecast_weeks,
-            'resolved_fw'     => $params['forecastWeeks'],
-            'isPost'          => $request->isMethod('POST'),
-            'currentTab'      => $currentTab,
-        ]);
         if ($request->isMethod('POST') && $currentTab === 'insight') {
             $this->persistUserPreferences($userId, $request->all());
         }
 
-        // ── STEP 5: Destructure parameter ─────────────────────
-        $forecastWeeks   = $params['forecastWeeks'];
+        // FIX: Ganti forecastWeeks → forecastMonths, weekly hardcode false
+        $forecastMonths = max(1, min(24, (int) (
+            $request->input('forecast_months')
+            ?? $params['forecastMonths']
+            ?? self::DEFAULT_FORECAST_MONTHS
+        )));
         $cpScale         = $params['cpScale'];
         $seasonScale     = $params['seasonScale'];
         $seasonMode      = $params['seasonMode'];
-        $weeklySeason    = $params['weeklySeason'];
+        $weeklySeason    = false;   // hardcode — tidak relevan data bulanan
         $yearlySeason    = $params['yearlySeason'];
         $seasonalityMode = $seasonMode;
 
-        // ── STEP 6: Baca force_retrain dari request ───────────
         $forceRetrain = $this->parseBoolFromString(
             $request->input('force_retrain', 'false')
         );
 
-        // FIX Bug 1: Deteksi user_override berdasarkan apakah parameter
-        // yang dikirim berbeda dari DEFAULT — bukan sekadar sama dengan force_retrain.
-        // user_override = true → Flask skip grid search, langsung pakai params user.
-        // user_override = false → Flask jalankan grid search, pakai best_params.
+        // FIX: Hapus weekly dari override check
         $isUserOverride = (
-            (float) $cpScale      !== (float) self::DEFAULT_CP     ||
-            (float) $seasonScale  !== (float) self::DEFAULT_SS     ||
-            $seasonMode           !== self::DEFAULT_MODE            ||
-            (bool)  $weeklySeason !== self::DEFAULT_WEEKLY         ||
+            (float) $cpScale     !== (float) self::DEFAULT_CP   ||
+            (float) $seasonScale !== (float) self::DEFAULT_SS   ||
+            $seasonMode          !== self::DEFAULT_MODE          ||
             (bool)  $yearlySeason !== self::DEFAULT_YEARLY
         );
 
-        Log::info('[ADMIN] force_retrain=' . ($forceRetrain ? 'TRUE' : 'false')
-            . ' | isUserOverride=' . ($isUserOverride ? 'TRUE' : 'false')
-            . ' | method=' . $request->method());
-
-        Log::info('[ADMIN] Hyperparameters yang akan dikirim ke Flask:', [
-            'cp'            => $cpScale,
-            'season'        => $seasonScale,
-            'mode'          => $seasonMode,
-            'weekly'        => $weeklySeason ? 'true' : 'false',
-            'yearly'        => $yearlySeason ? 'true' : 'false',
-            'weeks'         => $forecastWeeks,
-            'force_retrain' => $forceRetrain ? 'TRUE' : 'false',
-            'user_override' => $isUserOverride ? 'TRUE' : 'false',
-        ]);
-
-        // ── STEP 7: Resolve tanggal ───────────────────────────
         $startDate = ($params['startDate'] && $params['startDate'] >= $dbMinDate)
             ? $params['startDate']
             : $dbMinDate;
@@ -192,8 +141,6 @@ class AdminController extends Controller
             $startDate    = $dbMinDate;
             $endDate      = $queryEndDate;
         }
-
-        Log::info("[ADMIN] Date range → start={$startDate} | end={$queryEndDate}");
 
         // ── Inisialisasi semua variabel output ─────────────────
         $users      = collect();
@@ -216,18 +163,17 @@ class AdminController extends Controller
         $minPrice  = 0;
         $countData = 0;
 
-        $weeklyLabels  = []; $weeklyActual  = []; $weeklyForecast  = []; $weeklyLower  = []; $weeklyUpper  = [];
-        $monthlyLabels = []; $monthlyActual = []; $monthlyForecast = []; $monthlyLower = []; $monthlyUpper = [];
-        $yearlyLabels  = []; $yearlyActual  = []; $yearlyForecast  = []; $yearlyLower  = []; $yearlyUpper  = [];
+        // Chart arrays — actual, forecast (future only), fitted (in-sample yhat), bands
+        $weeklyLabels  = []; $weeklyActual  = []; $weeklyForecast  = []; $weeklyFitted  = []; $weeklyLower  = []; $weeklyUpper  = [];
+        $monthlyLabels = []; $monthlyActual = []; $monthlyForecast = []; $monthlyFitted = []; $monthlyLower = []; $monthlyUpper = [];
+        $yearlyLabels  = []; $yearlyActual  = []; $yearlyForecast  = []; $yearlyFitted  = []; $yearlyLower  = []; $yearlyUpper  = [];
 
-        // ── Tab users ─────────────────────────────────────────
         if ($currentTab === 'users') {
             $users = User::orderBy('created_at', 'desc')
                 ->paginate(10)
                 ->withQueryString();
         }
 
-        // ── Tab manage ────────────────────────────────────────
         if ($currentTab === 'manage' && $selectedKomoditasId) {
             try {
                 $latestData = PriceData::with('komoditas')
@@ -250,9 +196,7 @@ class AdminController extends Controller
             }
         }
 
-        // ============================================================
-        // AMBIL DATA HISTORIS DARI DATABASE
-        // ============================================================
+        // ── Ambil data historis ────────────────────────────────
         $prices = [];
         $dates  = [];
 
@@ -263,8 +207,6 @@ class AdminController extends Controller
                 ->where('harga', '>', 0)
                 ->orderBy('tanggal', 'asc')
                 ->get();
-
-            Log::info("[ADMIN INSIGHT] komoditas_id={$selectedKomoditasId} | nama={$selectedCommodity} | count={$dbData->count()} | periode={$startDate} s/d {$queryEndDate}");
 
             if ($dbData->isNotEmpty()) {
                 $dates = $dbData->pluck('tanggal')
@@ -281,9 +223,7 @@ class AdminController extends Controller
             Log::error('[ADMIN INSIGHT] Gagal ambil price_data: ' . $e->getMessage());
         }
 
-        // ============================================================
-        // FORECASTING — prioritas Flask Prophet, fallback PHP
-        // ============================================================
+        // ── Forecasting ────────────────────────────────────────
         if (count($prices) >= 2) {
 
             $actualData = $prices;
@@ -294,11 +234,10 @@ class AdminController extends Controller
 
             $flaskResult = null;
             if ($countData >= 10) {
-                // FIX Bug 1: kirim $isUserOverride yang dihitung dari deteksi
-                // perubahan parameter — bukan sekadar $forceRetrain
+                // FIX: Ganti $forecastWeeks → $forecastMonths
                 $flaskResult = $this->callFlaskProphet(
                     $selectedKomoditasId,
-                    $forecastWeeks,
+                    $forecastMonths,
                     $cpScale,
                     $seasonScale,
                     $seasonMode,
@@ -307,13 +246,11 @@ class AdminController extends Controller
                     $startDate,
                     $queryEndDate,
                     $forceRetrain,
-                    $isUserOverride  // ← FIX: bukan $forceRetrain lagi
+                    $isUserOverride
                 );
             }
 
             if ($flaskResult !== null) {
-                Log::info("[ADMIN PROPHET] Berhasil: " . count($flaskResult['predictions']) . " prediksi | MAPE=" . $flaskResult['mape']);
-
                 $flaskMetrics = $flaskResult['metrics'];
 
                 $mape     = $flaskResult['mape'];
@@ -331,21 +268,24 @@ class AdminController extends Controller
                 $seasonalityStrength = round((float) ($flaskMetrics['seasonality_strength']  ?? 0), 2);
                 $trendFlexibility    = round((float) ($flaskMetrics['trend_flexibility']     ?? 0), 6);
 
+                // Build chart dengan fitted_values dari Flask
                 $this->buildChartFromProphet(
                     $dates, $prices,
                     $flaskResult['predictions'],
-                    $weeklyLabels,  $weeklyActual,  $weeklyForecast,  $weeklyLower,  $weeklyUpper,
-                    $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper,
-                    $yearlyLabels,  $yearlyActual,  $yearlyForecast,  $yearlyLower,  $yearlyUpper
+                    $flaskResult['fitted_values'],
+                    $weeklyLabels,  $weeklyActual,  $weeklyForecast,  $weeklyFitted,  $weeklyLower,  $weeklyUpper,
+                    $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyFitted, $monthlyLower, $monthlyUpper,
+                    $yearlyLabels,  $yearlyActual,  $yearlyForecast,  $yearlyFitted,  $yearlyLower,  $yearlyUpper
                 );
 
             } else {
                 Log::warning("[ADMIN FALLBACK] Flask tidak tersedia, menggunakan kalkulasi PHP");
 
-                $forecastDays = $forecastWeeks * 7;
+                // FIX: Ganti forecastWeeks * 7 → forecastMonths * 30 untuk fallback
+                $forecastDaysForFallback = $forecastMonths * 30;
 
                 [$forecastDates, $forecastPrices, $forecastLowers, $forecastUppers] =
-                    $this->simpleForecast($dates, $prices, $forecastDays);
+                    $this->simpleForecast($dates, $prices, $forecastDaysForFallback);
 
                 [$mape, $rSquared] = $this->calculateMetricsFallback($prices, $dates);
 
@@ -362,6 +302,11 @@ class AdminController extends Controller
                     $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
                 );
 
+                // Fallback: fitted = actual (tidak ada Prophet yhat)
+                $weeklyFitted  = $weeklyActual;
+                $monthlyFitted = $monthlyActual;
+                $yearlyFitted  = $yearlyActual;
+
                 $lastActual   = collect($monthlyActual)->filter()->last();
                 $lastForecast = collect($monthlyForecast)->filter()->last();
                 if ($lastForecast && $lastActual) {
@@ -371,7 +316,6 @@ class AdminController extends Controller
             }
 
         } else {
-            Log::warning("[ADMIN INSIGHT] Data tidak cukup komoditas_id={$selectedKomoditasId} (count=" . count($prices) . ")");
             $countData = count($prices);
             $avgPrice  = count($prices) > 0 ? $prices[0] : 0;
             $maxPrice  = $avgPrice;
@@ -380,12 +324,7 @@ class AdminController extends Controller
 
         $rSquared = round($rSquared, 3);
 
-        Log::info('[ADMIN] Final → mape=' . $mape
-            . ' | rSquared=' . $rSquared
-            . ' | trendDir=' . $trendDir
-            . ' | force_retrain=' . ($forceRetrain ? 'true' : 'false')
-            . ' | user_override=' . ($isUserOverride ? 'true' : 'false'));
-
+        // FIX: Ganti 'forecastWeeks' → 'forecastMonths' di compact()
         return view('admin_dashboard', compact(
             'role', 'username', 'email',
             'currentTab',
@@ -395,13 +334,13 @@ class AdminController extends Controller
             'startDate', 'endDate',
             'trendDir', 'avgPrice', 'maxPrice', 'minPrice',
             'cpScale', 'seasonScale', 'seasonalityMode', 'seasonMode',
-            'weeklySeason', 'yearlySeason', 'forecastWeeks',
+            'weeklySeason', 'yearlySeason', 'forecastMonths',
             'mape', 'rSquared',
             'inSampleMape', 'intervalWidth', 'changepointCount',
             'seasonalityStrength', 'trendFlexibility',
-            'weeklyLabels',  'weeklyActual',  'weeklyForecast',  'weeklyLower',  'weeklyUpper',
-            'monthlyLabels', 'monthlyActual', 'monthlyForecast', 'monthlyLower', 'monthlyUpper',
-            'yearlyLabels',  'yearlyActual',  'yearlyForecast',  'yearlyLower',  'yearlyUpper',
+            'weeklyLabels',  'weeklyActual',  'weeklyForecast',  'weeklyFitted',  'weeklyLower',  'weeklyUpper',
+            'monthlyLabels', 'monthlyActual', 'monthlyForecast', 'monthlyFitted', 'monthlyLower', 'monthlyUpper',
+            'yearlyLabels',  'yearlyActual',  'yearlyForecast',  'yearlyFitted',  'yearlyLower',  'yearlyUpper',
             'actualData', 'countData'
         ));
     }
@@ -409,41 +348,36 @@ class AdminController extends Controller
     // =========================================================
     // PANGGIL FLASK PROPHET API
     // =========================================================
+    // FIX: Signature — forecastWeeks → forecastMonths, payload frequency='MS'
     private function callFlaskProphet(
         int    $komoditasId,
-        int    $forecastWeeks,
+        int    $forecastMonths,    // ← ganti dari forecastWeeks
         float  $cpScale,
         float  $seasonScale,
         string $seasonMode,
-        bool   $weeklySeason,
+        bool   $weeklySeason,      // diterima tapi diabaikan, selalu false
         bool   $yearlySeason,
         string $startDate      = '',
         string $endDate        = '',
         bool   $forceRetrain   = false,
-        bool   $isUserOverride = false  // FIX Bug 1: dideteksi dari perbandingan params vs default
+        bool   $isUserOverride = false
     ): ?array {
         try {
             $payload = [
                 'commodity_id'            => $komoditasId,
-                'periods'                 => $forecastWeeks * 7,
-                'frequency'               => 'W',
+                'periods'                 => $forecastMonths,  // ← langsung bulan (bukan * 7)
+                'frequency'               => 'MS',             // ← Month Start (bukan 'W')
                 'changepoint_prior_scale' => $cpScale,
                 'seasonality_prior_scale' => $seasonScale,
                 'seasonality_mode'        => $seasonMode,
-                'weekly_seasonality'      => $weeklySeason,
+                'weekly_seasonality'      => false,            // ← hardcode false
                 'yearly_seasonality'      => $yearlySeason,
                 'force_retrain'           => $forceRetrain,
-                // FIX Bug 1: kirim user_override yang benar ke Flask
-                // Flask menggunakan ini untuk:
-                // - true  → skip grid search, langsung train dengan params yang dikirim
-                // - false → jalankan grid search, pakai best_params
                 'user_override'           => $isUserOverride,
             ];
 
             if ($startDate) $payload['start_date'] = $startDate;
             if ($endDate)   $payload['end_date']   = $endDate;
-
-            Log::info("[ADMIN FLASK] Mengirim request ke Flask:", $payload);
 
             $dataCount = PriceData::where('komoditas_id', $komoditasId)
                 ->whereBetween('tanggal', [
@@ -453,17 +387,10 @@ class AdminController extends Controller
                 ->where('harga', '>', 0)
                 ->count();
 
-            // FIX Bug 4: timeout panjang berlaku untuk force_retrain ATAU user_override
-            // Keduanya menyebabkan retrain di Flask yang bisa lama
             $needsLongTimeout = $forceRetrain || $isUserOverride;
             $dynamicTimeout   = $needsLongTimeout
                 ? max(300, min(600, (int) ceil($dataCount / 50) * 20 + 60))
                 : max(60,  min(180, (int) ceil($dataCount / 50) * 5  + 30));
-
-            Log::info("[ADMIN FLASK] data_count={$dataCount}"
-                . " | force_retrain=" . ($forceRetrain ? 'true' : 'false')
-                . " | user_override=" . ($isUserOverride ? 'true' : 'false')
-                . " | timeout={$dynamicTimeout}s");
 
             $response = Http::timeout($dynamicTimeout)
                 ->connectTimeout(10)
@@ -483,6 +410,7 @@ class AdminController extends Controller
 
             $modelMetrics = $data['data']['model_metrics'] ?? [];
             $predictions  = $data['data']['predictions']   ?? [];
+            $fittedValues = $data['data']['fitted_values']  ?? [];
 
             if (empty($predictions)) {
                 Log::warning("[ADMIN FLASK] Prediksi kosong dari Flask");
@@ -493,12 +421,11 @@ class AdminController extends Controller
             $mape     = $modelMetrics['mape']       ?? $modelMetrics['in_sample_mape'] ?? 0.0;
 
             Log::info("[ADMIN FLASK] Berhasil: " . count($predictions)
-                . " prediksi | MAPE={$mape}"
-                . " | coverage={$coverage}"
-                . " | user_override=" . ($isUserOverride ? 'true' : 'false'));
+                . " prediksi | " . count($fittedValues) . " fitted_values | MAPE={$mape}");
 
             return [
                 'predictions'     => $predictions,
+                'fitted_values'   => $fittedValues,
                 'mape'            => round((float) $mape, 2),
                 'r_squared'       => round(min(1.0, max(0.0, (float) $coverage)), 4),
                 'trend_direction' => $modelMetrics['trend_direction'] ?? 'stable',
@@ -524,9 +451,13 @@ class AdminController extends Controller
         array $actualDates,
         array $actualPrices,
         array $predictions,
-        &$weeklyLabels,  &$weeklyActual,  &$weeklyForecast,  &$weeklyLower,  &$weeklyUpper,
-        &$monthlyLabels, &$monthlyActual, &$monthlyForecast, &$monthlyLower, &$monthlyUpper,
-        &$yearlyLabels,  &$yearlyActual,  &$yearlyForecast,  &$yearlyLower,  &$yearlyUpper
+        array $fittedValues,
+        &$weeklyLabels,  &$weeklyActual,  &$weeklyForecast,  &$weeklyFitted,
+        &$weeklyLower,   &$weeklyUpper,
+        &$monthlyLabels, &$monthlyActual, &$monthlyForecast, &$monthlyFitted,
+        &$monthlyLower,  &$monthlyUpper,
+        &$yearlyLabels,  &$yearlyActual,  &$yearlyForecast,  &$yearlyFitted,
+        &$yearlyLower,   &$yearlyUpper
     ): void {
         $forecastDates  = [];
         $forecastPrices = [];
@@ -538,6 +469,14 @@ class AdminController extends Controller
             $forecastPrices[] = (int) round($p['predicted_price']);
             $forecastLowers[] = (int) round($p['lower_bound']);
             $forecastUppers[] = (int) round($p['upper_bound']);
+        }
+
+        $fittedDates  = [];
+        $fittedPrices = [];
+
+        foreach ($fittedValues as $f) {
+            $fittedDates[]  = Carbon::parse($f['date']);
+            $fittedPrices[] = (int) round($f['fitted_price']);
         }
 
         $this->aggregateWeeklyData(
@@ -555,6 +494,88 @@ class AdminController extends Controller
             $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
             $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
         );
+
+        $weeklyFitted  = $this->aggregateFittedToLabels($fittedDates, $fittedPrices, $weeklyLabels,  $weeklyActual,  'week');
+        $monthlyFitted = $this->aggregateFittedToLabels($fittedDates, $fittedPrices, $monthlyLabels, $monthlyActual, 'month');
+        $yearlyFitted  = $this->aggregateFittedToLabels($fittedDates, $fittedPrices, $yearlyLabels,  $yearlyActual,  'year');
+    }
+
+    // =========================================================
+    // AGGREGATE FITTED VALUES KE LABEL YANG SUDAH ADA
+    // =========================================================
+    private function aggregateFittedToLabels(
+        array $fittedDates,
+        array $fittedPrices,
+        array $labels,
+        array $actualAgg,
+        string $granularity
+    ): array {
+        if (empty($fittedDates) || empty($labels)) {
+            return array_fill(0, count($labels), null);
+        }
+
+        $grouped = [];
+        foreach ($fittedDates as $i => $date) {
+            $d = $date instanceof Carbon ? $date : Carbon::parse($date);
+            switch ($granularity) {
+                case 'week':
+                    $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
+                    break;
+                case 'month':
+                    $key = $d->format('Y-m');
+                    break;
+                case 'year':
+                    $key = (string) $d->year;
+                    break;
+                default:
+                    $key = $d->format('Y-m');
+            }
+            $grouped[$key][] = $fittedPrices[$i] ?? null;
+        }
+
+        $result = [];
+        foreach ($labels as $li => $label) {
+            $actualVal = $actualAgg[$li] ?? null;
+
+            if ($actualVal === null) {
+                $result[] = null;
+                continue;
+            }
+
+            $key = null;
+            switch ($granularity) {
+                case 'week':
+                    if (preg_match('/(\d{2})\/(\d{2})\/(\d{4})$/', $label, $m)) {
+                        $d   = Carbon::createFromDate($m[3], $m[2], $m[1]);
+                        $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
+                    }
+                    break;
+                case 'month':
+                    try {
+                        $d   = Carbon::createFromFormat('M Y', $label);
+                        $key = $d->format('Y-m');
+                    } catch (\Exception $e) {
+                        $key = null;
+                    }
+                    break;
+                case 'year':
+                    if (preg_match('/(\d{4})/', $label, $m)) {
+                        $key = $m[1];
+                    }
+                    break;
+            }
+
+            if ($key !== null && isset($grouped[$key])) {
+                $vals     = array_filter($grouped[$key], fn($v) => $v !== null);
+                $result[] = count($vals) > 0
+                    ? (int) round(array_sum($vals) / count($vals))
+                    : null;
+            } else {
+                $result[] = null;
+            }
+        }
+
+        return $result;
     }
 
     // =========================================================
@@ -873,22 +894,6 @@ class AdminController extends Controller
         $rSquared = $ssTot > 0 ? max(0.0, min(1.0, 1 - ($ssRes / $ssTot))) : 0.0;
 
         return [round($mape, 2), round($rSquared, 4)];
-    }
-
-    private function calculateRSquared(array $actual, array $predicted): float
-    {
-        $n = min(count($actual), count($predicted));
-        if ($n < 2) return 0.0;
-        $actualSlice = array_slice($actual, -$n);
-        $predSlice   = array_slice($predicted, 0, $n);
-        $meanActual  = array_sum($actualSlice) / $n;
-        $ssTot = 0.0; $ssRes = 0.0;
-        for ($i = 0; $i < $n; $i++) {
-            $ssTot += pow($actualSlice[$i] - $meanActual, 2);
-            $ssRes += pow($actualSlice[$i] - $predSlice[$i], 2);
-        }
-        if ($ssTot == 0) return 1.0;
-        return round(max(-1.0, min(1.0, 1.0 - ($ssRes / $ssTot))), 3);
     }
 
     private function standardDeviation(array $values): float
@@ -1223,14 +1228,11 @@ class AdminController extends Controller
         try {
             $forceRetrain = $this->parseBoolFromString($request->input('force_retrain', 'false'));
 
-            Log::info("[ADMIN CACHE] Menghapus cache komoditas ID={$id}");
-
             $response = Http::timeout(15)
                 ->connectTimeout(5)
                 ->delete("{$this->flaskUrl}/api/forecast/clear-cache/{$id}");
 
             if (!$response->successful()) {
-                Log::warning("[ADMIN CACHE] Flask error {$response->status()}: " . $response->body());
                 return response()->json([
                     'success' => false,
                     'message' => "Flask mengembalikan status {$response->status()}",
@@ -1250,13 +1252,11 @@ class AdminController extends Controller
             ]);
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error("[ADMIN CACHE] Flask tidak dapat dijangkau: " . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Flask API tidak dapat dijangkau. Pastikan Flask sedang berjalan.',
             ], 503);
         } catch (\Exception $e) {
-            Log::error("[ADMIN CACHE] Error: " . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
@@ -1267,8 +1267,6 @@ class AdminController extends Controller
     public function clearModelCacheAll()
     {
         try {
-            Log::info("[ADMIN CACHE] Menghapus semua cache model");
-
             $response = Http::timeout(30)
                 ->connectTimeout(5)
                 ->delete("{$this->flaskUrl}/api/forecast/clear-cache-all");
@@ -1283,8 +1281,6 @@ class AdminController extends Controller
             $data  = $response->json();
             $count = $data['deleted_count'] ?? 0;
 
-            Log::info("[ADMIN CACHE] {$count} file cache dihapus");
-
             return response()->json([
                 'success'       => true,
                 'message'       => "{$count} cache model berhasil dihapus. Semua model akan dilatih ulang.",
@@ -1292,13 +1288,11 @@ class AdminController extends Controller
             ]);
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            Log::error("[ADMIN CACHE] Flask tidak dapat dijangkau: " . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Flask API tidak dapat dijangkau.',
             ], 503);
         } catch (\Exception $e) {
-            Log::error("[ADMIN CACHE] Error: " . $e->getMessage());
             return response()->json([
                 'success' => false,
                 'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
@@ -1360,8 +1354,7 @@ class AdminController extends Controller
         }
     }
 
-    // FIX Bug 3: triggerForceRetrain sekarang kirim user_override=false
-    // agar Flask menjalankan grid search dengan best params saat retrain dari clear cache
+    // FIX: triggerForceRetrain — payload pakai periods=12, frequency='MS', hapus DEFAULT_WEEKLY
     private function triggerForceRetrain(int $komoditasId): void
     {
         try {
@@ -1373,16 +1366,14 @@ class AdminController extends Controller
 
             $payload = [
                 'commodity_id'            => $komoditasId,
-                'periods'                 => 84,
-                'frequency'               => 'W',
+                'periods'                 => 12,      // ← 12 bulan default (bukan 84 hari)
+                'frequency'               => 'MS',    // ← Month Start (bukan 'W')
                 'changepoint_prior_scale' => self::DEFAULT_CP,
                 'seasonality_prior_scale' => self::DEFAULT_SS,
                 'seasonality_mode'        => self::DEFAULT_MODE,
-                'weekly_seasonality'      => self::DEFAULT_WEEKLY,
+                'weekly_seasonality'      => false,   // ← hardcode false (tidak pakai DEFAULT_WEEKLY)
                 'yearly_seasonality'      => self::DEFAULT_YEARLY,
                 'force_retrain'           => true,
-                // FIX Bug 3: user_override=false → Flask akan jalankan grid search
-                // dan pakai best_params, bukan params default yang di-hardcode di sini
                 'user_override'           => false,
             ];
 
@@ -1391,17 +1382,12 @@ class AdminController extends Controller
                 if ($dateRange->max_date) $payload['end_date']   = $dateRange->max_date;
             }
 
-            Log::info("[ADMIN CACHE] Trigger force retrain ID={$komoditasId} (fire-and-forget)", $payload);
-
-            // Timeout 3 detik disengaja — Flask akan tetap lanjut training
-            // di background meskipun koneksi ini terputus (timeout normal)
             Http::timeout(3)
                 ->connectTimeout(2)
                 ->post("{$this->flaskUrl}/api/forecast/predict-advanced", $payload);
 
         } catch (\Exception $e) {
-            // Ini timeout yang disengaja — bukan error
-            Log::info("[ADMIN CACHE] Trigger retrain dikirim (timeout normal seperti yang diharapkan): " . $e->getMessage());
+            Log::info("[ADMIN CACHE] Trigger retrain dikirim: " . $e->getMessage());
         }
     }
 }

@@ -60,6 +60,15 @@
         color: #e2e8f0 !important;
     }
 
+    .horizon-pill {
+        display: inline-flex; align-items: center; gap: 3px;
+        background: #eef2ff; color: #4338ca;
+        font-size: 9px; font-weight: 700;
+        padding: 2px 7px; border-radius: 9999px;
+        text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    html.dark .horizon-pill { background: #312e81; color: #a5b4fc; }
+
     @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
     .animate-fade-in { animation: fadeIn 0.4s ease-out; }
 </style>
@@ -132,12 +141,12 @@
                 </div>
             </div>
 
-            {{-- Teruskan hyperparameter sebagai hidden agar controller tidak error --}}
+            {{-- Teruskan hyperparameter sebagai hidden --}}
             <input type="hidden" name="changepoint_prior_scale" value="{{ $cpScale }}">
             <input type="hidden" name="seasonality_prior_scale" value="{{ $seasonScale }}">
             <input type="hidden" name="seasonality_mode"        value="{{ $seasonalityMode }}">
-            <input type="hidden" name="weekly"                  value="{{ $weeklyActive ? 'on' : 'off' }}">
             <input type="hidden" name="yearly"                  value="{{ $yearlyActive ? 'on' : 'off' }}">
+            <input type="hidden" name="forecast_months"         value="{{ $forecastMonths ?? 12 }}">
         </form>
     </div>
 
@@ -184,18 +193,18 @@
                 </h3>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                     {{ $selectedCommodity }} — {{ __('messages.data_historis_vs_proyeksi') }}
-                    @if(isset($forecastWeeks))
-                        <span class="ml-2 inline-flex items-center gap-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">
+                    @if(isset($forecastMonths))
+                        <span class="ml-2 horizon-pill">
                             <i class="fas fa-calendar-alt" style="font-size:8px;"></i>
-                            {{ $forecastWeeks }} minggu ke depan
+                            {{ $forecastMonths }} {{ __('messages.bulanan') }}
                         </span>
                     @endif
                 </p>
             </div>
+            {{-- Hanya bulanan & tahunan untuk data bulanan --}}
             <div class="flex bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-1 rounded-md shadow-sm">
-                <button onclick="changeChartPeriod('weekly')"  class="filter-btn active" id="btn-weekly">{{ __('messages.mingguan') }}</button>
-                <button onclick="changeChartPeriod('monthly')" class="filter-btn"         id="btn-monthly">{{ __('messages.bulanan') }}</button>
-                <button onclick="changeChartPeriod('yearly')"  class="filter-btn"         id="btn-yearly">{{ __('messages.tahunan') }}</button>
+                <button onclick="changeChartPeriod('monthly')" class="filter-btn active" id="btn-monthly">{{ __('messages.bulanan') }}</button>
+                <button onclick="changeChartPeriod('yearly')"  class="filter-btn"        id="btn-yearly">{{ __('messages.tahunan') }}</button>
             </div>
         </div>
         <div class="p-6" style="min-height: 450px;">
@@ -209,7 +218,7 @@
                     flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
             <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">
                 {{ __('messages.ringkasan_analisis') }}
-                <span id="selectedPeriodText" class="text-blue-600 dark:text-blue-400">{{ __('messages.mingguan') }}</span>
+                <span id="selectedPeriodText" class="text-blue-600 dark:text-blue-400">{{ __('messages.bulanan') }}</span>
             </h3>
             <div class="flex items-center gap-3">
                 <div class="flex items-center gap-4 text-[10px] text-gray-400 dark:text-gray-500 font-semibold">
@@ -224,6 +233,9 @@
                     <span class="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold px-2 py-0.5 rounded-full">
                         MAPE: {{ number_format($mape, 2) }}%
                     </span>
+                @endif
+                @if(isset($forecastMonths))
+                    <span class="horizon-pill">{{ $forecastMonths }} {{ __('messages.bulanan') }}</span>
                 @endif
             </div>
         </div>
@@ -268,8 +280,8 @@
             Model Prophet dilatih dengan <strong>changepoint_prior_scale={{ $cpScale ?? 0.05 }}</strong>,
             <strong>seasonality_prior_scale={{ $seasonScale ?? 10 }}</strong>,
             mode <strong>{{ $seasonalityMode ?? 'multiplicative' }}</strong>,
-            horizon prediksi <strong>{{ $forecastWeeks ?? 12 }} minggu ke depan</strong>.
-            Nilai MAPE (Cross-Validation 80/20) sebesar <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
+            horizon prediksi <strong>{{ $forecastMonths ?? 12 }} bulan ke depan</strong>.
+            Nilai MAPE sebesar <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
             menunjukkan {{ ($mape ?? 0) < 5 ? 'akurasi sangat baik' : (($mape ?? 0) < 10 ? 'akurasi baik' : 'perlu penyesuaian hyperparameter') }}.
         </p>
     </div>
@@ -280,14 +292,8 @@
 <script>
 const SELECTED_COMMODITY = '{{ addslashes($selectedCommodity ?? "") }}';
 
+// Data hanya monthly & yearly — weekly dihapus
 const chartData = {
-    weekly: {
-        labels:   @json($weeklyLabels   ?? []),
-        actual:   @json($weeklyActual   ?? []),
-        forecast: @json($weeklyForecast ?? []),
-        lower:    @json($weeklyLower    ?? []),
-        upper:    @json($weeklyUpper    ?? [])
-    },
     monthly: {
         labels:   @json($monthlyLabels   ?? []),
         actual:   @json($monthlyActual   ?? []),
@@ -304,12 +310,10 @@ const chartData = {
     }
 };
 
-const forecastSuccess = (chartData.weekly.forecast && chartData.weekly.forecast.some(v => v !== null)) ||
-                        (chartData.monthly.forecast && chartData.monthly.forecast.some(v => v !== null)) ||
-                        (chartData.yearly.forecast && chartData.yearly.forecast.some(v => v !== null));
+const forecastSuccess = (chartData.monthly.forecast && chartData.monthly.forecast.some(v => v !== null)) ||
+                        (chartData.yearly.forecast  && chartData.yearly.forecast.some(v => v !== null));
 
 const trans = {
-    weekly:   "{{ __('messages.mingguan') }}",
     monthly:  "{{ __('messages.bulanan') }}",
     yearly:   "{{ __('messages.tahunan') }}",
     actual:   "{{ __('messages.harga_aktual') }}",
@@ -322,7 +326,8 @@ const trans = {
     noData:   "{{ __('messages.tidak_ada_data') }}",
 };
 
-let currentPeriod = 'weekly';
+// Default tampilan bulanan
+let currentPeriod = 'monthly';
 let mainChart     = null;
 
 const isDark    = () => document.documentElement.classList.contains('dark');
@@ -353,6 +358,7 @@ function checkFlaskStatus() {
         });
 }
 
+/* ── CHART ── */
 function initializeChart() {
     const canvas = document.getElementById('mainChart');
     if (!canvas) return;
@@ -377,27 +383,16 @@ function initializeChart() {
     gradForecast.addColorStop(0, 'rgba(249,115,22,0.15)');
     gradForecast.addColorStop(1, 'rgba(249,115,22,0)');
 
-    // ── BRIDGE: cari index terakhir actual data ──
+    // ── BRIDGE: sambung garis aktual → prediksi di titik terakhir ──
     let lastActualIndex = -1;
     for (let i = data.actual.length - 1; i >= 0; i--) {
         if (data.actual[i] !== null && data.actual[i] !== undefined) {
-            lastActualIndex = i;
-            break;
+            lastActualIndex = i; break;
         }
     }
-
-    const forecastBridged = data.forecast.map((val, i) => {
-        if (i === lastActualIndex) return data.actual[lastActualIndex];
-        return val;
-    });
-    const lowerBridged = data.lower.map((val, i) => {
-        if (i === lastActualIndex) return data.actual[lastActualIndex];
-        return val;
-    });
-    const upperBridged = data.upper.map((val, i) => {
-        if (i === lastActualIndex) return data.actual[lastActualIndex];
-        return val;
-    });
+    const forecastBridged = data.forecast.map((val, i) => i === lastActualIndex ? data.actual[lastActualIndex] : val);
+    const lowerBridged    = data.lower.map((val, i)    => i === lastActualIndex ? data.actual[lastActualIndex] : val);
+    const upperBridged    = data.upper.map((val, i)    => i === lastActualIndex ? data.actual[lastActualIndex] : val);
 
     if (mainChart) mainChart.destroy();
 
@@ -480,8 +475,7 @@ function initializeChart() {
                     grid: { color: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', drawBorder: false },
                     ticks: {
                         color: dark ? '#6b7280' : '#94a3b8',
-                        font: { size: 10, weight: '500' },
-                        padding: 8,
+                        font: { size: 10, weight: '500' }, padding: 8,
                         callback: v => 'Rp ' + v.toLocaleString('id-ID')
                     }
                 },
@@ -537,12 +531,12 @@ function updateInsightTable() {
             label: data.labels[i], actual: data.actual[i],
             forecast: data.forecast[i], lower: data.lower[i], upper: data.upper[i]
         };
-        if (data.actual[i] !== null) actualRows.push(row);
+        if (data.actual[i] !== null)                              actualRows.push(row);
         if (data.actual[i] === null && data.forecast[i] !== null) forecastRows.push(row);
     }
 
-    const display = [...actualRows.slice(-8), ...forecastRows];
-    const lastActualRow = actualRows.slice(-1)[0];
+    const display         = [...actualRows.slice(-8), ...forecastRows];
+    const lastActualRow   = actualRows.slice(-1)[0];
     const displayActualLen = Math.min(actualRows.length, 8);
 
     if (display.length === 0) {
@@ -556,10 +550,10 @@ function updateInsightTable() {
         const isForecastOnly = actual === null && forecast !== null;
 
         let insight = trans.stabil, insightClass = 'insight-stabil';
-        let diff = null, diffColor = 'text-gray-400', diffText = '—';
+        let diffColor = 'text-gray-400', diffText = '—';
 
         if (!isForecastOnly && actual !== null && forecast !== null) {
-            diff = forecast - actual;
+            const diff = forecast - actual;
             const threshold = actual * 0.01;
             if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
             else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
@@ -569,7 +563,7 @@ function updateInsightTable() {
         } else if (!isForecastOnly && actual !== null && forecast === null) {
             const prevActual = idx > 0 ? display[idx - 1].actual : null;
             if (prevActual !== null && prevActual !== 0) {
-                diff = actual - prevActual;
+                const diff = actual - prevActual;
                 const threshold = prevActual * 0.01;
                 if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
                 else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
@@ -613,8 +607,6 @@ function updateInsightTable() {
             </tr>`;
     });
 }
-
-
 
 /* ── METRIC CARDS ── */
 function updateMetricCards() {
