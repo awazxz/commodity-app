@@ -20,7 +20,6 @@ class AdminController extends Controller
 
     private string $flaskUrl;
 
-    // FIX: Hapus DEFAULT_WEEKLY — selalu false untuk data bulanan
     private const DEFAULT_CP              = 0.1;
     private const DEFAULT_SS              = 10.0;
     private const DEFAULT_MODE            = 'additive';
@@ -34,8 +33,9 @@ class AdminController extends Controller
 
     public function index(Request $request)
     {
-        set_time_limit(660);
-        return $this->processForecasting($request);
+        
+            return $this->predict($request);
+
     }
 
     public function beranda()
@@ -44,10 +44,195 @@ class AdminController extends Controller
     }
 
     public function predict(Request $request)
-    {
-        set_time_limit(660);
-        return $this->processForecasting($request);
+{
+    $currentTab = $request->query('tab', $request->input('tab', 'insight'));
+
+    // Tab manage dan users TIDAK perlu Prophet sama sekali
+    if ($currentTab === 'manage') {
+        return $this->processManageTab($request);
     }
+
+    if ($currentTab === 'users') {
+        return $this->processUsersTab($request);
+    }
+
+    // Hanya tab insight yang panggil Flask Prophet
+    set_time_limit(660);
+    return $this->processForecasting($request);
+}
+
+    private function processManageTab(Request $request)
+{
+    $role     = 'admin';
+    $username = auth()->user()->name  ?? 'Administrator BPS';
+    $email    = auth()->user()->email ?? 'admin_riau@bps.go.id';
+    $userId   = auth()->id();
+
+    $currentTab = 'manage';
+
+    try {
+        $commodities = MasterKomoditas::orderBy('nama_komoditas')->get();
+    } catch (\Exception $e) {
+        $commodities = collect();
+    }
+
+    $selectedKomoditasId = (int) (
+        $request->query('komoditas_id')
+        ?? $request->input('komoditas_id')
+        ?? optional($commodities->first())->id
+    );
+
+    $selectedKomoditas = $commodities->first(fn($k) => (int) $k->id === $selectedKomoditasId);
+    $selectedCommodity = $selectedKomoditas
+        ? ($selectedKomoditas->display_name
+           ?? trim($selectedKomoditas->nama_komoditas . ' ' . ($selectedKomoditas->nama_varian ?? '')))
+        : 'Tidak Ada Data';
+
+    // Ambil data untuk tab manage
+    try {
+        $latestData = PriceData::with('komoditas')
+            ->where('komoditas_id', $selectedKomoditasId)
+            ->orderBy('tanggal', 'desc')
+            ->paginate(10, ['*'], 'dataPage')
+            ->withQueryString();
+    } catch (\Exception $e) {
+        $latestData = new \Illuminate\Pagination\LengthAwarePaginator(
+            collect(), 0, 10, 1,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+    }
+
+    try {
+        $dataIssues = $this->scanDataQualityPaginated($selectedKomoditasId, $request);
+    } catch (\Exception $e) {
+        $dataIssues = collect();
+    }
+
+    try {
+        $bobotList = DB::table('bobot_komoditas')
+            ->join('master_komoditas', 'bobot_komoditas.komoditas_id', '=', 'master_komoditas.id')
+            ->select(
+                'bobot_komoditas.id',
+                'bobot_komoditas.komoditas_id',
+                'bobot_komoditas.tanggal',
+                'bobot_komoditas.nilai_bobot',
+                'bobot_komoditas.created_at',
+                DB::raw("CONCAT(master_komoditas.nama_komoditas, IFNULL(CONCAT(' ', master_komoditas.nama_varian), '')) as nama_komoditas")
+            )
+            ->orderBy('bobot_komoditas.tanggal', 'desc')
+            ->orderBy('master_komoditas.nama_komoditas', 'asc')
+            ->paginate(10, ['*'], 'bobotPage')
+            ->withQueryString();
+    } catch (\Exception $e) {
+        $bobotList = collect();
+    }
+
+    // Nilai default untuk variabel yang dibutuhkan view
+    $startDate = Carbon::now()->subYear()->format('Y-m-d');
+    $endDate   = Carbon::now()->format('Y-m-d');
+
+    return view('admin_dashboard', compact(
+        'role', 'username', 'email',
+        'currentTab',
+        'commodities', 'selectedCommodity', 'selectedKomoditasId',
+        'latestData', 'dataIssues', 'bobotList',
+        'startDate', 'endDate',
+    ) + [
+        // Nilai kosong untuk variabel chart yang dibutuhkan view
+        'users'            => collect(),
+        'allData'          => collect(),
+        'trendDir'         => 'Stabil',
+        'avgPrice'         => 0,
+        'maxPrice'         => 0,
+        'minPrice'         => 0,
+        'countData'        => 0,
+        'mape'             => 0,
+        'rSquared'         => 0,
+        'forecastMonths'   => 12,
+        'cpScale'          => 0.1,
+        'seasonScale'      => 10.0,
+        'seasonMode'       => 'additive',
+        'seasonalityMode'  => 'additive',
+        'yearlySeason'     => true,
+        'weeklySeason'     => false,
+        'inSampleMape'     => 0,
+        'intervalWidth'    => 0,
+        'changepointCount' => 0,
+        'seasonalityStrength' => 0,
+        'trendFlexibility' => 0,
+        'weeklyLabels'     => [], 'weeklyActual'   => [], 'weeklyForecast'  => [],
+        'weeklyFitted'     => [], 'weeklyLower'    => [], 'weeklyUpper'     => [],
+        'monthlyLabels'    => [], 'monthlyActual'  => [], 'monthlyForecast' => [],
+        'monthlyFitted'    => [], 'monthlyLower'   => [], 'monthlyUpper'    => [],
+        'yearlyLabels'     => [], 'yearlyActual'   => [], 'yearlyForecast'  => [],
+        'yearlyFitted'     => [], 'yearlyLower'    => [], 'yearlyUpper'     => [],
+        'actualData'       => [],
+    ]);
+}
+
+private function processUsersTab(Request $request)
+{
+    $role     = 'admin';
+    $username = auth()->user()->name  ?? 'Administrator BPS';
+    $email    = auth()->user()->email ?? 'admin_riau@bps.go.id';
+
+    $currentTab = 'users';
+
+    try {
+        $commodities = MasterKomoditas::orderBy('nama_komoditas')->get();
+    } catch (\Exception $e) {
+        $commodities = collect();
+    }
+
+    $selectedKomoditasId = optional($commodities->first())->id ?? 0;
+    $selectedCommodity   = '-';
+
+    $users = User::orderBy('created_at', 'desc')
+        ->paginate(10)
+        ->withQueryString();
+
+    $startDate = Carbon::now()->subYear()->format('Y-m-d');
+    $endDate   = Carbon::now()->format('Y-m-d');
+
+    return view('admin_dashboard', compact(
+        'role', 'username', 'email',
+        'currentTab',
+        'commodities', 'selectedCommodity', 'selectedKomoditasId',
+        'users',
+        'startDate', 'endDate',
+    ) + [
+        'allData'          => collect(),
+        'latestData'       => collect(),
+        'dataIssues'       => collect(),
+        'bobotList'        => collect(),
+        'trendDir'         => 'Stabil',
+        'avgPrice'         => 0,
+        'maxPrice'         => 0,
+        'minPrice'         => 0,
+        'countData'        => 0,
+        'mape'             => 0,
+        'rSquared'         => 0,
+        'forecastMonths'   => 12,
+        'cpScale'          => 0.1,
+        'seasonScale'      => 10.0,
+        'seasonMode'       => 'additive',
+        'seasonalityMode'  => 'additive',
+        'yearlySeason'     => true,
+        'weeklySeason'     => false,
+        'inSampleMape'     => 0,
+        'intervalWidth'    => 0,
+        'changepointCount' => 0,
+        'seasonalityStrength' => 0,
+        'trendFlexibility' => 0,
+        'weeklyLabels'     => [], 'weeklyActual'   => [], 'weeklyForecast'  => [],
+        'weeklyFitted'     => [], 'weeklyLower'    => [], 'weeklyUpper'     => [],
+        'monthlyLabels'    => [], 'monthlyActual'  => [], 'monthlyForecast' => [],
+        'monthlyFitted'    => [], 'monthlyLower'   => [], 'monthlyUpper'    => [],
+        'yearlyLabels'     => [], 'yearlyActual'   => [], 'yearlyForecast'  => [],
+        'yearlyFitted'     => [], 'yearlyLower'    => [], 'yearlyUpper'     => [],
+        'actualData'       => [],
+    ]);
+}
 
     // =========================================================
     // MAIN FORECASTING PROCESSOR
@@ -102,7 +287,6 @@ class AdminController extends Controller
             $this->persistUserPreferences($userId, $request->all());
         }
 
-        // FIX: Ganti forecastWeeks → forecastMonths, weekly hardcode false
         $forecastMonths = max(1, min(24, (int) (
             $request->input('forecast_months')
             ?? $params['forecastMonths']
@@ -111,7 +295,7 @@ class AdminController extends Controller
         $cpScale         = $params['cpScale'];
         $seasonScale     = $params['seasonScale'];
         $seasonMode      = $params['seasonMode'];
-        $weeklySeason    = false;   // hardcode — tidak relevan data bulanan
+        $weeklySeason    = false;
         $yearlySeason    = $params['yearlySeason'];
         $seasonalityMode = $seasonMode;
 
@@ -119,7 +303,6 @@ class AdminController extends Controller
             $request->input('force_retrain', 'false')
         );
 
-        // FIX: Hapus weekly dari override check
         $isUserOverride = (
             (float) $cpScale     !== (float) self::DEFAULT_CP   ||
             (float) $seasonScale !== (float) self::DEFAULT_SS   ||
@@ -142,12 +325,14 @@ class AdminController extends Controller
             $endDate      = $queryEndDate;
         }
 
-        // ── Inisialisasi semua variabel output ─────────────────
         $users      = collect();
         $allData    = collect();
         $latestData = collect();
         $dataIssues = collect();
         $actualData = [];
+
+        // ── Data bobot untuk tab manage ────────────────────────
+        $bobotList = collect();
 
         $mape                = 0.0;
         $rSquared            = 0.0;
@@ -163,7 +348,6 @@ class AdminController extends Controller
         $minPrice  = 0;
         $countData = 0;
 
-        // Chart arrays — actual, forecast (future only), fitted (in-sample yhat), bands
         $weeklyLabels  = []; $weeklyActual  = []; $weeklyForecast  = []; $weeklyFitted  = []; $weeklyLower  = []; $weeklyUpper  = [];
         $monthlyLabels = []; $monthlyActual = []; $monthlyForecast = []; $monthlyFitted = []; $monthlyLower = []; $monthlyUpper = [];
         $yearlyLabels  = []; $yearlyActual  = []; $yearlyForecast  = []; $yearlyFitted  = []; $yearlyLower  = []; $yearlyUpper  = [];
@@ -194,9 +378,28 @@ class AdminController extends Controller
             } catch (\Exception $e) {
                 Log::error('[ADMIN] scanDataQuality error: ' . $e->getMessage());
             }
+
+            // ── Ambil data bobot semua komoditas (paginate) ────
+            try {
+                $bobotList = DB::table('bobot_komoditas')
+                    ->join('master_komoditas', 'bobot_komoditas.komoditas_id', '=', 'master_komoditas.id')
+                    ->select(
+                        'bobot_komoditas.id',
+                        'bobot_komoditas.komoditas_id',
+                        'bobot_komoditas.tanggal',
+                        'bobot_komoditas.nilai_bobot',
+                        'bobot_komoditas.created_at',
+                        DB::raw("CONCAT(master_komoditas.nama_komoditas, IFNULL(CONCAT(' ', master_komoditas.nama_varian), '')) as nama_komoditas")
+                    )
+                    ->orderBy('bobot_komoditas.tanggal', 'desc')
+                    ->orderBy('master_komoditas.nama_komoditas', 'asc')
+                    ->paginate(10, ['*'], 'bobotPage')
+                    ->withQueryString();
+            } catch (\Exception $e) {
+                Log::error('[ADMIN] bobotList error: ' . $e->getMessage());
+            }
         }
 
-        // ── Ambil data historis ────────────────────────────────
         $prices = [];
         $dates  = [];
 
@@ -223,7 +426,6 @@ class AdminController extends Controller
             Log::error('[ADMIN INSIGHT] Gagal ambil price_data: ' . $e->getMessage());
         }
 
-        // ── Forecasting ────────────────────────────────────────
         if (count($prices) >= 2) {
 
             $actualData = $prices;
@@ -234,7 +436,6 @@ class AdminController extends Controller
 
             $flaskResult = null;
             if ($countData >= 10) {
-                // FIX: Ganti $forecastWeeks → $forecastMonths
                 $flaskResult = $this->callFlaskProphet(
                     $selectedKomoditasId,
                     $forecastMonths,
@@ -268,7 +469,6 @@ class AdminController extends Controller
                 $seasonalityStrength = round((float) ($flaskMetrics['seasonality_strength']  ?? 0), 2);
                 $trendFlexibility    = round((float) ($flaskMetrics['trend_flexibility']     ?? 0), 6);
 
-                // Build chart dengan fitted_values dari Flask
                 $this->buildChartFromProphet(
                     $dates, $prices,
                     $flaskResult['predictions'],
@@ -281,7 +481,6 @@ class AdminController extends Controller
             } else {
                 Log::warning("[ADMIN FALLBACK] Flask tidak tersedia, menggunakan kalkulasi PHP");
 
-                // FIX: Ganti forecastWeeks * 7 → forecastMonths * 30 untuk fallback
                 $forecastDaysForFallback = $forecastMonths * 30;
 
                 [$forecastDates, $forecastPrices, $forecastLowers, $forecastUppers] =
@@ -302,7 +501,6 @@ class AdminController extends Controller
                     $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
                 );
 
-                // Fallback: fitted = actual (tidak ada Prophet yhat)
                 $weeklyFitted  = $weeklyActual;
                 $monthlyFitted = $monthlyActual;
                 $yearlyFitted  = $yearlyActual;
@@ -324,13 +522,13 @@ class AdminController extends Controller
 
         $rSquared = round($rSquared, 3);
 
-        // FIX: Ganti 'forecastWeeks' → 'forecastMonths' di compact()
         return view('admin_dashboard', compact(
             'role', 'username', 'email',
             'currentTab',
             'commodities', 'selectedCommodity', 'selectedKomoditasId',
             'users',
             'allData', 'latestData', 'dataIssues',
+            'bobotList',
             'startDate', 'endDate',
             'trendDir', 'avgPrice', 'maxPrice', 'minPrice',
             'cpScale', 'seasonScale', 'seasonalityMode', 'seasonMode',
@@ -346,16 +544,110 @@ class AdminController extends Controller
     }
 
     // =========================================================
+    // BOBOT KOMODITAS — CRUD
+    // =========================================================
+
+    /**
+     * Simpan bobot baru ke tabel bobot_komoditas
+     */
+    public function storeBobot(Request $request)
+    {
+        $request->validate([
+            'komoditas_id' => 'required|exists:master_komoditas,id',
+            'tanggal'      => 'required|date',
+            'nilai_bobot'  => 'required|numeric|min:0',
+        ]);
+
+        try {
+            // Cek apakah sudah ada bobot untuk komoditas + tanggal yang sama
+            $exists = DB::table('bobot_komoditas')
+                ->where('komoditas_id', $request->komoditas_id)
+                ->where('tanggal', $request->tanggal)
+                ->exists();
+
+            if ($exists) {
+                return redirect()
+                    ->route('admin.predict', ['tab' => 'manage', 'komoditas_id' => $request->komoditas_id])
+                    ->with('error', 'Bobot untuk komoditas dan tanggal ini sudah ada.');
+            }
+
+            DB::table('bobot_komoditas')->insert([
+                'komoditas_id' => $request->komoditas_id,
+                'tanggal'      => $request->tanggal,
+                'nilai_bobot'  => $request->nilai_bobot,
+                'created_at'   => now(),
+            ]);
+
+            return redirect()
+                ->route('admin.predict', ['tab' => 'manage', 'komoditas_id' => $request->komoditas_id])
+                ->with('success', 'Bobot komoditas berhasil disimpan!');
+
+        } catch (\Exception $e) {
+            Log::error('[ADMIN] Store Bobot Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menyimpan bobot: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update bobot via AJAX (inline edit)
+     */
+    public function updateBobot(Request $request, $id)
+    {
+        $request->validate([
+            'komoditas_id' => 'required|exists:master_komoditas,id',
+            'tanggal'      => 'required|date',
+            'nilai_bobot'  => 'required|numeric|min:0',
+        ]);
+
+        try {
+            $affected = DB::table('bobot_komoditas')
+                ->where('id', $id)
+                ->update([
+                    'komoditas_id' => $request->komoditas_id,
+                    'tanggal'      => $request->tanggal,
+                    'nilai_bobot'  => $request->nilai_bobot,
+                ]);
+
+            if ($affected === 0) {
+                return response()->json(['success' => false, 'message' => 'Data tidak ditemukan.'], 404);
+            }
+
+            return response()->json(['success' => true, 'message' => 'Bobot berhasil diperbarui!']);
+
+        } catch (\Exception $e) {
+            Log::error('[ADMIN] Update Bobot Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Hapus bobot
+     */
+    public function deleteBobot($id)
+    {
+        try {
+            DB::table('bobot_komoditas')->where('id', $id)->delete();
+
+            return redirect()
+                ->route('admin.predict', ['tab' => 'manage'])
+                ->with('success', 'Bobot berhasil dihapus!');
+
+        } catch (\Exception $e) {
+            Log::error('[ADMIN] Delete Bobot Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menghapus bobot.');
+        }
+    }
+
+    // =========================================================
     // PANGGIL FLASK PROPHET API
     // =========================================================
-    // FIX: Signature — forecastWeeks → forecastMonths, payload frequency='MS'
     private function callFlaskProphet(
         int    $komoditasId,
-        int    $forecastMonths,    // ← ganti dari forecastWeeks
+        int    $forecastMonths,
         float  $cpScale,
         float  $seasonScale,
         string $seasonMode,
-        bool   $weeklySeason,      // diterima tapi diabaikan, selalu false
+        bool   $weeklySeason,
         bool   $yearlySeason,
         string $startDate      = '',
         string $endDate        = '',
@@ -365,12 +657,12 @@ class AdminController extends Controller
         try {
             $payload = [
                 'commodity_id'            => $komoditasId,
-                'periods'                 => $forecastMonths,  // ← langsung bulan (bukan * 7)
-                'frequency'               => 'MS',             // ← Month Start (bukan 'W')
+                'periods'                 => $forecastMonths,
+                'frequency'               => 'MS',
                 'changepoint_prior_scale' => $cpScale,
                 'seasonality_prior_scale' => $seasonScale,
                 'seasonality_mode'        => $seasonMode,
-                'weekly_seasonality'      => false,            // ← hardcode false
+                'weekly_seasonality'      => false,
                 'yearly_seasonality'      => $yearlySeason,
                 'force_retrain'           => $forceRetrain,
                 'user_override'           => $isUserOverride,
@@ -419,9 +711,6 @@ class AdminController extends Controller
 
             $coverage = $modelMetrics['coverage']  ?? 0.95;
             $mape     = $modelMetrics['mape']       ?? $modelMetrics['in_sample_mape'] ?? 0.0;
-
-            Log::info("[ADMIN FLASK] Berhasil: " . count($predictions)
-                . " prediksi | " . count($fittedValues) . " fitted_values | MAPE={$mape}");
 
             return [
                 'predictions'     => $predictions,
@@ -1247,14 +1536,14 @@ class AdminController extends Controller
 
             return response()->json([
                 'success' => $data['success'] ?? true,
-                'message' => $data['message'] ?? 'Cache berhasil dihapus. Model akan dilatih ulang pada prediksi berikutnya.',
+                'message' => $data['message'] ?? 'Cache berhasil dihapus.',
                 'deleted' => $data['deleted'] ?? true,
             ]);
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Flask API tidak dapat dijangkau. Pastikan Flask sedang berjalan.',
+                'message' => 'Flask API tidak dapat dijangkau.',
             ], 503);
         } catch (\Exception $e) {
             return response()->json([
@@ -1283,20 +1572,14 @@ class AdminController extends Controller
 
             return response()->json([
                 'success'       => true,
-                'message'       => "{$count} cache model berhasil dihapus. Semua model akan dilatih ulang.",
+                'message'       => "{$count} cache model berhasil dihapus.",
                 'deleted_count' => $count,
             ]);
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Flask API tidak dapat dijangkau.',
-            ], 503);
+            return response()->json(['success' => false, 'message' => 'Flask API tidak dapat dijangkau.'], 503);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
-            ], 500);
+            return response()->json(['success' => false, 'message' => 'Terjadi kesalahan: ' . $e->getMessage()], 500);
         }
     }
 
@@ -1308,11 +1591,7 @@ class AdminController extends Controller
                 ->get("{$this->flaskUrl}/api/forecast/model-status");
 
             if (!$response->successful()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Flask tidak merespons',
-                    'models'  => [],
-                ], 502);
+                return response()->json(['success' => false, 'message' => 'Flask tidak merespons', 'models' => []], 502);
             }
 
             $data   = $response->json();
@@ -1333,28 +1612,15 @@ class AdminController extends Controller
                 Log::warning("[ADMIN CACHE] Gagal enrichment nama: " . $e->getMessage());
             }
 
-            return response()->json([
-                'success' => true,
-                'models'  => $models,
-                'total'   => count($models),
-            ]);
+            return response()->json(['success' => true, 'models' => $models, 'total' => count($models)]);
 
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Flask tidak dapat dijangkau',
-                'models'  => [],
-            ], 503);
+            return response()->json(['success' => false, 'message' => 'Flask tidak dapat dijangkau', 'models' => []], 503);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage(),
-                'models'  => [],
-            ], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage(), 'models' => []], 500);
         }
     }
 
-    // FIX: triggerForceRetrain — payload pakai periods=12, frequency='MS', hapus DEFAULT_WEEKLY
     private function triggerForceRetrain(int $komoditasId): void
     {
         try {
@@ -1366,12 +1632,12 @@ class AdminController extends Controller
 
             $payload = [
                 'commodity_id'            => $komoditasId,
-                'periods'                 => 12,      // ← 12 bulan default (bukan 84 hari)
-                'frequency'               => 'MS',    // ← Month Start (bukan 'W')
+                'periods'                 => 12,
+                'frequency'               => 'MS',
                 'changepoint_prior_scale' => self::DEFAULT_CP,
                 'seasonality_prior_scale' => self::DEFAULT_SS,
                 'seasonality_mode'        => self::DEFAULT_MODE,
-                'weekly_seasonality'      => false,   // ← hardcode false (tidak pakai DEFAULT_WEEKLY)
+                'weekly_seasonality'      => false,
                 'yearly_seasonality'      => self::DEFAULT_YEARLY,
                 'force_retrain'           => true,
                 'user_override'           => false,
@@ -1382,8 +1648,7 @@ class AdminController extends Controller
                 if ($dateRange->max_date) $payload['end_date']   = $dateRange->max_date;
             }
 
-            Http::timeout(3)
-                ->connectTimeout(2)
+            Http::timeout(3)->connectTimeout(2)
                 ->post("{$this->flaskUrl}/api/forecast/predict-advanced", $payload);
 
         } catch (\Exception $e) {

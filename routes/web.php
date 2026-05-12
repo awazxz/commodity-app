@@ -51,7 +51,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [UserController::class, 'index'])->name('dashboard');
         Route::get('/analisis',  [UserController::class, 'analisis'])->name('analisis');
 
-        // Legacy routes
         Route::get('/olah-data',                       [ForecastingController::class, 'index'])->name('olah-data');
         Route::get('/forecast/data/{komoditas}',        [ForecastingController::class, 'historical'])->name('forecast.data');
         Route::post('/forecast/run/{komoditas}',        [ForecastingController::class, 'run'])->name('forecast.run');
@@ -64,11 +63,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
         Route::match(['GET', 'POST'], '/predict', [AdminController::class, 'predict'])->name('predict');
 
+        // Data harga
         Route::post('/store-data',         [AdminController::class, 'storeData'])->name('storeData');
         Route::put('/update-data/{id}',    [AdminController::class, 'updateData'])->name('updateData');
         Route::delete('/delete-data/{id}', [AdminController::class, 'deleteData'])->name('deleteData');
         Route::post('/clean-data',         [AdminController::class, 'cleanData'])->name('cleanData');
 
+        // ── BOBOT KOMODITAS ──────────────────────────────────────
+        Route::post('/store-bobot',         [AdminController::class, 'storeBobot'])->name('storeBobot');
+        Route::put('/update-bobot/{id}',    [AdminController::class, 'updateBobot'])->name('updateBobot');
+        Route::delete('/delete-bobot/{id}', [AdminController::class, 'deleteBobot'])->name('deleteBobot');
+
+        // User management
         Route::post('/store-user',         [AdminController::class, 'storeUser'])->name('storeUser');
         Route::put('/update-user/{id}',    [AdminController::class, 'updateUser'])->name('updateUser');
         Route::delete('/delete-user/{id}', [AdminController::class, 'deleteUser'])->name('deleteUser');
@@ -86,6 +92,11 @@ Route::middleware('auth')->group(function () {
         });
 
         Route::get('/download-template-dataset', [DatasetController::class, 'downloadTemplate'])->name('downloadTemplate');
+
+        // Cache management
+        Route::delete('/clear-model-cache/{id}', [AdminController::class, 'clearModelCache'])->name('clearModelCache');
+        Route::delete('/clear-model-cache-all',  [AdminController::class, 'clearModelCacheAll'])->name('clearModelCacheAll');
+        Route::get('/flask-model-status',         [AdminController::class, 'flaskModelStatus'])->name('flaskModelStatus');
     });
 
     // ── OPERATOR ROLE ─────────────────────────────────────────────
@@ -98,6 +109,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/clean-data',         [OperatorController::class, 'cleanData'])->name('cleanData');
         Route::get('/download-template',   [DatasetController::class, 'downloadTemplate'])->name('downloadTemplate');
 
+                // ── BOBOT KOMODITAS ──────────────────────────────────────    ← TAMBAHKAN INI
+        Route::post('/store-bobot',         [OperatorController::class, 'storeBobot'])->name('storeBobot');
+        Route::put('/update-bobot/{id}',    [OperatorController::class, 'updateBobot'])->name('updateBobot');
+        Route::delete('/delete-bobot/{id}', [OperatorController::class, 'deleteBobot'])->name('deleteBobot');
         Route::prefix('manajemen-data')->name('manajemen-data.')->group(function () {
             Route::get('/',                  [ManajemenDataController::class, 'index'])->name('index');
             Route::post('/store-manual',     [ManajemenDataController::class, 'storeManual'])->name('store-manual');
@@ -109,60 +124,19 @@ Route::middleware('auth')->group(function () {
             Route::post('/mark-cleaned',     [ManajemenDataController::class, 'markAsCleaned'])->name('mark-cleaned');
             Route::delete('/delete/{id}',    [ManajemenDataController::class, 'deleteData'])->name('delete');
         });
+
+        // Operator boleh akses cache management
+        Route::delete('/clear-model-cache/{id}', [AdminController::class, 'clearModelCache'])->name('clearModelCache');
+        Route::delete('/clear-model-cache-all',  [AdminController::class, 'clearModelCacheAll'])->name('clearModelCacheAll');
+        Route::get('/flask-model-status',         [AdminController::class, 'flaskModelStatus'])->name('flaskModelStatus');
     });
 
     // ── PROFILE ───────────────────────────────────────────────────
-        Route::controller(ProfileController::class)->group(function () {
+    Route::controller(ProfileController::class)->group(function () {
         Route::get('/profile',    'edit')->name('profile.edit');
         Route::patch('/profile',  'update')->name('profile.update');
         Route::delete('/profile', 'destroy')->name('profile.destroy');
     });
-});
-
-
-// ═══════════════════════════════════════════════════════════════
-// TAMBAHKAN KE routes/web.php
-// Letakkan di dalam group middleware auth + admin
-// ═══════════════════════════════════════════════════════════════
-
-// Contoh jika kamu punya group seperti ini:
-// Route::middleware(['auth', 'role:admin,operator'])->group(function () {
-
-    // ── Cache Management ─────────────────────────────────────
-    Route::delete('/admin/clear-model-cache/{id}',
-        [\App\Http\Controllers\AdminController::class, 'clearModelCache']
-    )->name('admin.clearModelCache');
-
-    Route::delete('/admin/clear-model-cache-all',
-        [\App\Http\Controllers\AdminController::class, 'clearModelCacheAll']
-    )->name('admin.clearModelCacheAll');
-
-    Route::get('/admin/flask-model-status',
-        [\App\Http\Controllers\AdminController::class, 'flaskModelStatus']
-    )->name('admin.flaskModelStatus');
-
-// });
-
-
-// ═══════════════════════════════════════════════════════════════
-// JIKA OPERATOR JUGA BISA AKSES, TAMBAHKAN DI GROUP OPERATOR:
-// ═══════════════════════════════════════════════════════════════
-
-Route::middleware(['auth', 'role:operator'])->group(function () {
-
-    // Operator boleh clear cache tapi tidak bisa delete user dll
-    Route::delete('/operator/clear-model-cache/{id}',
-        [\App\Http\Controllers\AdminController::class, 'clearModelCache']
-    )->name('operator.clearModelCache');
-
-    Route::delete('/operator/clear-model-cache-all',
-        [\App\Http\Controllers\AdminController::class, 'clearModelCacheAll']
-    )->name('operator.clearModelCacheAll');
-
-    Route::get('/operator/flask-model-status',
-        [\App\Http\Controllers\AdminController::class, 'flaskModelStatus']
-    )->name('operator.flaskModelStatus');
-
 });
 
 require __DIR__.'/auth.php';

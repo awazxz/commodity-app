@@ -7,6 +7,7 @@ use App\Models\CommodityPrice;
 use App\Models\MasterKomoditas;
 use App\Models\UserPreference;
 use App\Http\Traits\SavesUserPreferences;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
@@ -140,6 +141,7 @@ class OperatorController extends Controller
         $allData    = collect();
         $latestData = collect();
         $dataIssues = collect();
+        $bobotList  = collect();
         $actualData = [];
 
         $mape     = 0.0;
@@ -172,6 +174,26 @@ class OperatorController extends Controller
                 $dataIssues = $this->scanDataQualityPaginated($selectedKomoditasId, $request);
             } catch (\Exception $e) {
                 Log::error('[OPERATOR] scanDataQuality error: ' . $e->getMessage());
+            }
+
+            // ── Ambil data bobot semua komoditas (paginate) ────
+            try {
+                $bobotList = DB::table('bobot_komoditas')
+                    ->join('master_komoditas', 'bobot_komoditas.komoditas_id', '=', 'master_komoditas.id')
+                    ->select(
+                        'bobot_komoditas.id',
+                        'bobot_komoditas.komoditas_id',
+                        'bobot_komoditas.tanggal',
+                        'bobot_komoditas.nilai_bobot',
+                        'bobot_komoditas.created_at',
+                        DB::raw("CONCAT(master_komoditas.nama_komoditas, IFNULL(CONCAT(' ', master_komoditas.nama_varian), '')) as nama_komoditas")
+                    )
+                    ->orderBy('bobot_komoditas.tanggal', 'desc')
+                    ->orderBy('master_komoditas.nama_komoditas', 'asc')
+                    ->paginate(10, ['*'], 'bobotPage')
+                    ->withQueryString();
+            } catch (\Exception $e) {
+                Log::error('[OPERATOR] bobotList error: ' . $e->getMessage());
             }
         }
 
@@ -297,6 +319,7 @@ class OperatorController extends Controller
             'currentTab',
             'commodities', 'selectedCommodity', 'selectedKomoditasId',
             'allData', 'latestData', 'dataIssues',
+            'bobotList',
             'startDate', 'endDate',
             'trendDir', 'avgPrice', 'maxPrice', 'countData',
             'cpScale', 'seasonScale', 'seasonMode',
@@ -308,6 +331,101 @@ class OperatorController extends Controller
             'yearlyLabels',  'yearlyActual',  'yearlyForecast',  'yearlyFitted',  'yearlyLower',  'yearlyUpper',
             'actualData', 'countData'
         ));
+    }
+
+    // =========================================================
+    // BOBOT KOMODITAS — CRUD
+    // =========================================================
+
+    /**
+     * Simpan bobot baru ke tabel bobot_komoditas
+     */
+    public function storeBobot(Request $request)
+    {
+        $request->validate([
+            'komoditas_id' => 'required|exists:master_komoditas,id',
+            'tanggal'      => 'required|date',
+            'nilai_bobot'  => 'required|numeric|min:0',
+        ]);
+
+        try {
+            // Cek apakah sudah ada bobot untuk komoditas + tanggal yang sama
+            $exists = DB::table('bobot_komoditas')
+                ->where('komoditas_id', $request->komoditas_id)
+                ->where('tanggal', $request->tanggal)
+                ->exists();
+
+            if ($exists) {
+                return redirect()
+                    ->route('operator.predict', ['tab' => 'manage', 'komoditas_id' => $request->komoditas_id])
+                    ->with('error', 'Bobot untuk komoditas dan tanggal ini sudah ada.');
+            }
+
+            DB::table('bobot_komoditas')->insert([
+                'komoditas_id' => $request->komoditas_id,
+                'tanggal'      => $request->tanggal,
+                'nilai_bobot'  => $request->nilai_bobot,
+                'created_at'   => now(),
+            ]);
+
+            return redirect()
+                ->route('operator.predict', ['tab' => 'manage', 'komoditas_id' => $request->komoditas_id])
+                ->with('success', 'Bobot komoditas berhasil disimpan!');
+
+        } catch (\Exception $e) {
+            Log::error('[OPERATOR] Store Bobot Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menyimpan bobot: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Update bobot via AJAX (inline edit)
+     */
+    public function updateBobot(Request $request, $id)
+    {
+        $request->validate([
+            'komoditas_id' => 'required|exists:master_komoditas,id',
+            'tanggal'      => 'required|date',
+            'nilai_bobot'  => 'required|numeric|min:0',
+        ]);
+
+        try {
+            $affected = DB::table('bobot_komoditas')
+                ->where('id', $id)
+                ->update([
+                    'komoditas_id' => $request->komoditas_id,
+                    'tanggal'      => $request->tanggal,
+                    'nilai_bobot'  => $request->nilai_bobot,
+                ]);
+
+            if ($affected === 0) {
+                return response()->json(['success' => false, 'message' => 'Data tidak ditemukan.'], 404);
+            }
+
+            return response()->json(['success' => true, 'message' => 'Bobot berhasil diperbarui!']);
+
+        } catch (\Exception $e) {
+            Log::error('[OPERATOR] Update Bobot Error: ' . $e->getMessage());
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Hapus bobot
+     */
+    public function deleteBobot($id)
+    {
+        try {
+            DB::table('bobot_komoditas')->where('id', $id)->delete();
+
+            return redirect()
+                ->route('operator.predict', ['tab' => 'manage'])
+                ->with('success', 'Bobot berhasil dihapus!');
+
+        } catch (\Exception $e) {
+            Log::error('[OPERATOR] Delete Bobot Error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menghapus bobot.');
+        }
     }
 
     // =========================================================

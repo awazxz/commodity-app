@@ -140,7 +140,6 @@
         background: #1a202c; color: #4b5563; border-color: #1a202c;
     }
 
-    /* Badge khusus untuk baris in-sample (fitted) */
     .fitted-badge {
         display: inline-block;
         margin-left: 4px;
@@ -160,7 +159,6 @@
         border-color: #1e40af;
     }
 
-    /* Baris historis dengan fitted value */
     .row-has-fitted {
         border-left: 2px solid #bfdbfe;
     }
@@ -394,7 +392,7 @@
                         <p class="text-[9px] text-gray-400 dark:text-gray-500 mt-1">{{ __('messages.metode_musiman') }}</p>
                     </div>
 
-                    {{-- Horizon Prediksi (Bulanan) --}}
+                    {{-- Horizon Prediksi --}}
                     <div class="pt-2 border-t border-gray-100 dark:border-gray-700">
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase">{{ __('messages.periode_prediksi') }}</span>
@@ -416,7 +414,7 @@
                         </div>
                     </div>
 
-                    {{-- Toggle Yearly Seasonality saja --}}
+                    {{-- Toggle Yearly Seasonality --}}
                     <div class="space-y-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                         <label class="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase block mb-2">{{ __('messages.komponen_musiman') }}</label>
 
@@ -532,7 +530,6 @@
                         </span>
                     </p>
                 </div>
-                {{-- Filter: hanya Bulanan & Tahunan --}}
                 <div class="flex bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-1 rounded-md shadow-sm">
                     <button onclick="changeChartPeriod('monthly')" class="filter-btn active" id="btn-monthly">{{ __('messages.bulanan') }}</button>
                     <button onclick="changeChartPeriod('yearly')"  class="filter-btn border-none" id="btn-yearly">{{ __('messages.tahunan') }}</button>
@@ -556,7 +553,6 @@
                 <span class="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold px-2 py-0.5 rounded-full">
                     MAPE: {{ number_format($mape ?? 0, 2) }}%
                 </span>
-                {{-- Legend keterangan baris --}}
                 <span class="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500">
                     <span class="inline-block w-2 h-2 rounded-sm bg-blue-200 dark:bg-blue-900 border border-blue-400"></span>
                     In-sample fit
@@ -626,6 +622,7 @@
 @if($currentTab == 'manage')
     <div class="space-y-6 animate-fade-in">
 
+        {{-- ── BARIS 1: Tambah Data Baru + Riwayat Database ── --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1">
                 <div class="card-standard p-6">
@@ -833,7 +830,206 @@
             </div>
         </div>
 
-        {{-- Data Cleaning --}}
+        {{-- ── BARIS 2: Form Input Bobot + Tabel Riwayat Bobot ── --}}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {{-- Form Input Bobot --}}
+            <div class="lg:col-span-1">
+                <div class="card-standard p-6">
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">
+                        </i>Input Bobot Komoditas
+                    </h3>
+
+                    <form action="{{ route('admin.storeBobot') }}" method="POST" class="space-y-4">
+                        @csrf
+
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
+                                Komoditas
+                            </label>
+                            <select name="komoditas_id" required
+                                    class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-900 dark:text-gray-100 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="">— Pilih Komoditas —</option>
+                                @foreach($commodities ?? [] as $kom)
+                                    <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
+                                        {{ $kom->display_name ?? trim($kom->nama_komoditas . ' ' . ($kom->nama_varian ?? '')) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
+                                Tanggal
+                            </label>
+                            <input type="date" name="tanggal" required
+                                   class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
+                                Nilai Bobot
+                            </label>
+                            <input type="number" name="nilai_bobot"
+                                   placeholder="Contoh: 3.4116"
+                                   step="0.0001" min="0" required
+                                   class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-indigo-500">
+                            <p class="text-[9px] text-gray-400 dark:text-gray-500 mt-1">Gunakan titik (.) sebagai pemisah desimal</p>
+                        </div>
+
+                        <button type="submit"
+                                class="w-full bg-indigo-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-indigo-700 transition-all">
+                            Simpan Bobot
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {{-- Tabel Riwayat Bobot --}}
+            <div class="lg:col-span-2">
+                <div class="card-standard overflow-hidden flex flex-col" style="height: fit-content;">
+                    <div class="p-5 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">
+                            </i>Riwayat Bobot Komoditas
+                        </h3>
+                        <span class="text-xs text-gray-400 dark:text-gray-500">
+                            {{ ($bobotList instanceof \Illuminate\Pagination\LengthAwarePaginator ? $bobotList->total() : count($bobotList ?? [])) }} entri
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar" style="max-height: 450px;">
+                        <table class="w-full text-left">
+                            <thead class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 z-10">
+                                <tr class="text-xs text-gray-400 dark:text-gray-500 uppercase font-bold">
+                                    <th class="px-5 py-4">Komoditas</th>
+                                    <th class="px-5 py-4">Tanggal</th>
+                                    <th class="px-5 py-4 text-right">Nilai Bobot</th>
+                                    <th class="px-5 py-4 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
+                                @forelse($bobotList ?? [] as $bobot)
+                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors" id="bobot-row-{{ $bobot->id }}">
+
+                                        <td class="px-5 py-4 font-bold text-indigo-600 dark:text-indigo-400">
+                                            <span class="bobot-komoditas-view">{{ $bobot->nama_komoditas }}</span>
+                                            <select class="bobot-komoditas-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+                                                    data-id="{{ $bobot->id }}" onchange="autoSaveBobot({{ $bobot->id }})">
+                                                @foreach($commodities ?? [] as $kom)
+                                                    <option value="{{ $kom->id }}" {{ $bobot->komoditas_id == $kom->id ? 'selected' : '' }}>
+                                                        {{ $kom->display_name ?? trim($kom->nama_komoditas . ' ' . ($kom->nama_varian ?? '')) }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+
+                                        <td class="px-5 py-4 text-gray-500 dark:text-gray-400">
+                                            <span class="bobot-tanggal-view">
+                                                {{ \Carbon\Carbon::parse($bobot->tanggal)->format('d/m/Y') }}
+                                            </span>
+                                            <input type="date"
+                                                   class="bobot-tanggal-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+                                                   value="{{ $bobot->tanggal }}"
+                                                   data-id="{{ $bobot->id }}"
+                                                   onchange="autoSaveBobot({{ $bobot->id }})">
+                                        </td>
+
+                                        <td class="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                            <span class="bobot-nilai-view">{{ number_format($bobot->nilai_bobot, 10, '.', '') }}</span>
+                                            <input type="number" step="0.0001" min="0"
+                                                   class="bobot-nilai-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs text-right focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+                                                   value="{{ $bobot->nilai_bobot }}"
+                                                   data-id="{{ $bobot->id }}"
+                                                   onchange="autoSaveBobot({{ $bobot->id }})">
+                                        </td>
+
+                                        <td class="px-5 py-4">
+                                            <div class="flex items-center justify-center gap-3">
+                                                <button type="button" onclick="toggleBobotEdit({{ $bobot->id }})"
+                                                        class="bobot-edit-btn text-indigo-500 hover:text-indigo-700 transition-colors text-sm font-medium">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+                                                <button type="button" onclick="toggleBobotEdit({{ $bobot->id }})"
+                                                        class="bobot-done-btn hidden text-green-500 hover:text-green-700 transition-colors text-sm font-medium">
+                                                    <i class="fas fa-check"></i> Selesai
+                                                </button>
+                                                <form action="{{ route('admin.deleteBobot', $bobot->id) }}" method="POST"
+                                                      onsubmit="return confirm('Hapus data bobot ini?')"
+                                                      class="inline bobot-delete-form">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit"
+                                                            class="text-red-400 hover:text-red-600 transition-colors text-sm font-medium">
+                                                        <i class="fas fa-trash"></i> Hapus
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="p-12 text-center">
+                                            <div class="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
+                                                <i class="fas fa-weight-hanging text-3xl opacity-30"></i>
+                                                <p class="text-sm font-medium">Belum ada data bobot</p>
+                                                <p class="text-xs">Gunakan form di kiri untuk menambahkan bobot</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if(isset($bobotList) && $bobotList instanceof \Illuminate\Pagination\LengthAwarePaginator && $bobotList->hasPages())
+                        <div class="px-6 py-4 border-t dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30 flex items-center justify-between">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                Menampilkan {{ $bobotList->firstItem() ?? 0 }}–{{ $bobotList->lastItem() ?? 0 }}
+                                dari {{ $bobotList->total() }} data
+                            </div>
+                            <div class="flex items-center gap-1">
+                                @if($bobotList->onFirstPage())
+                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
+                                @else
+                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->previousPageUrl() }}" class="pg-btn">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                @endif
+                                @php
+                                    $curBobot   = $bobotList->currentPage();
+                                    $lastBobot  = $bobotList->lastPage();
+                                    $startBobot = max(1, $curBobot - 2);
+                                    $endBobot   = min($lastBobot, $curBobot + 2);
+                                @endphp
+                                @if($startBobot > 1)
+                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url(1) }}" class="pg-btn">1</a>
+                                    @if($startBobot > 2)<span class="px-1 text-gray-400 text-xs">…</span>@endif
+                                @endif
+                                @for($p = $startBobot; $p <= $endBobot; $p++)
+                                    @if($p == $curBobot)
+                                        <span class="pg-btn pg-btn-active">{{ $p }}</span>
+                                    @else
+                                        <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url($p) }}" class="pg-btn">{{ $p }}</a>
+                                    @endif
+                                @endfor
+                                @if($endBobot < $lastBobot)
+                                    @if($endBobot < $lastBobot - 1)<span class="px-1 text-gray-400 text-xs">…</span>@endif
+                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url($lastBobot) }}" class="pg-btn">{{ $lastBobot }}</a>
+                                @endif
+                                @if($bobotList->hasMorePages())
+                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->nextPageUrl() }}" class="pg-btn">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                @else
+                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-right"></i></span>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        {{-- ── BARIS 3: Data Cleaning + Hasil Pemindaian ── --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1">
                 <div class="card-standard p-6" style="height: fit-content;">
@@ -1194,9 +1390,6 @@
 <script>
 const CURRENT_TAB        = '{{ $currentTab ?? "insight" }}';
 const SELECTED_COMMODITY = '{{ addslashes($selectedCommodity ?? "") }}';
-
-// MAPE rate dari PHP untuk estimasi rentang in-sample
-// Minimal 1% agar rentang tidak nol, maksimal 50% agar tidak terlalu lebar
 const MAPE_RATE = Math.min(0.50, Math.max(0.01, {{ ($mape ?? 5) / 100 }}));
 
 const trans = {
@@ -1248,25 +1441,21 @@ function updateVal(hiddenId, displayId, val, decimals) {
     if (hiddenId === 'hidden_cp')     document.getElementById('preview_cp').textContent     = parsed.toFixed(decimals);
     if (hiddenId === 'hidden_season') document.getElementById('preview_season').textContent = parsed.toFixed(decimals);
 }
-
 function updateMode(value) {
     document.getElementById('hidden_mode').value = value;
     document.getElementById('preview_mode').textContent = value;
 }
-
 function updateToggle(hiddenId, isChecked) {
     const stringVal = isChecked ? 'true' : 'false';
     document.getElementById(hiddenId).value = stringVal;
     if (hiddenId === 'hidden_yearly') document.getElementById('preview_yearly').textContent = stringVal;
 }
-
 function updateForecastMonths(val) {
     const months = parseInt(val);
     document.getElementById('hidden_forecast_months').value = months;
     document.getElementById('fm_display_text').textContent  = months + ' ' + trans.bulan;
     document.getElementById('preview_fm').textContent       = months;
 }
-
 function markParamDirty() {
     parametersDirty = true;
     const indicator = document.getElementById('param-changed-indicator');
@@ -1274,14 +1463,10 @@ function markParamDirty() {
     const notice = document.getElementById('param-dirty-notice');
     if (notice) notice.classList.remove('hidden');
     const btn = document.getElementById('btn-update');
-    if (btn) {
-        btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-        btn.classList.add('bg-orange-500', 'hover:bg-orange-600');
-    }
+    if (btn) { btn.classList.remove('bg-blue-600','hover:bg-blue-700'); btn.classList.add('bg-orange-500','hover:bg-orange-600'); }
     const previewBox = document.getElementById('param-preview-box');
     if (previewBox) previewBox.classList.add('param-dirty');
 }
-
 function clearParamDirty() {
     parametersDirty = false;
     const indicator = document.getElementById('param-changed-indicator');
@@ -1289,126 +1474,88 @@ function clearParamDirty() {
     const notice = document.getElementById('param-dirty-notice');
     if (notice) notice.classList.add('hidden');
     const btn = document.getElementById('btn-update');
-    if (btn) {
-        btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-        btn.classList.remove('bg-orange-500', 'hover:bg-orange-600');
-    }
+    if (btn) { btn.classList.add('bg-blue-600','hover:bg-blue-700'); btn.classList.remove('bg-orange-500','hover:bg-orange-600'); }
     const previewBox = document.getElementById('param-preview-box');
     if (previewBox) previewBox.classList.remove('param-dirty');
 }
-
 function triggerSubmit() {
     const cp     = document.getElementById('hidden_cp');
     const season = document.getElementById('hidden_season');
     const mode   = document.getElementById('hidden_mode');
     const yearly = document.getElementById('hidden_yearly');
     const fm     = document.getElementById('hidden_forecast_months');
-
-    if (!cp || !season || !mode || !yearly || !fm) {
-        document.getElementById('mainForm')?.submit();
-        return;
-    }
-
+    if (!cp || !season || !mode || !yearly || !fm) { document.getElementById('mainForm')?.submit(); return; }
     if (!cp.value || isNaN(parseFloat(cp.value)))         cp.value = '0.1';
     if (!season.value || isNaN(parseFloat(season.value))) season.value = '10.0';
     if (!mode.value)   mode.value = 'additive';
     if (yearly.value !== 'true' && yearly.value !== 'false') yearly.value = 'true';
     if (!fm.value || isNaN(parseInt(fm.value)) || parseInt(fm.value) < 1) fm.value = '12';
-
-    if (parametersDirty) {
-        document.getElementById('hidden_force_retrain').value = 'true';
-    }
-
+    if (parametersDirty) document.getElementById('hidden_force_retrain').value = 'true';
     const icon = document.getElementById('btn-refresh-icon');
     if (icon) icon.classList.add('fa-spin');
-
     document.getElementById('real-content').classList.add('opacity-30');
     const overlay = document.getElementById('skeleton-overlay');
     if (overlay) { overlay.classList.remove('hidden'); overlay.style.opacity = '1'; }
-
     clearParamDirty();
     setTimeout(() => document.getElementById('mainForm').submit(), 100);
 }
-
 function triggerReset() {
     const defaults = { cp: 0.1, season: 10.0, mode: 'additive', yearly: true, fm: 12 };
-
-    document.getElementById('range_cp').value          = defaults.cp;
-    document.getElementById('hidden_cp').value         = defaults.cp;
-    document.getElementById('cp_display').textContent  = defaults.cp.toFixed(3);
-    document.getElementById('preview_cp').textContent  = defaults.cp;
-
-    document.getElementById('range_season').value          = defaults.season;
-    document.getElementById('hidden_season').value         = defaults.season;
-    document.getElementById('season_display').textContent  = defaults.season.toFixed(2);
-    document.getElementById('preview_season').textContent  = defaults.season;
-
-    document.getElementById('select_mode').value         = defaults.mode;
-    document.getElementById('hidden_mode').value         = defaults.mode;
-    document.getElementById('preview_mode').textContent  = defaults.mode;
-
-    document.getElementById('checkbox_yearly').checked    = defaults.yearly;
-    document.getElementById('hidden_yearly').value        = 'true';
+    document.getElementById('range_cp').value = defaults.cp;
+    document.getElementById('hidden_cp').value = defaults.cp;
+    document.getElementById('cp_display').textContent = defaults.cp.toFixed(3);
+    document.getElementById('preview_cp').textContent = defaults.cp;
+    document.getElementById('range_season').value = defaults.season;
+    document.getElementById('hidden_season').value = defaults.season;
+    document.getElementById('season_display').textContent = defaults.season.toFixed(2);
+    document.getElementById('preview_season').textContent = defaults.season;
+    document.getElementById('select_mode').value = defaults.mode;
+    document.getElementById('hidden_mode').value = defaults.mode;
+    document.getElementById('preview_mode').textContent = defaults.mode;
+    document.getElementById('checkbox_yearly').checked = defaults.yearly;
+    document.getElementById('hidden_yearly').value = 'true';
     document.getElementById('preview_yearly').textContent = 'true';
-
-    document.getElementById('range_fm').value               = defaults.fm;
+    document.getElementById('range_fm').value = defaults.fm;
     document.getElementById('hidden_forecast_months').value = defaults.fm;
-    document.getElementById('fm_display_text').textContent  = defaults.fm + ' ' + trans.bulan;
-    document.getElementById('preview_fm').textContent       = defaults.fm;
-
+    document.getElementById('fm_display_text').textContent = defaults.fm + ' ' + trans.bulan;
+    document.getElementById('preview_fm').textContent = defaults.fm;
     document.getElementById('hidden_force_retrain').value = 'true';
-
     clearParamDirty();
-
     const icon = document.getElementById('btn-refresh-icon');
     if (icon) icon.classList.add('fa-spin');
-
     document.getElementById('real-content').classList.add('opacity-30');
     const overlay = document.getElementById('skeleton-overlay');
     if (overlay) { overlay.classList.remove('hidden'); overlay.style.opacity = '1'; }
-
     setTimeout(() => document.getElementById('mainForm').submit(), 100);
 }
-
 function handleCommodityChange() { triggerSubmit(); }
-
 function showFileName(input) {
     const display = document.getElementById('file-name-display');
-    if (input.files && input.files[0]) {
-        display.textContent = input.files[0].name;
-        display.classList.add('text-blue-600');
-    }
+    if (input.files && input.files[0]) { display.textContent = input.files[0].name; display.classList.add('text-blue-600'); }
 }
-
 function switchInputMode(mode) {
     const formSingle = document.getElementById('form-single');
     const formBulk   = document.getElementById('form-bulk');
     const btnSingle  = document.getElementById('btn-tab-single');
     const btnBulk    = document.getElementById('btn-tab-bulk');
-
     if (mode === 'single') {
-        formSingle.style.display = 'block';
-        formBulk.style.display   = 'none';
+        formSingle.style.display = 'block'; formBulk.style.display = 'none';
         btnSingle.className = 'text-blue-600 border-b-2 border-blue-600 text-xs uppercase tracking-wider pb-1 font-semibold';
         btnBulk.className   = 'text-gray-400 dark:text-gray-500 text-xs uppercase tracking-wider pb-1 font-semibold';
     } else {
-        formSingle.style.display = 'none';
-        formBulk.style.display   = 'block';
+        formSingle.style.display = 'none'; formBulk.style.display = 'block';
         btnSingle.className = 'text-gray-400 dark:text-gray-500 text-xs uppercase tracking-wider pb-1 font-semibold';
         btnBulk.className   = 'text-blue-600 border-b-2 border-blue-600 text-xs uppercase tracking-wider pb-1 font-semibold';
     }
 }
-
 function checkFlaskStatus() {
     const badge = document.getElementById('flask-status-badge');
     const dot   = document.getElementById('flask-status-dot');
     const text  = document.getElementById('flask-status-text');
     if (!badge) return;
-
     badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-gray-100 text-gray-500';
     dot.className   = 'w-2 h-2 rounded-full bg-gray-400 animate-pulse';
     text.textContent = 'Memeriksa...';
-
     fetch('/api/flask-health')
         .then(res => {
             if (res.ok) {
@@ -1423,7 +1570,6 @@ function checkFlaskStatus() {
             text.textContent = '{{ __("messages.api_offline") }}';
         });
 }
-
 checkFlaskStatus();
 setInterval(checkFlaskStatus, 30000);
 
@@ -1431,368 +1577,127 @@ setInterval(checkFlaskStatus, 30000);
 function initializeChart() {
     const canvas = document.getElementById('mainChart');
     if (!canvas) return;
-
     const ctx  = canvas.getContext('2d');
     const data = chartData[currentPeriod];
     const dark = isDark();
-
     if (!data.labels || data.labels.length === 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#9ca3af';
-        ctx.font      = '14px Inter, sans-serif';
-        ctx.textAlign = 'center';
+        ctx.fillStyle = '#9ca3af'; ctx.font = '14px Inter, sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(trans.tidakAdaData, canvas.width / 2, canvas.height / 2);
         return;
     }
-
     const gradientActual = ctx.createLinearGradient(0, 0, 0, 400);
     gradientActual.addColorStop(0, dark ? 'rgba(96,165,250,0.20)' : 'rgba(4,50,119,0.10)');
     gradientActual.addColorStop(1, 'rgba(4,50,119,0)');
-
     if (mainChart) mainChart.destroy();
-
     mainChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: data.labels,
             datasets: [
-                {
-                    label: trans.rentangBawah,
-                    data: data.lower,
-                    backgroundColor: 'rgba(249,115,22,0.08)',
-                    borderColor: 'transparent',
-                    fill: '+1',
-                    pointRadius: 0,
-                    tension: 0.4,
-                    spanGaps: false,
-                    order: 5
-                },
-                {
-                    label: trans.rentangAtas,
-                    data: data.upper,
-                    borderColor: 'transparent',
-                    fill: false,
-                    pointRadius: 0,
-                    tension: 0.4,
-                    spanGaps: false,
-                    order: 5
-                },
-                {
-                    label: trans.hargaAktual,
-                    data: data.actual,
-                    borderColor: dark ? '#60a5fa' : '#043277',
-                    backgroundColor: gradientActual,
-                    borderWidth: 2.5,
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 6,
-                    pointHoverBackgroundColor: dark ? '#60a5fa' : '#043277',
-                    pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 2,
-                    spanGaps: false,
-                    order: 2
-                },
-                {
-                    label: trans.hargaProyeksi,
-                    data: data.fitted,
-                    borderColor: '#f97316',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    fill: false,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 5,
-                    pointHoverBackgroundColor: '#f97316',
-                    pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 2,
-                    spanGaps: false,
-                    order: 3
-                },
-                {
-                    label: trans.proyeksi + ' (' + trans.bulanan + ')',
-                    data: data.forecast,
-                    borderColor: '#f97316',
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    borderDash: [6, 3],
-                    fill: false,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    pointHoverRadius: 5,
-                    pointHoverBackgroundColor: '#f97316',
-                    pointHoverBorderColor: '#fff',
-                    pointHoverBorderWidth: 2,
-                    spanGaps: false,
-                    order: 3
-                }
+                { label: trans.rentangBawah, data: data.lower, backgroundColor: 'rgba(249,115,22,0.08)', borderColor: 'transparent', fill: '+1', pointRadius: 0, tension: 0.4, spanGaps: false, order: 5 },
+                { label: trans.rentangAtas,  data: data.upper, borderColor: 'transparent', fill: false, pointRadius: 0, tension: 0.4, spanGaps: false, order: 5 },
+                { label: trans.hargaAktual, data: data.actual, borderColor: dark ? '#60a5fa' : '#043277', backgroundColor: gradientActual, borderWidth: 2.5, fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 6, pointHoverBackgroundColor: dark ? '#60a5fa' : '#043277', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, spanGaps: false, order: 2 },
+                { label: trans.hargaProyeksi, data: data.fitted, borderColor: '#f97316', backgroundColor: 'transparent', borderWidth: 2, fill: false, tension: 0.4, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#f97316', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, spanGaps: false, order: 3 },
+                { label: trans.proyeksi + ' (' + trans.bulanan + ')', data: data.forecast, borderColor: '#f97316', backgroundColor: 'transparent', borderWidth: 2, borderDash: [6, 3], fill: false, tension: 0.4, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: '#f97316', pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2, spanGaps: false, order: 3 }
             ]
         },
         options: {
-            responsive: true,
-            maintainAspectRatio: false,
+            responsive: true, maintainAspectRatio: false,
             interaction: { intersect: false, mode: 'index' },
             plugins: {
-                title: {
-                    display: true,
-                    text: SELECTED_COMMODITY,
-                    color: dark ? '#93c5fd' : '#043277',
-                    font: { size: 14, weight: '600', family: 'Inter' },
-                    padding: { top: 10, bottom: 15 }
-                },
-                legend: {
-                    display: true, position: 'top', align: 'end',
-                    labels: {
-                        boxWidth: 12, boxHeight: 12, padding: 15,
-                        font: { size: 11, weight: '600' },
-                        color: dark ? '#9ca3af' : '#64748b',
-                        usePointStyle: true, pointStyle: 'circle',
-                        filter: (item) =>
-                            item.text !== trans.rentangBawah &&
-                            item.text !== trans.rentangAtas
-                    }
-                },
-                tooltip: {
-                    backgroundColor: dark ? '#1e2433' : '#ffffff',
-                    titleColor: dark ? '#f3f4f6' : '#1e293b',
-                    bodyColor: dark ? '#9ca3af' : '#475569',
-                    borderColor: dark ? '#374151' : '#e2e8f0',
-                    borderWidth: 1, padding: 12, boxPadding: 6, usePointStyle: true,
-                    titleFont: { size: 11, weight: '600' },
-                    bodyFont: { size: 11 },
-                    callbacks: {
-                        label: function(context) {
-                            if (context.dataset.label === trans.rentangBawah ||
-                                context.dataset.label === trans.rentangAtas) return null;
-                            let label = context.dataset.label || '';
-                            if (label) label += ': ';
-                            if (context.parsed.y !== null) {
-                                label += new Intl.NumberFormat('id-ID', {
-                                    style: 'currency', currency: 'IDR',
-                                    maximumFractionDigits: 0
-                                }).format(context.parsed.y);
-                            }
-                            return label;
-                        }
-                    }
+                title: { display: true, text: SELECTED_COMMODITY, color: dark ? '#93c5fd' : '#043277', font: { size: 14, weight: '600', family: 'Inter' }, padding: { top: 10, bottom: 15 } },
+                legend: { display: true, position: 'top', align: 'end', labels: { boxWidth: 12, boxHeight: 12, padding: 15, font: { size: 11, weight: '600' }, color: dark ? '#9ca3af' : '#64748b', usePointStyle: true, pointStyle: 'circle', filter: (item) => item.text !== trans.rentangBawah && item.text !== trans.rentangAtas } },
+                tooltip: { backgroundColor: dark ? '#1e2433' : '#ffffff', titleColor: dark ? '#f3f4f6' : '#1e293b', bodyColor: dark ? '#9ca3af' : '#475569', borderColor: dark ? '#374151' : '#e2e8f0', borderWidth: 1, padding: 12, boxPadding: 6, usePointStyle: true, titleFont: { size: 11, weight: '600' }, bodyFont: { size: 11 },
+                    callbacks: { label: function(context) {
+                        if (context.dataset.label === trans.rentangBawah || context.dataset.label === trans.rentangAtas) return null;
+                        let label = context.dataset.label || '';
+                        if (label) label += ': ';
+                        if (context.parsed.y !== null) label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(context.parsed.y);
+                        return label;
+                    }}
                 }
             },
             scales: {
-                y: {
-                    beginAtZero: false,
-                    grid: { color: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', drawBorder: false },
-                    ticks: {
-                        color: dark ? '#6b7280' : '#94a3b8',
-                        font: { size: 10, weight: '500' }, padding: 8,
-                        callback: value => 'Rp ' + value.toLocaleString('id-ID')
-                    }
-                },
-                x: {
-                    grid: { display: false },
-                    ticks: {
-                        color: dark ? '#6b7280' : '#94a3b8',
-                        font: { size: 9, weight: '500' },
-                        maxRotation: 45, minRotation: 0,
-                        autoSkip: true, maxTicksLimit: 15
-                    }
-                }
+                y: { beginAtZero: false, grid: { color: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', drawBorder: false }, ticks: { color: dark ? '#6b7280' : '#94a3b8', font: { size: 10, weight: '500' }, padding: 8, callback: value => 'Rp ' + value.toLocaleString('id-ID') } },
+                x: { grid: { display: false }, ticks: { color: dark ? '#6b7280' : '#94a3b8', font: { size: 9, weight: '500' }, maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 15 } }
             }
         }
     });
 }
 
 function changeChartPeriod(period) {
-    currentPeriod      = period;
-    insightCurrentPage = 1;
-
+    currentPeriod = period; insightCurrentPage = 1;
     document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
     const activeBtn = document.getElementById('btn-' + period);
     if (activeBtn) activeBtn.classList.add('active');
-
     const periodText = { 'monthly': trans.bulanan, 'yearly': trans.tahunan };
     const el = document.getElementById('selectedPeriodText');
     if (el) el.textContent = periodText[period] || '';
-
     initializeChart();
     updateInsightTable(1);
 }
 
-// ─── TABEL INSIGHT — PERBAIKAN UTAMA ─────────────────────────
 function updateInsightTable(page) {
-    page = page || 1;
-    insightCurrentPage = page;
-
+    page = page || 1; insightCurrentPage = page;
     const data  = chartData[currentPeriod];
     const tbody = document.getElementById('insightTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
-
     if (!data.labels || data.labels.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">${trans.tidakAdaData}</td></tr>`;
-        renderInsightPagination(1, 1, 0, 0, 0);
-        return;
+        renderInsightPagination(1, 1, 0, 0, 0); return;
     }
-
-    // ── Pisahkan baris historis dan baris proyeksi ──
-    const actualRows   = [];
-    const forecastRows = [];
-
+    const actualRows = [], forecastRows = [];
     for (let i = 0; i < data.labels.length; i++) {
-        const row = {
-            label:    data.labels[i],
-            actual:   data.actual[i]   !== undefined ? data.actual[i]   : null,
-            forecast: data.forecast[i] !== undefined ? data.forecast[i] : null,
-            // FIX 1: sertakan fitted dari chartData
-            fitted:   (data.fitted && data.fitted[i] !== undefined && data.fitted[i] !== null)
-                          ? data.fitted[i]
-                          : null,
-            lower:    data.lower[i]    !== undefined ? data.lower[i]    : null,
-            upper:    data.upper[i]    !== undefined ? data.upper[i]    : null,
-        };
-
-        if (row.actual !== null)        actualRows.push(row);
-        else if (row.forecast !== null) forecastRows.push(row);
+        const row = { label: data.labels[i], actual: data.actual[i] !== undefined ? data.actual[i] : null, forecast: data.forecast[i] !== undefined ? data.forecast[i] : null, fitted: (data.fitted && data.fitted[i] !== undefined && data.fitted[i] !== null) ? data.fitted[i] : null, lower: data.lower[i] !== undefined ? data.lower[i] : null, upper: data.upper[i] !== undefined ? data.upper[i] : null };
+        if (row.actual !== null) actualRows.push(row); else if (row.forecast !== null) forecastRows.push(row);
     }
-
-    const allRows    = actualRows.concat(forecastRows);
-    const totalRows  = allRows.length;
+    const allRows = actualRows.concat(forecastRows), totalRows = allRows.length;
     const totalPages = Math.max(1, Math.ceil(totalRows / INSIGHT_PER_PAGE));
-    const safePage   = Math.min(Math.max(1, page), totalPages);
-    const startIdx   = (safePage - 1) * INSIGHT_PER_PAGE;
-    const endIdx     = Math.min(startIdx + INSIGHT_PER_PAGE, totalRows);
-    const display    = allRows.slice(startIdx, endIdx);
-
-    // Simpan referensi baris actual terakhir untuk perbandingan proyeksi
-    const lastActual  = actualRows.length > 0 ? actualRows[actualRows.length - 1] : null;
+    const safePage = Math.min(Math.max(1, page), totalPages);
+    const startIdx = (safePage - 1) * INSIGHT_PER_PAGE, endIdx = Math.min(startIdx + INSIGHT_PER_PAGE, totalRows);
+    const display = allRows.slice(startIdx, endIdx);
+    const lastActual = actualRows.length > 0 ? actualRows[actualRows.length - 1] : null;
     const actualCount = actualRows.length;
-
-    if (display.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">${trans.tidakAdaData}</td></tr>`;
-        renderInsightPagination(1, 1, 0, 0, 0);
-        return;
-    }
-
+    if (display.length === 0) { tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">${trans.tidakAdaData}</td></tr>`; renderInsightPagination(1, 1, 0, 0, 0); return; }
     var html = '';
-
     for (var idx = 0; idx < display.length; idx++) {
-        var row       = display[idx];
-        var globalIdx = startIdx + idx;
-
-        // Tentukan apakah baris ini adalah proyeksi masa depan
+        var row = display[idx], globalIdx = startIdx + idx;
         var isForecastOnly = (row.actual === null && row.forecast !== null);
-
-        // ── FIX 2: Pilih sumber nilai prediksi yang tepat ──
-        // - Baris historis  → gunakan row.fitted (hasil in-sample Prophet)
-        // - Baris proyeksi  → gunakan row.forecast (prediksi masa depan)
         var displayForecast = isForecastOnly ? row.forecast : row.fitted;
-
-        // ── FIX 3: Tentukan rentang bawah/atas ──
-        // - Baris proyeksi  → gunakan lower/upper dari Flask (sudah ada)
-        // - Baris historis  → estimasi dari fitted ± MAPE jika lower/upper null
-        var displayLower = row.lower;
-        var displayUpper = row.upper;
-
+        var displayLower = row.lower, displayUpper = row.upper;
         if (!isForecastOnly && displayForecast !== null) {
-            if (displayLower === null || displayLower === undefined) {
-                // Estimasi rentang menggunakan MAPE sebagai proxy error
-                displayLower = Math.round(displayForecast * (1 - MAPE_RATE));
-            }
-            if (displayUpper === null || displayUpper === undefined) {
-                displayUpper = Math.round(displayForecast * (1 + MAPE_RATE));
-            }
+            if (displayLower === null || displayLower === undefined) displayLower = Math.round(displayForecast * (1 - MAPE_RATE));
+            if (displayUpper === null || displayUpper === undefined) displayUpper = Math.round(displayForecast * (1 + MAPE_RATE));
         }
-
-        // ── FIX 4: Hitung selisih dengan sumber yang benar ──
         var diff = null;
-        if (!isForecastOnly && row.actual !== null && displayForecast !== null) {
-            // Selisih in-sample: fitted - actual (positif = model overestimate)
-            diff = displayForecast - row.actual;
-        } else if (isForecastOnly && lastActual !== null && lastActual.actual !== null) {
-            // Selisih proyeksi: forecast - last actual
-            diff = row.forecast - lastActual.actual;
-        }
-
-        // ── FIX 5: Tentukan indikator tren dengan logika yang tepat ──
-        var insight      = trans.stabil;
-        var insightClass = 'insight-stabil';
-
+        if (!isForecastOnly && row.actual !== null && displayForecast !== null) diff = displayForecast - row.actual;
+        else if (isForecastOnly && lastActual !== null && lastActual.actual !== null) diff = row.forecast - lastActual.actual;
+        var insight = trans.stabil, insightClass = 'insight-stabil';
         if (!isForecastOnly && diff !== null) {
-            // Baris historis: bandingkan fitted vs actual
-            // threshold 1% dari actual untuk menghindari false positive
             var threshold = (row.actual || 1) * 0.01;
-            if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
+            if (diff > threshold) { insight = trans.naik; insightClass = 'insight-naik'; }
             else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
-            // else: stabil (selisih di bawah 1%)
         } else if (isForecastOnly && lastActual !== null) {
-            var diffFromLast = row.forecast - lastActual.actual;
-            var threshLast   = (lastActual.actual || 1) * 0.01;
-            if (diffFromLast > threshLast)       { insight = trans.naik;     insightClass = 'insight-naik'; }
-            else if (diffFromLast < -threshLast) { insight = trans.turun;    insightClass = 'insight-turun'; }
-            else                                 { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
-        } else if (isForecastOnly) {
-            insight = trans.proyeksi; insightClass = 'insight-stabil';
-        }
-
-        // Warna selisih
-        var diffColor = diff !== null
-            ? (diff > 0
-                ? 'text-red-600 dark:text-red-400'
-                : diff < 0
-                    ? 'text-emerald-600 dark:text-emerald-400'
-                    : 'text-gray-500 dark:text-gray-400')
-            : 'text-gray-300 dark:text-gray-600';
-
-        var diffText = diff !== null
-            ? (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID')
-            : '—';
-
-        // Styling baris
-        var rowBg     = isForecastOnly
-            ? 'bg-orange-50/30 dark:bg-orange-900/5'
-            : (displayForecast !== null ? 'row-has-fitted' : '');
-
-        var borderTop = (globalIdx === actualCount && forecastRows.length > 0)
-            ? 'border-t-2 border-orange-200 dark:border-orange-800'
-            : '';
-
-        // Badge di kolom periode
+            var diffFromLast = row.forecast - lastActual.actual, threshLast = (lastActual.actual || 1) * 0.01;
+            if (diffFromLast > threshLast) { insight = trans.naik; insightClass = 'insight-naik'; }
+            else if (diffFromLast < -threshLast) { insight = trans.turun; insightClass = 'insight-turun'; }
+            else { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
+        } else if (isForecastOnly) { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
+        var diffColor = diff !== null ? (diff > 0 ? 'text-red-600 dark:text-red-400' : diff < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400') : 'text-gray-300 dark:text-gray-600';
+        var diffText = diff !== null ? (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID') : '—';
+        var rowBg = isForecastOnly ? 'bg-orange-50/30 dark:bg-orange-900/5' : (displayForecast !== null ? 'row-has-fitted' : '');
+        var borderTop = (globalIdx === actualCount && forecastRows.length > 0) ? 'border-t-2 border-orange-200 dark:border-orange-800' : '';
         var periodBadge = '';
-        if (isForecastOnly) {
-            periodBadge = `<span class="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded font-bold uppercase">${trans.proyeksi}</span>`;
-        } else if (displayForecast !== null) {
-            // Badge biru kecil untuk baris historis yang punya fitted value
-            periodBadge = `<span class="fitted-badge">fit</span>`;
-        }
-
-        // ── Render nilai sel ──
-        var actualCell = row.actual !== null
-            ? 'Rp ' + Math.round(row.actual).toLocaleString('id-ID')
-            : '<span class="text-gray-300 dark:text-gray-600">—</span>';
-
-        var forecastCell = displayForecast !== null
-            ? 'Rp ' + Math.round(displayForecast).toLocaleString('id-ID')
-            : '<span class="text-gray-300 dark:text-gray-600">—</span>';
-
-        var lowerCell = displayLower !== null
-            ? 'Rp ' + Math.round(displayLower).toLocaleString('id-ID')
-            : '<span class="text-gray-300 dark:text-gray-600">—</span>';
-
-        var upperCell = displayUpper !== null
-            ? 'Rp ' + Math.round(displayUpper).toLocaleString('id-ID')
-            : '<span class="text-gray-300 dark:text-gray-600">—</span>';
-
-        html +=
-            `<tr class="${rowBg} ${borderTop} border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/80 dark:hover:bg-gray-700/50 animate-fade-in">` +
-                `<td class="px-6 py-4 text-gray-500 dark:text-gray-400 font-medium text-xs">${row.label}${periodBadge}</td>` +
-                `<td class="px-6 py-4 text-right text-xs font-medium text-gray-800 dark:text-gray-200">${actualCell}</td>` +
-                `<td class="px-6 py-4 text-right text-blue-600 dark:text-blue-400 font-bold text-xs">${forecastCell}</td>` +
-                `<td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">${lowerCell}</td>` +
-                `<td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">${upperCell}</td>` +
-                `<td class="px-6 py-4 text-right text-xs ${diffColor} font-medium">${diffText}</td>` +
-                `<td class="px-6 py-4 text-center"><span class="insight-badge ${insightClass}">${insight}</span></td>` +
-            `</tr>`;
+        if (isForecastOnly) periodBadge = `<span class="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded font-bold uppercase">${trans.proyeksi}</span>`;
+        else if (displayForecast !== null) periodBadge = `<span class="fitted-badge">fit</span>`;
+        var actualCell    = row.actual !== null ? 'Rp ' + Math.round(row.actual).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>';
+        var forecastCell  = displayForecast !== null ? 'Rp ' + Math.round(displayForecast).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>';
+        var lowerCell     = displayLower !== null ? 'Rp ' + Math.round(displayLower).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>';
+        var upperCell     = displayUpper !== null ? 'Rp ' + Math.round(displayUpper).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>';
+        html += `<tr class="${rowBg} ${borderTop} border-b border-gray-50 dark:border-gray-700 hover:bg-gray-50/80 dark:hover:bg-gray-700/50 animate-fade-in"><td class="px-6 py-4 text-gray-500 dark:text-gray-400 font-medium text-xs">${row.label}${periodBadge}</td><td class="px-6 py-4 text-right text-xs font-medium text-gray-800 dark:text-gray-200">${actualCell}</td><td class="px-6 py-4 text-right text-blue-600 dark:text-blue-400 font-bold text-xs">${forecastCell}</td><td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">${lowerCell}</td><td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">${upperCell}</td><td class="px-6 py-4 text-right text-xs ${diffColor} font-medium">${diffText}</td><td class="px-6 py-4 text-center"><span class="insight-badge ${insightClass}">${insight}</span></td></tr>`;
     }
-
     tbody.innerHTML = html;
     renderInsightPagination(safePage, totalPages, totalRows, startIdx + 1, endIdx);
 }
@@ -1800,148 +1705,60 @@ function updateInsightTable(page) {
 function renderInsightPagination(currentPage, totalPages, totalRows, fromRow, toRow) {
     var container = document.getElementById('insightPagination');
     if (!container) return;
-
     if (totalPages <= 1) { container.innerHTML = ''; return; }
-
-    var btnBase     = 'pg-btn';
-    var btnActive   = 'pg-btn pg-btn-active';
-    var btnDisabled = 'pg-btn pg-btn-disabled';
-
-    var prev = currentPage > 1
-        ? `<button onclick="updateInsightTable(${currentPage - 1})" class="${btnBase}"><i class="fas fa-chevron-left"></i></button>`
-        : `<span class="${btnDisabled}"><i class="fas fa-chevron-left"></i></span>`;
-
-    var next = currentPage < totalPages
-        ? `<button onclick="updateInsightTable(${currentPage + 1})" class="${btnBase}"><i class="fas fa-chevron-right"></i></button>`
-        : `<span class="${btnDisabled}"><i class="fas fa-chevron-right"></i></span>`;
-
-    var delta = 2;
-    var start = Math.max(1, currentPage - delta);
-    var end   = Math.min(totalPages, currentPage + delta);
-    var pages = '';
-
-    if (start > 1) {
-        pages += `<button onclick="updateInsightTable(1)" class="${btnBase}">1</button>`;
-        if (start > 2) pages += '<span class="px-1 text-gray-400 text-xs">…</span>';
-    }
-    for (var p = start; p <= end; p++) {
-        pages += `<button onclick="updateInsightTable(${p})" class="${p === currentPage ? btnActive : btnBase}">${p}</button>`;
-    }
-    if (end < totalPages) {
-        if (end < totalPages - 1) pages += '<span class="px-1 text-gray-400 text-xs">…</span>';
-        pages += `<button onclick="updateInsightTable(${totalPages})" class="${btnBase}">${totalPages}</button>`;
-    }
-
-    container.innerHTML =
-        `<div class="flex items-center justify-between px-6 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30">` +
-            `<span class="text-xs text-gray-500 dark:text-gray-400">Menampilkan ${fromRow}–${toRow} dari ${totalRows} data</span>` +
-            `<div class="flex items-center gap-1">${prev}${pages}${next}</div>` +
-        `</div>`;
+    var btnBase = 'pg-btn', btnActive = 'pg-btn pg-btn-active', btnDisabled = 'pg-btn pg-btn-disabled';
+    var prev = currentPage > 1 ? `<button onclick="updateInsightTable(${currentPage - 1})" class="${btnBase}"><i class="fas fa-chevron-left"></i></button>` : `<span class="${btnDisabled}"><i class="fas fa-chevron-left"></i></span>`;
+    var next = currentPage < totalPages ? `<button onclick="updateInsightTable(${currentPage + 1})" class="${btnBase}"><i class="fas fa-chevron-right"></i></button>` : `<span class="${btnDisabled}"><i class="fas fa-chevron-right"></i></span>`;
+    var delta = 2, start = Math.max(1, currentPage - delta), end = Math.min(totalPages, currentPage + delta), pages = '';
+    if (start > 1) { pages += `<button onclick="updateInsightTable(1)" class="${btnBase}">1</button>`; if (start > 2) pages += '<span class="px-1 text-gray-400 text-xs">…</span>'; }
+    for (var p = start; p <= end; p++) pages += `<button onclick="updateInsightTable(${p})" class="${p === currentPage ? btnActive : btnBase}">${p}</button>`;
+    if (end < totalPages) { if (end < totalPages - 1) pages += '<span class="px-1 text-gray-400 text-xs">…</span>'; pages += `<button onclick="updateInsightTable(${totalPages})" class="${btnBase}">${totalPages}</button>`; }
+    container.innerHTML = `<div class="flex items-center justify-between px-6 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30"><span class="text-xs text-gray-500 dark:text-gray-400">Menampilkan ${fromRow}–${toRow} dari ${totalRows} data</span><div class="flex items-center gap-1">${prev}${pages}${next}</div></div>`;
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    if (CURRENT_TAB === 'insight') {
-        changeChartPeriod('monthly');
-        checkFlaskStatus();
-    }
+    if (CURRENT_TAB === 'insight') { changeChartPeriod('monthly'); checkFlaskStatus(); }
 });
 
-// Re-render chart saat dark mode berubah
-const _obs = new MutationObserver(() => {
-    if (CURRENT_TAB === 'insight' && mainChart) initializeChart();
-});
+const _obs = new MutationObserver(() => { if (CURRENT_TAB === 'insight' && mainChart) initializeChart(); });
 _obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
 // ── SweetAlert: Tambah User ──────────────────────────────────
 function validateTambahUser(event) {
     event.preventDefault();
-    const name     = document.getElementById('input-name').value.trim();
-    const email    = document.getElementById('input-email').value.trim();
+    const name = document.getElementById('input-name').value.trim();
+    const email = document.getElementById('input-email').value.trim();
     const password = document.getElementById('input-password').value;
-    const role     = document.getElementById('input-role').value;
-
-    if (!name) {
-        Swal.fire({ icon: 'warning', title: 'Nama Wajib Diisi', text: 'Silakan masukkan nama lengkap pengguna.', confirmButtonColor: '#f97316' });
-        return false;
-    }
+    const role = document.getElementById('input-role').value;
+    if (!name) { Swal.fire({ icon: 'warning', title: 'Nama Wajib Diisi', text: 'Silakan masukkan nama lengkap pengguna.', confirmButtonColor: '#f97316' }); return false; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email || !emailRegex.test(email)) {
-        Swal.fire({ icon: 'warning', title: 'Email Tidak Valid', text: 'Silakan masukkan alamat email yang benar.', confirmButtonColor: '#f97316' });
-        return false;
-    }
-    if (password.length < 8) {
-        Swal.fire({
-            icon: 'error', title: 'Password Terlalu Pendek!',
-            html: `<p class="text-gray-600">Password harus minimal <strong class="text-red-600">8 karakter</strong>.<br>Saat ini: <strong class="text-red-500">${password.length} karakter</strong></p>`,
-            confirmButtonColor: '#ef4444', confirmButtonText: 'Perbaiki Password'
-        }).then(() => { document.getElementById('input-password').focus(); });
-        return false;
-    }
-    Swal.fire({
-        icon: 'question', title: 'Konfirmasi Buat Pengguna',
-        html: `<div class="text-left text-sm space-y-2 mt-2">
-            <div class="flex gap-2"><span class="text-gray-400 w-20">Nama</span><span class="font-semibold">: ${name}</span></div>
-            <div class="flex gap-2"><span class="text-gray-400 w-20">Email</span><span class="font-semibold">: ${email}</span></div>
-            <div class="flex gap-2"><span class="text-gray-400 w-20">Role</span><span class="font-semibold">: ${role}</span></div>
-        </div>`,
-        showCancelButton: true,
-        confirmButtonColor: '#f97316', cancelButtonColor: '#9ca3af',
-        confirmButtonText: '<i class="fas fa-user-plus mr-1"></i> Ya, Buat!', cancelButtonText: 'Batal'
-    }).then((result) => {
-        if (result.isConfirmed) document.getElementById('formTambahUser').submit();
-    });
+    if (!email || !emailRegex.test(email)) { Swal.fire({ icon: 'warning', title: 'Email Tidak Valid', text: 'Silakan masukkan alamat email yang benar.', confirmButtonColor: '#f97316' }); return false; }
+    if (password.length < 8) { Swal.fire({ icon: 'error', title: 'Password Terlalu Pendek!', html: `<p class="text-gray-600">Password harus minimal <strong class="text-red-600">8 karakter</strong>.<br>Saat ini: <strong class="text-red-500">${password.length} karakter</strong></p>`, confirmButtonColor: '#ef4444', confirmButtonText: 'Perbaiki Password' }).then(() => { document.getElementById('input-password').focus(); }); return false; }
+    Swal.fire({ icon: 'question', title: 'Konfirmasi Buat Pengguna', html: `<div class="text-left text-sm space-y-2 mt-2"><div class="flex gap-2"><span class="text-gray-400 w-20">Nama</span><span class="font-semibold">: ${name}</span></div><div class="flex gap-2"><span class="text-gray-400 w-20">Email</span><span class="font-semibold">: ${email}</span></div><div class="flex gap-2"><span class="text-gray-400 w-20">Role</span><span class="font-semibold">: ${role}</span></div></div>`, showCancelButton: true, confirmButtonColor: '#f97316', cancelButtonColor: '#9ca3af', confirmButtonText: '<i class="fas fa-user-plus mr-1"></i> Ya, Buat!', cancelButtonText: 'Batal' }).then((result) => { if (result.isConfirmed) document.getElementById('formTambahUser').submit(); });
     return false;
 }
-
 function checkPasswordStrength(password) {
-    const bar  = document.getElementById('password-strength-bar');
-    const text = document.getElementById('password-strength-text');
+    const bar = document.getElementById('password-strength-bar'), text = document.getElementById('password-strength-text');
     if (!bar || !text) return;
     const len = password.length;
     if (len === 0) { bar.style.width = '0%'; text.textContent = ''; return; }
-
     let strength = 0;
-    if (len >= 8)  strength++;
-    if (len >= 12) strength++;
-    if (/[A-Z]/.test(password))         strength++;
-    if (/[0-9]/.test(password))         strength++;
-    if (/[^A-Za-z0-9]/.test(password)) strength++;
-
-    const levels = [
-        { width: '20%',  color: 'bg-red-500',    label: '⚠️ Sangat Lemah', textColor: 'text-red-500' },
-        { width: '40%',  color: 'bg-orange-500', label: '😐 Lemah',         textColor: 'text-orange-500' },
-        { width: '60%',  color: 'bg-yellow-500', label: '🙂 Cukup',         textColor: 'text-yellow-600' },
-        { width: '80%',  color: 'bg-blue-500',   label: '👍 Kuat',          textColor: 'text-blue-500' },
-        { width: '100%', color: 'bg-green-500',  label: '🔒 Sangat Kuat',   textColor: 'text-green-600' },
-    ];
+    if (len >= 8) strength++; if (len >= 12) strength++;
+    if (/[A-Z]/.test(password)) strength++; if (/[0-9]/.test(password)) strength++; if (/[^A-Za-z0-9]/.test(password)) strength++;
+    const levels = [{ width: '20%', color: 'bg-red-500', label: '⚠️ Sangat Lemah', textColor: 'text-red-500' }, { width: '40%', color: 'bg-orange-500', label: '😐 Lemah', textColor: 'text-orange-500' }, { width: '60%', color: 'bg-yellow-500', label: '🙂 Cukup', textColor: 'text-yellow-600' }, { width: '80%', color: 'bg-blue-500', label: '👍 Kuat', textColor: 'text-blue-500' }, { width: '100%', color: 'bg-green-500', label: '🔒 Sangat Kuat', textColor: 'text-green-600' }];
     const lvl = levels[Math.min(strength, levels.length - 1)];
-    bar.style.width  = lvl.width;
-    bar.className    = `h-full rounded-full transition-all duration-300 ${lvl.color}`;
-    text.textContent = lvl.label;
-    text.className   = `text-[10px] mt-1 font-semibold ${lvl.textColor}`;
+    bar.style.width = lvl.width; bar.className = `h-full rounded-full transition-all duration-300 ${lvl.color}`; text.textContent = lvl.label; text.className = `text-[10px] mt-1 font-semibold ${lvl.textColor}`;
 }
-
 function togglePasswordVisibility() {
-    const input = document.getElementById('input-password');
-    const icon  = document.getElementById('eye-icon');
-    if (input.type === 'password') { input.type = 'text';     icon.classList.replace('fa-eye', 'fa-eye-slash'); }
-    else                           { input.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); }
+    const input = document.getElementById('input-password'), icon = document.getElementById('eye-icon');
+    if (input.type === 'password') { input.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-slash'); }
+    else { input.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); }
 }
-
 function confirmDeleteUser(id, name) {
-    Swal.fire({
-        icon: 'warning', title: 'Hapus Pengguna?',
-        html: `<div class="text-center"><p class="text-gray-600">Anda akan menghapus: <strong>${name}</strong></p><p class="text-red-500 text-xs mt-2">Tindakan ini tidak dapat dibatalkan!</p></div>`,
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444', cancelButtonColor: '#9ca3af',
-        confirmButtonText: '<i class="fas fa-trash mr-1"></i> Ya, Hapus!', cancelButtonText: 'Batal',
-        reverseButtons: true
-    }).then((result) => {
-        if (result.isConfirmed) document.getElementById(`delete-form-${id}`).submit();
-    });
+    Swal.fire({ icon: 'warning', title: 'Hapus Pengguna?', html: `<div class="text-center"><p class="text-gray-600">Anda akan menghapus: <strong>${name}</strong></p><p class="text-red-500 text-xs mt-2">Tindakan ini tidak dapat dibatalkan!</p></div>`, showCancelButton: true, confirmButtonColor: '#ef4444', cancelButtonColor: '#9ca3af', confirmButtonText: '<i class="fas fa-trash mr-1"></i> Ya, Hapus!', cancelButtonText: 'Batal', reverseButtons: true }).then((result) => { if (result.isConfirmed) document.getElementById(`delete-form-${id}`).submit(); });
 }
 
-// ── Edit/Save Data ───────────────────────────────────────────
+// ── Edit/Save Data Harga ─────────────────────────────────────
 function toggleEditMode(id) {
     const row = document.getElementById(`row-${id}`);
     if (!row) return;
@@ -1955,27 +1772,19 @@ function toggleEditMode(id) {
     row.querySelector('.edit-btn').classList.toggle('hidden', isEditing);
     row.querySelector('.done-btn').classList.toggle('hidden', !isEditing);
     const deleteForm = row.querySelector('.delete-form');
-    if (deleteForm) {
-        deleteForm.style.opacity       = isEditing ? '0.3' : '1';
-        deleteForm.style.pointerEvents = isEditing ? 'none' : 'auto';
-    }
+    if (deleteForm) { deleteForm.style.opacity = isEditing ? '0.3' : '1'; deleteForm.style.pointerEvents = isEditing ? 'none' : 'auto'; }
     if (isEditing) row.classList.add('bg-blue-50', 'dark:bg-blue-900/10', 'border-l-4', 'border-l-blue-500');
     else           row.classList.remove('bg-blue-50', 'dark:bg-blue-900/10', 'border-l-4', 'border-l-blue-500');
 }
-
 function autoSaveData(id) {
-    const row         = document.getElementById(`row-${id}`);
+    const row = document.getElementById(`row-${id}`);
     const komoditasId = row.querySelector('.commodity-edit').value;
-    const date        = row.querySelector('.date-edit').value;
-    const price       = row.querySelector('.price-edit').value;
+    const date  = row.querySelector('.date-edit').value;
+    const price = row.querySelector('.price-edit').value;
     if (!komoditasId || !date || !price) { showNotification('Semua field harus diisi!', 'error'); return; }
-    if (parseFloat(price) <= 0)          { showNotification('Harga harus lebih dari 0!', 'error'); return; }
+    if (parseFloat(price) <= 0) { showNotification('Harga harus lebih dari 0!', 'error'); return; }
     row.style.backgroundColor = isDark() ? '#3d3300' : '#fef3c7';
-    fetch(`{{ url('/admin/update-data') }}/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-        body: JSON.stringify({ komoditas_id: komoditasId, date, price })
-    })
+    fetch(`{{ url('/admin/update-data') }}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }, body: JSON.stringify({ komoditas_id: komoditasId, date, price }) })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
@@ -1987,10 +1796,50 @@ function autoSaveData(id) {
             row.style.backgroundColor = isDark() ? '#0f2e1a' : '#d1fae5';
             setTimeout(() => { row.style.backgroundColor = ''; }, 800);
             showNotification('Data tersimpan!', 'success');
-        } else {
-            showNotification('Gagal menyimpan: ' + (data.message || 'Terjadi kesalahan'), 'error');
-            row.style.backgroundColor = '';
-        }
+        } else { showNotification('Gagal menyimpan: ' + (data.message || 'Terjadi kesalahan'), 'error'); row.style.backgroundColor = ''; }
+    })
+    .catch(() => { showNotification('Terjadi kesalahan jaringan', 'error'); row.style.backgroundColor = ''; });
+}
+
+// ── Edit/Save Bobot ──────────────────────────────────────────
+function toggleBobotEdit(id) {
+    const row = document.getElementById('bobot-row-' + id);
+    if (!row) return;
+    const isEditing = row.querySelector('.bobot-komoditas-edit').classList.contains('hidden');
+    row.querySelector('.bobot-komoditas-view').classList.toggle('hidden', isEditing);
+    row.querySelector('.bobot-komoditas-edit').classList.toggle('hidden', !isEditing);
+    row.querySelector('.bobot-tanggal-view').classList.toggle('hidden', isEditing);
+    row.querySelector('.bobot-tanggal-edit').classList.toggle('hidden', !isEditing);
+    row.querySelector('.bobot-nilai-view').classList.toggle('hidden', isEditing);
+    row.querySelector('.bobot-nilai-edit').classList.toggle('hidden', !isEditing);
+    row.querySelector('.bobot-edit-btn').classList.toggle('hidden', isEditing);
+    row.querySelector('.bobot-done-btn').classList.toggle('hidden', !isEditing);
+    const deleteForm = row.querySelector('.bobot-delete-form');
+    if (deleteForm) { deleteForm.style.opacity = isEditing ? '0.3' : '1'; deleteForm.style.pointerEvents = isEditing ? 'none' : 'auto'; }
+    if (isEditing) row.classList.add('bg-indigo-50', 'dark:bg-indigo-900/10', 'border-l-4', 'border-l-indigo-500');
+    else           row.classList.remove('bg-indigo-50', 'dark:bg-indigo-900/10', 'border-l-4', 'border-l-indigo-500');
+}
+function autoSaveBobot(id) {
+    const row         = document.getElementById('bobot-row-' + id);
+    const komoditasId = row.querySelector('.bobot-komoditas-edit').value;
+    const tanggal     = row.querySelector('.bobot-tanggal-edit').value;
+    const nilaiBobot  = row.querySelector('.bobot-nilai-edit').value;
+    if (!komoditasId || !tanggal || nilaiBobot === '') { showNotification('Semua field harus diisi!', 'error'); return; }
+    if (parseFloat(nilaiBobot) < 0) { showNotification('Nilai bobot tidak boleh negatif!', 'error'); return; }
+    row.style.backgroundColor = isDark() ? '#3d2f6b' : '#ede9fe';
+    fetch('{{ url("/admin/update-bobot") }}/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }, body: JSON.stringify({ komoditas_id: komoditasId, tanggal: tanggal, nilai_bobot: nilaiBobot }) })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            const selectedOption = row.querySelector('.bobot-komoditas-edit option:checked');
+            row.querySelector('.bobot-komoditas-view').textContent = selectedOption ? selectedOption.text : komoditasId;
+            const [y, m, d] = tanggal.split('-');
+            row.querySelector('.bobot-tanggal-view').textContent = d + '/' + m + '/' + y;
+            row.querySelector('.bobot-nilai-view').textContent   = parseFloat(nilaiBobot).toFixed(10);
+            row.style.backgroundColor = isDark() ? '#0f2e1a' : '#d1fae5';
+            setTimeout(() => { row.style.backgroundColor = ''; }, 800);
+            showNotification('Bobot berhasil disimpan!', 'success');
+        } else { showNotification('Gagal: ' + (data.message || 'Terjadi kesalahan'), 'error'); row.style.backgroundColor = ''; }
     })
     .catch(() => { showNotification('Terjadi kesalahan jaringan', 'error'); row.style.backgroundColor = ''; });
 }
@@ -2009,14 +1858,10 @@ function toggleEditUserMode(id) {
     row.querySelector('.edit-user-btn').classList.toggle('hidden', isEditing);
     row.querySelector('.done-user-btn').classList.toggle('hidden', !isEditing);
     const deleteForm = row.querySelector('.delete-user-form');
-    if (deleteForm) {
-        deleteForm.style.opacity       = isEditing ? '0.3' : '1';
-        deleteForm.style.pointerEvents = isEditing ? 'none' : 'auto';
-    }
+    if (deleteForm) { deleteForm.style.opacity = isEditing ? '0.3' : '1'; deleteForm.style.pointerEvents = isEditing ? 'none' : 'auto'; }
     if (isEditing) row.classList.add('bg-blue-50', 'dark:bg-blue-900/10', 'border-l-4', 'border-l-blue-500');
     else           row.classList.remove('bg-blue-50', 'dark:bg-blue-900/10', 'border-l-4', 'border-l-blue-500');
 }
-
 function autoSaveUser(id) {
     const row   = document.getElementById(`user-row-${id}`);
     const name  = row.querySelector('.name-edit').value.trim();
@@ -2026,32 +1871,20 @@ function autoSaveUser(id) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) { showNotification('Format email tidak valid!', 'error'); return; }
     row.style.backgroundColor = isDark() ? '#3d3300' : '#fef3c7';
-    fetch(`{{ url('/admin/update-user') }}/${id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-        body: JSON.stringify({ name, email, role })
-    })
+    fetch(`{{ url('/admin/update-user') }}/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' }, body: JSON.stringify({ name, email, role }) })
     .then(res => res.json())
     .then(data => {
         if (data.success) {
             row.querySelector('.name-view').textContent  = name;
             row.querySelector('.email-view').textContent = email;
             const roleView = row.querySelector('.role-view');
-            const roleMap  = {
-                admin:    ['bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400', '{{ __("messages.administrator") }}'],
-                operator: ['bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400', '{{ __("messages.operator") }}'],
-                user:     ['bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300', '{{ __("messages.pengguna") }}']
-            };
+            const roleMap  = { admin: ['bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400', '{{ __("messages.administrator") }}'], operator: ['bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400', '{{ __("messages.operator") }}'], user: ['bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300', '{{ __("messages.pengguna") }}'] };
             const [cls, text] = roleMap[role] || roleMap.user;
-            roleView.className   = `role-view px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${cls}`;
-            roleView.textContent = text;
+            roleView.className = `role-view px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${cls}`; roleView.textContent = text;
             row.style.backgroundColor = isDark() ? '#0f2e1a' : '#d1fae5';
             setTimeout(() => { row.style.backgroundColor = ''; }, 800);
             showNotification('Data pengguna tersimpan!', 'success');
-        } else {
-            showNotification('Gagal: ' + (data.message || 'Terjadi kesalahan'), 'error');
-            row.style.backgroundColor = '';
-        }
+        } else { showNotification('Gagal: ' + (data.message || 'Terjadi kesalahan'), 'error'); row.style.backgroundColor = ''; }
     })
     .catch(() => { showNotification('Terjadi kesalahan jaringan', 'error'); row.style.backgroundColor = ''; });
 }
@@ -2063,12 +1896,7 @@ function showNotification(message, type = 'success') {
     notification.className = `toast-notification fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg text-white text-sm font-medium animate-fade-in ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
     notification.innerHTML = `<div class="flex items-center gap-3"><i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i><span>${message}</span></div>`;
     document.body.appendChild(notification);
-    setTimeout(() => {
-        notification.style.opacity    = '0';
-        notification.style.transform  = 'translateX(100%)';
-        notification.style.transition = 'all 0.3s ease';
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    setTimeout(() => { notification.style.opacity = '0'; notification.style.transform = 'translateX(100%)'; notification.style.transition = 'all 0.3s ease'; setTimeout(() => notification.remove(), 300); }, 3000);
 }
 </script>
 

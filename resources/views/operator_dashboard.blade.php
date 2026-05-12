@@ -125,6 +125,23 @@
     .pg-btn-disabled {
         background: #f3f4f6; color: #9ca3af; border-color: #f3f4f6; cursor: not-allowed;
     }
+    .fitted-badge {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 9px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    padding: 0px 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.row-has-fitted {
+    border-left: 2px solid #bfdbfe;
+}
 </style>
 </div>
 
@@ -575,6 +592,7 @@
 @if($currentTab == 'manage')
     <div class="space-y-6 animate-fade-in">
 
+        {{-- ── BARIS 1: Tambah Data Baru + Riwayat Database ── --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1">
                 <div class="card-standard p-6">
@@ -790,6 +808,205 @@
             </div>
         </div>
 
+        {{-- ── BARIS 2: Form Input Bobot + Tabel Riwayat Bobot ── --}}
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {{-- Form Input Bobot --}}
+            <div class="lg:col-span-1">
+                <div class="card-standard p-6">
+                    <h3 class="text-sm font-bold text-gray-900 mb-6 uppercase tracking-tight">
+                        Input Bobot Komoditas
+                    </h3>
+
+                    <form action="{{ route('operator.storeBobot') }}" method="POST" class="space-y-4">
+                        @csrf
+
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">
+                                Komoditas
+                            </label>
+                            <select name="komoditas_id" required
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-900 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="">— Pilih Komoditas —</option>
+                                @foreach($commodities ?? [] as $kom)
+                                    <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
+                                        {{ $kom->display_name ?? trim($kom->nama_komoditas . ' ' . ($kom->nama_varian ?? '')) }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">
+                                Tanggal
+                            </label>
+                            <input type="date" name="tanggal" required
+                                   class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 font-medium focus:ring-2 focus:ring-indigo-500">
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700 uppercase mb-1.5 block tracking-tight">
+                                Nilai Bobot
+                            </label>
+                            <input type="number" name="nilai_bobot"
+                                   placeholder="Contoh: 3.4116"
+                                   step="0.0001" min="0" required
+                                   class="w-full bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 font-medium focus:ring-2 focus:ring-indigo-500">
+                            <p class="text-[9px] text-gray-400 mt-1">Gunakan titik (.) sebagai pemisah desimal</p>
+                        </div>
+
+                        <button type="submit"
+                                class="w-full bg-indigo-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-indigo-700 transition-all">
+                            Simpan Bobot
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {{-- Tabel Riwayat Bobot --}}
+            <div class="lg:col-span-2">
+                <div class="card-standard overflow-hidden flex flex-col" style="height: fit-content;">
+                    <div class="p-5 border-b bg-gray-50/50 flex justify-between items-center">
+                        <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">
+                            Riwayat Bobot Komoditas
+                        </h3>
+                        <span class="text-xs text-gray-400">
+                            {{ ($bobotList instanceof \Illuminate\Pagination\LengthAwarePaginator ? $bobotList->total() : count($bobotList ?? [])) }} entri
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar" style="max-height: 450px;">
+                        <table class="w-full text-left">
+                            <thead class="sticky top-0 bg-white border-b border-gray-100 z-10">
+                                <tr class="text-xs text-gray-400 uppercase font-bold">
+                                    <th class="px-5 py-4">Komoditas</th>
+                                    <th class="px-5 py-4">Tanggal</th>
+                                    <th class="px-5 py-4 text-right">Nilai Bobot</th>
+                                    <th class="px-5 py-4 text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-100 text-xs">
+                                @forelse($bobotList ?? [] as $bobot)
+                                    <tr class="hover:bg-gray-50 transition-colors" id="bobot-row-{{ $bobot->id }}">
+
+                                        <td class="px-5 py-4 font-bold text-indigo-600">
+                                            <span class="bobot-komoditas-view">{{ $bobot->nama_komoditas }}</span>
+                                            <select class="bobot-komoditas-edit hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-indigo-500"
+                                                    data-id="{{ $bobot->id }}" onchange="autoSaveBobot({{ $bobot->id }})">
+                                                @foreach($commodities ?? [] as $kom)
+                                                    <option value="{{ $kom->id }}" {{ $bobot->komoditas_id == $kom->id ? 'selected' : '' }}>
+                                                        {{ $kom->display_name ?? trim($kom->nama_komoditas . ' ' . ($kom->nama_varian ?? '')) }}
+                                                    </option>
+                                                @endforeach
+                                            </select>
+                                        </td>
+
+                                        <td class="px-5 py-4 text-gray-500">
+                                            <span class="bobot-tanggal-view">
+                                                {{ \Carbon\Carbon::parse($bobot->tanggal)->format('d/m/Y') }}
+                                            </span>
+                                            <input type="date"
+                                                   class="bobot-tanggal-edit hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs focus:ring-2 focus:ring-indigo-500"
+                                                   value="{{ $bobot->tanggal }}"
+                                                   data-id="{{ $bobot->id }}"
+                                                   onchange="autoSaveBobot({{ $bobot->id }})">
+                                        </td>
+
+                                        <td class="px-5 py-4 text-right font-bold text-emerald-600">
+                                            <span class="bobot-nilai-view">{{ number_format($bobot->nilai_bobot, 10, '.', '') }}</span>
+                                            <input type="number" step="0.0001" min="0"
+                                                   class="bobot-nilai-edit hidden w-full bg-gray-50 border border-gray-300 rounded-lg p-2 text-xs text-right focus:ring-2 focus:ring-indigo-500"
+                                                   value="{{ $bobot->nilai_bobot }}"
+                                                   data-id="{{ $bobot->id }}"
+                                                   onchange="autoSaveBobot({{ $bobot->id }})">
+                                        </td>
+
+                                        <td class="px-5 py-4">
+                                            <div class="flex items-center justify-center gap-3">
+                                                <button type="button" onclick="toggleBobotEdit({{ $bobot->id }})"
+                                                        class="bobot-edit-btn text-indigo-500 hover:text-indigo-700 transition-colors text-sm font-medium">
+                                                    <i class="fas fa-edit"></i> Edit
+                                                </button>
+                                                <button type="button" onclick="toggleBobotEdit({{ $bobot->id }})"
+                                                        class="bobot-done-btn hidden text-green-500 hover:text-green-700 transition-colors text-sm font-medium">
+                                                    <i class="fas fa-check"></i> Selesai
+                                                </button>
+                                                <form action="{{ route('operator.deleteBobot', $bobot->id) }}" method="POST"
+                                                      onsubmit="return confirm('Hapus data bobot ini?')"
+                                                      class="inline bobot-delete-form">
+                                                    @csrf @method('DELETE')
+                                                    <button type="submit"
+                                                            class="text-red-400 hover:text-red-600 transition-colors text-sm font-medium">
+                                                        <i class="fas fa-trash"></i> Hapus
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="4" class="p-12 text-center">
+                                            <div class="flex flex-col items-center gap-2 text-gray-400">
+                                                <i class="fas fa-weight-hanging text-3xl opacity-30"></i>
+                                                <p class="text-sm font-medium">Belum ada data bobot</p>
+                                                <p class="text-xs">Gunakan form di kiri untuk menambahkan bobot</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if(isset($bobotList) && $bobotList instanceof \Illuminate\Pagination\LengthAwarePaginator && $bobotList->hasPages())
+                        <div class="px-6 py-4 border-t bg-gray-50/30 flex items-center justify-between">
+                            <div class="text-xs text-gray-500">
+                                Menampilkan {{ $bobotList->firstItem() ?? 0 }}–{{ $bobotList->lastItem() ?? 0 }}
+                                dari {{ $bobotList->total() }} data
+                            </div>
+                            <div class="flex items-center gap-1">
+                                @if($bobotList->onFirstPage())
+                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
+                                @else
+                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->previousPageUrl() }}" class="pg-btn">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </a>
+                                @endif
+                                @php
+                                    $curBobot   = $bobotList->currentPage();
+                                    $lastBobot  = $bobotList->lastPage();
+                                    $startBobot = max(1, $curBobot - 2);
+                                    $endBobot   = min($lastBobot, $curBobot + 2);
+                                @endphp
+                                @if($startBobot > 1)
+                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url(1) }}" class="pg-btn">1</a>
+                                    @if($startBobot > 2)<span class="px-1 text-gray-400 text-xs">…</span>@endif
+                                @endif
+                                @for($p = $startBobot; $p <= $endBobot; $p++)
+                                    @if($p == $curBobot)
+                                        <span class="pg-btn pg-btn-active">{{ $p }}</span>
+                                    @else
+                                        <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url($p) }}" class="pg-btn">{{ $p }}</a>
+                                    @endif
+                                @endfor
+                                @if($endBobot < $lastBobot)
+                                    @if($endBobot < $lastBobot - 1)<span class="px-1 text-gray-400 text-xs">…</span>@endif
+                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url($lastBobot) }}" class="pg-btn">{{ $lastBobot }}</a>
+                                @endif
+                                @if($bobotList->hasMorePages())
+                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->nextPageUrl() }}" class="pg-btn">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                @else
+                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-right"></i></span>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+
         {{-- Data Cleaning --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1">
@@ -967,6 +1184,7 @@
 
 <script>
 const SELECTED_COMMODITY = '{{ addslashes($selectedCommodity ?? "") }}';
+const MAPE_RATE = Math.min(0.50, Math.max(0.01, {{ ($mape ?? 5) / 100 }}));
 
 const trans = {
     naik:         '{{ __("messages.naik") }}',
@@ -1396,6 +1614,7 @@ function changeChartPeriod(period) {
     updateInsightTable(1);
 }
 
+// Hapus fungsi updateInsightTable yang lama (versi operator), ganti dengan ini:
 function updateInsightTable(page) {
     page = page || 1;
     insightCurrentPage = page;
@@ -1406,7 +1625,7 @@ function updateInsightTable(page) {
     tbody.innerHTML = '';
 
     if (!data.labels || data.labels.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs">' + trans.tidakAdaData + '</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs">${trans.tidakAdaData}</td></tr>`;
         renderInsightPagination(1, 1, 0, 0, 0);
         return;
     }
@@ -1416,16 +1635,14 @@ function updateInsightTable(page) {
     for (let i = 0; i < data.labels.length; i++) {
         const row = {
             label:    data.labels[i],
-            actual:   data.actual[i],
-            forecast: data.forecast[i],
-            lower:    data.lower[i],
-            upper:    data.upper[i],
+            actual:   data.actual[i] !== undefined ? data.actual[i] : null,
+            forecast: data.forecast[i] !== undefined ? data.forecast[i] : null,
+            fitted:   (data.fitted && data.fitted[i] !== undefined && data.fitted[i] !== null) ? data.fitted[i] : null,
+            lower:    data.lower[i] !== undefined ? data.lower[i] : null,
+            upper:    data.upper[i] !== undefined ? data.upper[i] : null,
         };
-        if (data.actual[i] !== null) {
-            actualRows.push(row);
-        } else if (data.forecast[i] !== null) {
-            forecastRows.push(row);
-        }
+        if (row.actual !== null) actualRows.push(row);
+        else if (row.forecast !== null) forecastRows.push(row);
     }
 
     const allRows    = actualRows.concat(forecastRows);
@@ -1435,32 +1652,49 @@ function updateInsightTable(page) {
     const startIdx   = (safePage - 1) * INSIGHT_PER_PAGE;
     const endIdx     = Math.min(startIdx + INSIGHT_PER_PAGE, totalRows);
     const display    = allRows.slice(startIdx, endIdx);
-    const lastActual = actualRows.length > 0 ? actualRows[actualRows.length - 1] : null;
+    const lastActual  = actualRows.length > 0 ? actualRows[actualRows.length - 1] : null;
     const actualCount = actualRows.length;
 
     if (display.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs">' + trans.tidakAdaData + '</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 text-xs">${trans.tidakAdaData}</td></tr>`;
         renderInsightPagination(1, 1, 0, 0, 0);
         return;
     }
 
     var html = '';
     for (var idx = 0; idx < display.length; idx++) {
-        var row           = display[idx];
+        var row = display[idx], globalIdx = startIdx + idx;
         var isForecastOnly = (row.actual === null && row.forecast !== null);
-        var globalIdx     = startIdx + idx;
-        var diff          = (row.actual !== null && row.forecast !== null) ? (row.forecast - row.actual) : null;
 
-        var insight      = trans.stabil;
-        var insightClass = 'insight-stabil';
+        // Untuk baris aktual: gunakan fitted sebagai harga prediksi
+        var displayForecast = isForecastOnly ? row.forecast : row.fitted;
+        var displayLower    = row.lower;
+        var displayUpper    = row.upper;
 
-        if (diff !== null) {
+        // Fallback lower/upper dari MAPE jika null (untuk baris fitted/in-sample)
+        if (!isForecastOnly && displayForecast !== null) {
+            if (displayLower === null || displayLower === undefined)
+                displayLower = Math.round(displayForecast * (1 - MAPE_RATE));
+            if (displayUpper === null || displayUpper === undefined)
+                displayUpper = Math.round(displayForecast * (1 + MAPE_RATE));
+        }
+
+        // Selisih: fitted - actual untuk baris historis, forecast - lastActual untuk proyeksi
+        var diff = null;
+        if (!isForecastOnly && row.actual !== null && displayForecast !== null)
+            diff = displayForecast - row.actual;
+        else if (isForecastOnly && lastActual !== null && lastActual.actual !== null)
+            diff = row.forecast - lastActual.actual;
+
+        // Insight badge
+        var insight = trans.stabil, insightClass = 'insight-stabil';
+        if (!isForecastOnly && diff !== null) {
             var threshold = (row.actual || 1) * 0.01;
             if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
             else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
         } else if (isForecastOnly && lastActual !== null) {
-            var diffFromLast  = row.forecast - lastActual.actual;
-            var threshLast    = lastActual.actual * 0.01;
+            var diffFromLast = row.forecast - lastActual.actual;
+            var threshLast   = (lastActual.actual || 1) * 0.01;
             if (diffFromLast > threshLast)       { insight = trans.naik;     insightClass = 'insight-naik'; }
             else if (diffFromLast < -threshLast) { insight = trans.turun;    insightClass = 'insight-turun'; }
             else                                 { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
@@ -1475,28 +1709,38 @@ function updateInsightTable(page) {
             ? (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID')
             : '—';
 
-        var rowBg     = isForecastOnly ? 'bg-orange-50/30' : '';
+        var rowBg     = isForecastOnly ? 'bg-orange-50/30' : (displayForecast !== null ? 'row-has-fitted' : '');
         var borderTop = (globalIdx === actualCount && forecastRows.length > 0) ? 'border-t-2 border-orange-200' : '';
 
-        var forecastBadge = isForecastOnly
-            ? '<span class="ml-1 text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold uppercase">' + trans.proyeksi + '</span>'
-            : '';
+        var periodBadge = '';
+        if (isForecastOnly)
+            periodBadge = `<span class="ml-1 text-[9px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-bold uppercase">${trans.proyeksi}</span>`;
+        else if (displayForecast !== null)
+            periodBadge = `<span class="fitted-badge">fit</span>`;
 
-        var actualCell   = row.actual   !== null ? 'Rp ' + Math.round(row.actual).toLocaleString('id-ID')   : '<span class="text-gray-300">—</span>';
-        var forecastCell = row.forecast !== null ? 'Rp ' + Math.round(row.forecast).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>';
-        var lowerCell    = row.lower    !== null ? 'Rp ' + Math.round(row.lower).toLocaleString('id-ID')    : '<span class="text-gray-300">—</span>';
-        var upperCell    = row.upper    !== null ? 'Rp ' + Math.round(row.upper).toLocaleString('id-ID')    : '<span class="text-gray-300">—</span>';
+        var actualCell   = row.actual !== null
+            ? 'Rp ' + Math.round(row.actual).toLocaleString('id-ID')
+            : '<span class="text-gray-300">—</span>';
+        var forecastCell = displayForecast !== null
+            ? 'Rp ' + Math.round(displayForecast).toLocaleString('id-ID')
+            : '<span class="text-gray-300">—</span>';
+        var lowerCell    = displayLower !== null
+            ? 'Rp ' + Math.round(displayLower).toLocaleString('id-ID')
+            : '<span class="text-gray-300">—</span>';
+        var upperCell    = displayUpper !== null
+            ? 'Rp ' + Math.round(displayUpper).toLocaleString('id-ID')
+            : '<span class="text-gray-300">—</span>';
 
         html +=
-            '<tr class="' + rowBg + ' ' + borderTop + ' border-b border-gray-50 hover:bg-orange-50/50 animate-fade-in">' +
-                '<td class="px-6 py-4 text-gray-500 font-medium text-xs">' + row.label + forecastBadge + '</td>' +
-                '<td class="px-6 py-4 text-right text-xs font-medium">' + actualCell + '</td>' +
-                '<td class="px-6 py-4 text-right text-blue-600 font-bold text-xs">' + forecastCell + '</td>' +
-                '<td class="px-6 py-4 text-right text-xs text-gray-400">' + lowerCell + '</td>' +
-                '<td class="px-6 py-4 text-right text-xs text-gray-400">' + upperCell + '</td>' +
-                '<td class="px-6 py-4 text-right text-xs ' + diffColor + ' font-medium">' + diffText + '</td>' +
-                '<td class="px-6 py-4 text-center"><span class="insight-badge ' + insightClass + '">' + insight + '</span></td>' +
-            '</tr>';
+            `<tr class="${rowBg} ${borderTop} border-b border-gray-50 hover:bg-orange-50/50 animate-fade-in">` +
+                `<td class="px-6 py-4 text-gray-500 font-medium text-xs">${row.label}${periodBadge}</td>` +
+                `<td class="px-6 py-4 text-right text-xs font-medium">${actualCell}</td>` +
+                `<td class="px-6 py-4 text-right text-blue-600 font-bold text-xs">${forecastCell}</td>` +
+                `<td class="px-6 py-4 text-right text-xs text-gray-400">${lowerCell}</td>` +
+                `<td class="px-6 py-4 text-right text-xs text-gray-400">${upperCell}</td>` +
+                `<td class="px-6 py-4 text-right text-xs ${diffColor} font-medium">${diffText}</td>` +
+                `<td class="px-6 py-4 text-center"><span class="insight-badge ${insightClass}">${insight}</span></td>` +
+            `</tr>`;
     }
     tbody.innerHTML = html;
 
@@ -1607,6 +1851,63 @@ function autoSaveData(id) {
             row.style.backgroundColor = '#d1fae5';
             setTimeout(function() { row.style.backgroundColor = ''; }, 800);
             showNotification('Data tersimpan!', 'success');
+        } else {
+            showNotification('Gagal: ' + (data.message || 'Terjadi kesalahan'), 'error');
+            row.style.backgroundColor = '';
+        }
+    })
+    .catch(function() { showNotification('Terjadi kesalahan jaringan', 'error'); row.style.backgroundColor = ''; });
+}
+
+// ─────────────────────────────────────────────
+// EDIT MODE BOBOT TABLE
+// ─────────────────────────────────────────────
+function toggleBobotEdit(id) {
+    var row = document.getElementById('bobot-row-' + id);
+    if (!row) return;
+    var isEditing = row.querySelector('.bobot-komoditas-edit').classList.contains('hidden');
+    row.querySelector('.bobot-komoditas-view').classList.toggle('hidden', isEditing);
+    row.querySelector('.bobot-komoditas-edit').classList.toggle('hidden', !isEditing);
+    row.querySelector('.bobot-tanggal-view').classList.toggle('hidden', isEditing);
+    row.querySelector('.bobot-tanggal-edit').classList.toggle('hidden', !isEditing);
+    row.querySelector('.bobot-nilai-view').classList.toggle('hidden', isEditing);
+    row.querySelector('.bobot-nilai-edit').classList.toggle('hidden', !isEditing);
+    row.querySelector('.bobot-edit-btn').classList.toggle('hidden', isEditing);
+    row.querySelector('.bobot-done-btn').classList.toggle('hidden', !isEditing);
+    var deleteForm = row.querySelector('.bobot-delete-form');
+    if (deleteForm) {
+        deleteForm.style.opacity       = isEditing ? '0.3' : '1';
+        deleteForm.style.pointerEvents = isEditing ? 'none' : 'auto';
+    }
+    if (isEditing) row.classList.add('bg-indigo-50', 'border-l-4', 'border-l-indigo-500');
+    else           row.classList.remove('bg-indigo-50', 'border-l-4', 'border-l-indigo-500');
+}
+
+function autoSaveBobot(id) {
+    var row         = document.getElementById('bobot-row-' + id);
+    var komoditasId = row.querySelector('.bobot-komoditas-edit').value;
+    var tanggal     = row.querySelector('.bobot-tanggal-edit').value;
+    var nilaiBobot  = row.querySelector('.bobot-nilai-edit').value;
+    if (!komoditasId || !tanggal || nilaiBobot === '') { showNotification('Semua field harus diisi!', 'error'); return; }
+    if (parseFloat(nilaiBobot) < 0) { showNotification('Nilai bobot tidak boleh negatif!', 'error'); return; }
+
+    row.style.backgroundColor = '#ede9fe';
+    fetch('{{ url("/operator/update-bobot") }}/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+        body: JSON.stringify({ komoditas_id: komoditasId, tanggal: tanggal, nilai_bobot: nilaiBobot })
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+        if (data.success) {
+            var selectedOption = row.querySelector('.bobot-komoditas-edit option:checked');
+            row.querySelector('.bobot-komoditas-view').textContent = selectedOption ? selectedOption.text : komoditasId;
+            var parts = tanggal.split('-');
+            row.querySelector('.bobot-tanggal-view').textContent = parts[2] + '/' + parts[1] + '/' + parts[0];
+            row.querySelector('.bobot-nilai-view').textContent   = parseFloat(nilaiBobot).toFixed(10);
+            row.style.backgroundColor = '#d1fae5';
+            setTimeout(function() { row.style.backgroundColor = ''; }, 800);
+            showNotification('Bobot berhasil disimpan!', 'success');
         } else {
             showNotification('Gagal: ' + (data.message || 'Terjadi kesalahan'), 'error');
             row.style.backgroundColor = '';

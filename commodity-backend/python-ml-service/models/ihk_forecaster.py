@@ -9,7 +9,7 @@ Alur:
   3. Forecast IHK N bulan ke depan
   4. Hitung prediksi inflasi MtoM, YtD, YoY dari IHK forecast
   5. Tentukan kondisi prediksi: inflasi / deflasi / stabil
-  6. Simpan hasil ke price_forecasts (tabel yang sudah ada)
+  6. Simpan hasil ke ihk_forecast_bulanan
 
 Catatan metodologi:
   - Prophet dijalankan pada nilai IHK (bukan harga mentah)
@@ -22,9 +22,9 @@ Catatan metodologi:
 
 Tabel DB:
   READ  : ihk_bulanan
-  WRITE : ihk_forecast_bulanan (tabel baru, dibuat oleh migration)
+  WRITE : ihk_forecast_bulanan
 
-v1.0
+v2.0 — fix indentasi get_inflasi_forecast_summary + filter bulan dinamis
 """
 
 import warnings
@@ -75,9 +75,10 @@ class IHKForecaster:
 
     Cara pakai:
         forecaster = IHKForecaster(db_connector)
-        forecaster.forecast(periods=6)          # forecast + simpan ke DB
-        forecaster.get_forecast_result()        # ambil hasil forecast dari DB
-        forecaster.get_forecast_comparison()    # forecast vs aktual (jika ada)
+        forecaster.forecast(periods=6)                   # forecast + simpan ke DB
+        forecaster.get_forecast_result()                 # ambil hasil forecast dari DB
+        forecaster.get_forecast_vs_aktual()              # forecast vs aktual (jika ada)
+        forecaster.get_inflasi_forecast_summary('2025-03')  # ringkasan untuk bulan tertentu
     """
 
     def __init__(self, db_connector):
@@ -146,14 +147,6 @@ class IHKForecaster:
         Untuk t-1 dan t-12:
           - Prioritaskan data historis (lebih akurat)
           - Jika tidak ada di historis, pakai data forecast
-
-        Args:
-            df_forecast: DataFrame hasil Prophet, kolom: tanggal, nilai_ihk_forecast,
-                         ihk_lower, ihk_upper
-            df_historis: DataFrame IHK historis dari ihk_bulanan
-
-        Returns:
-            df_forecast dengan tambahan kolom inflasi MtoM, YtD, YoY, kondisi
         """
         df = df_forecast.copy().sort_values('tanggal').reset_index(drop=True)
 
@@ -162,12 +155,11 @@ class IHKForecaster:
         ihk_fc_lookup   = df.set_index('tanggal')['nilai_ihk_forecast'].to_dict()
 
         def _get_ihk(tanggal):
-            """Ambil IHK dari historis dulu, lalu dari forecast."""
             return ihk_hist_lookup.get(tanggal) or ihk_fc_lookup.get(tanggal)
 
-        # ── M-to-M ──────────────────────────────────────────
+        # ── M-to-M ──────────────────────────────────────────────────────────
         inflasi_mtom = []
-        for i, row in df.iterrows():
+        for _, row in df.iterrows():
             t_prev   = (row['tanggal'] - pd.DateOffset(months=1)).replace(day=1)
             ihk_prev = _get_ihk(t_prev)
             if ihk_prev is None or ihk_prev == 0:
@@ -178,16 +170,14 @@ class IHKForecaster:
                 )
         df['inflasi_mtom_forecast'] = inflasi_mtom
 
-        # ── Y-to-D: vs IHK Desember tahun lalu ─────────────
-        # Lookup IHK Desember per tahun dari historis
+        # ── Y-to-D: vs IHK Desember tahun lalu ──────────────────────────────
         ihk_des_lookup = {}
         for _, row in df_historis[df_historis['tanggal'].dt.month == 12].iterrows():
             ihk_des_lookup[row['tanggal'].year] = float(row['nilai_ihk'])
 
         inflasi_ytd = []
         for _, row in df.iterrows():
-            thn_lalu = row['tanggal'].year - 1
-            ihk_des  = ihk_des_lookup.get(thn_lalu)
+            ihk_des = ihk_des_lookup.get(row['tanggal'].year - 1)
             if ihk_des is None or ihk_des == 0:
                 inflasi_ytd.append(None)
             else:
@@ -196,7 +186,7 @@ class IHKForecaster:
                 )
         df['inflasi_ytd_forecast'] = inflasi_ytd
 
-        # ── Y-on-Y: vs bulan sama 12 bulan lalu ────────────
+        # ── Y-on-Y: vs bulan sama 12 bulan lalu ─────────────────────────────
         inflasi_yoy = []
         for _, row in df.iterrows():
             t_12   = (row['tanggal'] - pd.DateOffset(months=12)).replace(day=1)
@@ -209,7 +199,7 @@ class IHKForecaster:
                 )
         df['inflasi_yoy_forecast'] = inflasi_yoy
 
-        # ── Kondisi ─────────────────────────────────────────
+        # ── Kondisi ─────────────────────────────────────────────────────────
         df['kondisi_forecast'] = df['inflasi_mtom_forecast'].apply(self._kondisi)
 
         return df
@@ -272,9 +262,6 @@ class IHKForecaster:
 
         Args:
             periods: jumlah bulan ke depan (default 6, max 24)
-
-        Returns:
-            dict berisi hasil forecast dan metadata
         """
         periods = max(1, min(periods, 24))
         print(f"[IHKForecast] Memulai forecast {periods} bulan ke depan...")
@@ -314,10 +301,7 @@ class IHKForecaster:
             m = _build_prophet(**IHK_PROPHET_PARAMS)
             m.fit(df_prophet[['ds', 'y']])
         except Exception as e:
-            return {
-                'success': False,
-                'message': f'Gagal training Prophet: {str(e)}',
-            }
+            return {'success': False, 'message': f'Gagal training Prophet: {str(e)}'}
 
         # 4. Generate forecast
         print(f"[IHKForecast] Generating forecast {periods} bulan...")
@@ -325,20 +309,14 @@ class IHKForecaster:
             future   = m.make_future_dataframe(periods=periods + 2, freq='MS')
             forecast = m.predict(future)
         except Exception as e:
-            return {
-                'success': False,
-                'message': f'Gagal generate forecast: {str(e)}',
-            }
+            return {'success': False, 'message': f'Gagal generate forecast: {str(e)}'}
 
         # 5. Filter hanya bulan forecast (setelah last_date)
         fc_future = forecast[forecast['ds'] > last_date].head(periods).copy()
         fc_future = fc_future.reset_index(drop=True)
 
         if fc_future.empty:
-            return {
-                'success': False,
-                'message': f'Tidak ada forecast setelah {last_date.date()}.',
-            }
+            return {'success': False, 'message': f'Tidak ada forecast setelah {last_date.date()}.'}
 
         # Clip negatif (IHK tidak mungkin negatif)
         fc_future['yhat']       = fc_future['yhat'].clip(lower=0)
@@ -363,8 +341,8 @@ class IHKForecaster:
         print(f"[IHKForecast] Tersimpan: {saved} baris ke ihk_forecast_bulanan")
 
         # 9. Hitung akurasi model pada data historis (in-sample sederhana)
-        fc_history   = forecast[forecast['ds'] <= last_date].copy()
-        merged_hist  = _merge_forecast_actual(
+        fc_history  = forecast[forecast['ds'] <= last_date].copy()
+        merged_hist = _merge_forecast_actual(
             fc_history[['ds', 'yhat', 'yhat_lower', 'yhat_upper']],
             df_prophet[['ds', 'y']],
         )
@@ -397,10 +375,10 @@ class IHKForecaster:
             'forecast_mulai':     df_forecast['tanggal'].min().strftime('%Y-%m'),
             'forecast_sampai':    df_forecast['tanggal'].max().strftime('%Y-%m'),
             'model_info': {
-                'engine':             'prophet',
-                'n_data_historis':    n_data,
-                'mape_insample':      round(mape_insample, 4),
-                'hyperparams':        IHK_PROPHET_PARAMS,
+                'engine':          'prophet',
+                'n_data_historis': n_data,
+                'mape_insample':   round(mape_insample, 4),
+                'hyperparams':     IHK_PROPHET_PARAMS,
             },
             'forecast': hasil_forecast,
             'saved':    saved,
@@ -410,13 +388,8 @@ class IHKForecaster:
     # PUBLIC — Query hasil forecast dari DB
     # ═══════════════════════════════════════════════════════
 
-    def get_forecast_result(
-        self,
-        limit: int = 12,
-    ) -> dict:
-        """
-        Ambil hasil forecast IHK terbaru dari DB.
-        """
+    def get_forecast_result(self, limit: int = 12) -> dict:
+        """Ambil hasil forecast IHK terbaru dari DB."""
         query = """
             SELECT
                 tanggal, nilai_ihk_forecast, ihk_lower, ihk_upper,
@@ -439,7 +412,7 @@ class IHKForecaster:
         return {
             'success': True,
             'data': {
-                'total': len(rows),
+                'total':       len(rows),
                 'dibuat_pada': str(rows[0][8])[:16] if rows else None,
                 'forecast': [
                     {
@@ -471,9 +444,9 @@ class IHKForecaster:
                 f.ihk_upper,
                 f.inflasi_mtom_forecast,
                 f.kondisi_forecast,
-                a.nilai_ihk             AS nilai_ihk_aktual,
-                a.inflasi               AS inflasi_mtom_aktual,
-                a.kondisi               AS kondisi_aktual
+                a.nilai_ihk   AS nilai_ihk_aktual,
+                a.inflasi     AS inflasi_mtom_aktual,
+                a.kondisi     AS kondisi_aktual
             FROM ihk_forecast_bulanan f
             LEFT JOIN ihk_bulanan a
                 ON DATE_FORMAT(f.tanggal, '%Y-%m') = DATE_FORMAT(a.tanggal, '%Y-%m')
@@ -485,15 +458,15 @@ class IHKForecaster:
         if not rows:
             return {'success': False, 'message': 'Belum ada data forecast.'}
 
-        sf = self._safe_float
-        hasil = []
+        sf        = self._safe_float
+        hasil     = []
         mape_vals = []
 
         for r in rows:
             ihk_fc  = float(r[1])
             ihk_act = sf(r[6])
 
-            error_pct = None
+            error_pct   = None
             in_interval = None
             if ihk_act is not None:
                 error_pct   = abs(ihk_fc - ihk_act) / ihk_act * 100 if ihk_act != 0 else None
@@ -521,18 +494,47 @@ class IHKForecaster:
         return {
             'success': True,
             'data': {
-                'total':          len(hasil),
-                'n_terealisasi':  len(mape_vals),
-                'mape_realized':  mape_realized,
-                'hasil':          hasil,
+                'total':         len(hasil),
+                'n_terealisasi': len(mape_vals),
+                'mape_realized': mape_realized,
+                'hasil':         hasil,
             },
         }
 
-    def get_inflasi_forecast_summary(self) -> dict:
+    def get_inflasi_forecast_summary(self, bulan: str = None) -> dict:
         """
         Ringkasan forecast inflasi — cocok untuk widget dashboard.
-        Menampilkan bulan depan dan trend 3 bulan ke depan.
+
+        Args:
+            bulan: format 'YYYY-MM' — bulan yang sedang dilihat user (bukan bulan forecast).
+                   Forecast yang ditampilkan adalah bulan SETELAH bulan ini.
+                   Default: bulan data historis terakhir di ihk_bulanan.
+
+        Returns:
+            dict dengan bulan_depan (forecast +1) dan trend 3 bulan ke depan.
         """
+        # ── 1. Tentukan tanggal referensi ────────────────────────────────────
+        if bulan:
+            try:
+                ref_date = pd.to_datetime(bulan + '-01')
+            except Exception:
+                return {
+                    'success': False,
+                    'message': f'Format bulan tidak valid: {bulan}. Gunakan format YYYY-MM.',
+                }
+        else:
+            # Default: bulan terakhir dari data historis (bukan dari tabel forecast)
+            with self.db.engine.connect() as conn:
+                result = conn.execute(text(
+                    "SELECT MAX(tanggal) FROM ihk_bulanan"
+                )).fetchone()
+            if not result or not result[0]:
+                return {'success': False, 'message': 'Tidak ada data IHK historis.'}
+            ref_date = pd.to_datetime(result[0]).replace(day=1)
+
+        # ── 2. Forecast dimulai dari bulan setelah ref_date ──────────────────
+        next_month = (ref_date + pd.DateOffset(months=1)).replace(day=1)
+
         query = """
             SELECT
                 tanggal,
@@ -544,20 +546,30 @@ class IHKForecaster:
                 inflasi_yoy_forecast,
                 kondisi_forecast
             FROM ihk_forecast_bulanan
+            WHERE tanggal >= :next_month
             ORDER BY tanggal ASC
             LIMIT 3
         """
         with self.db.engine.connect() as conn:
-            rows = conn.execute(text(query)).fetchall()
+            rows = conn.execute(text(query), {
+                'next_month': next_month.strftime('%Y-%m-%d'),
+            }).fetchall()
 
+        # ── 3. Validasi hasil ────────────────────────────────────────────────
         if not rows:
-            return {'success': False, 'message': 'Belum ada forecast IHK.'}
+            return {
+                'success': False,
+                'message': (
+                    f'Belum ada forecast untuk periode setelah {ref_date.strftime("%Y-%m")}. '
+                    f'Jalankan POST /api/ihk/forecast dulu.'
+                ),
+            }
 
-        sf  = self._safe_float
-        r0  = rows[0]
-
-        # Trend: apakah inflasi MtoM cenderung naik atau turun dalam 3 bulan?
+        # ── 4. Hitung trend 3 bulan ──────────────────────────────────────────
+        sf        = self._safe_float
+        r0        = rows[0]
         mtom_vals = [sf(r[4]) for r in rows if sf(r[4]) is not None]
+
         if len(mtom_vals) >= 2:
             trend_inflasi = (
                 'meningkat' if mtom_vals[-1] > mtom_vals[0]
@@ -567,9 +579,11 @@ class IHKForecaster:
         else:
             trend_inflasi = 'stabil'
 
+        # ── 5. Return ────────────────────────────────────────────────────────
         return {
             'success': True,
             'data': {
+                'ref_bulan':   ref_date.strftime('%Y-%m'),   # bulan yang difilter user
                 'bulan_depan': {
                     'periode':               str(r0[0])[:7],
                     'nilai_ihk_forecast':    round(float(r0[1]), 6),

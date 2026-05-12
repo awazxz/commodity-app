@@ -39,7 +39,6 @@
     <div class="header">
         <h2>Badan Pusat Statistik Provinsi Riau</h2>
         <p>Laporan Analisis Harga Aktual vs Prediksi Harian Komoditas</p>
-       
         <p>Tanggal Cetak: {{ now()->format('d/m/Y H:i') }}</p>
     </div>
 
@@ -53,7 +52,8 @@
             <tr>
                 <td>Total Data</td>
                 <td>:</td>
-                <td><strong>{{ $data->count() }} baris</strong></td>
+                {{-- FIX 1: ganti $data->count() → $rows->count() --}}
+                <td><strong>{{ $rows->count() }} baris</strong></td>
             </tr>
             <tr>
                 <td>Status Ringkasan</td>
@@ -71,26 +71,41 @@
         <thead>
             <tr>
                 <th>No</th>
-                <th>Tanggal</th>
                 <th>Komoditas &amp; Varian</th>
+                <th>Harga Bulan Lalu</th>
                 <th>Harga Aktual</th>
                 <th>Harga Prediksi</th>
-                <th>Selisih</th>
-                <th>Tren</th>
+                <th>Selisih MoM</th>
+                <th>%MoM</th>
+                <th>Tren Model</th>
+                <th>Status</th>
             </tr>
         </thead>
         <tbody>
-            @forelse($data as $index => $item)
+            {{-- FIX 2: ganti $data → $rows, dan pakai field yang sesuai object row dari controller --}}
+            @forelse($rows as $index => $item)
             @php
-             
-                $aktual   = (float) ($item->harga_aktual   ?? 0);
-                $prediksi = (float) ($item->harga_prediksi ?? 0);
-                $selisih  = $prediksi - $aktual;
+                $aktual   = (float) ($item->harga_bulan_ini  ?? 0);
+                $prediksi = (float) ($item->harga_prediksi   ?? 0);
+                $lalu     = (float) ($item->harga_bulan_lalu ?? 0);
+                $selisih  = $item->selisih_mom ?? ($aktual - $lalu);
+                $persen   = $item->persen_mom  ?? null;
+                $status   = $item->status_mom  ?? '';
+                $tren     = $item->tren_model  ?? null;
             @endphp
             <tr>
                 <td class="text-center">{{ $index + 1 }}</td>
-                <td class="text-center">{{ \Carbon\Carbon::parse($item->tanggal)->format('d/m/Y') }}</td>
-                <td>{{ $item->nama_komoditas }} ({{ $item->nama_varian }})</td>
+
+                <td>
+                    {{ $item->nama_komoditas }}
+                    @if($item->nama_varian)
+                        <br><small style="color:#64748b;">({{ $item->nama_varian }})</small>
+                    @endif
+                </td>
+
+                <td class="text-right">
+                    {{ $lalu > 0 ? 'Rp ' . number_format($lalu, 0, ',', '.') : '-' }}
+                </td>
 
                 <td class="text-right">
                     {{ $aktual > 0 ? 'Rp ' . number_format($aktual, 0, ',', '.') : '-' }}
@@ -100,29 +115,43 @@
                     {{ $prediksi > 0 ? 'Rp ' . number_format($prediksi, 0, ',', '.') : '-' }}
                 </td>
 
-                {{-- FIX 3: tampilkan abs() agar tidak ada angka negatif --}}
                 <td class="text-right {{ $selisih > 0 ? 'naik' : ($selisih < 0 ? 'turun' : 'stabil') }}">
-                    {{ $selisih != 0 ? number_format(abs($selisih), 0, ',', '.') : '-' }}
+                    {{ $selisih != 0 ? ($selisih > 0 ? '+' : '-') . ' Rp ' . number_format(abs($selisih), 0, ',', '.') : '-' }}
                 </td>
 
-            
+                <td class="text-right {{ ($persen ?? 0) > 0 ? 'naik' : (($persen ?? 0) < 0 ? 'turun' : 'stabil') }}">
+                    {{ $persen !== null ? ($persen > 0 ? '+' : '') . number_format($persen, 2, ',', '.') . '%' : '-' }}
+                </td>
+
                 <td class="text-center">
-                    @if($aktual > 0 && $prediksi > 0)
-                        @if($prediksi > $aktual)
-                            <span class="naik"> Naik</span>
-                        @elseif($prediksi < $aktual)
-                            <span class="turun"> Turun</span>
-                        @else
-                            <span class="stabil"> Stabil</span>
-                        @endif
+                    @if($tren === 'naik')
+                        <span class="naik">▲ Naik</span>
+                    @elseif($tren === 'turun')
+                        <span class="turun">▼ Turun</span>
+                    @elseif($tren === 'stabil')
+                        <span class="stabil">— Stabil</span>
                     @else
-                        <span class="stabil"> Stabil</span>
+                        <span class="stabil">-</span>
+                    @endif
+                </td>
+
+                <td class="text-center">
+                    @if($status === 'inflasi')
+                        <span class="naik">Inflasi</span>
+                    @elseif($status === 'deflasi')
+                        <span class="turun">Deflasi</span>
+                    @elseif($status === 'stabil')
+                        <span class="stabil">Stabil</span>
+                    @elseif($status === 'only-forecast')
+                        <span style="color:#7c3aed;">Proyeksi</span>
+                    @else
+                        <span class="stabil">-</span>
                     @endif
                 </td>
             </tr>
             @empty
             <tr>
-                <td colspan="7" class="text-center" style="padding: 20px; color: #94a3b8;">
+                <td colspan="9" class="text-center" style="padding: 20px; color: #94a3b8;">
                     Data tidak ditemukan untuk parameter ini.
                 </td>
             </tr>
@@ -132,8 +161,16 @@
 
     <div class="footer">
         <strong>Kesimpulan Analisis:</strong>
+        {{-- FIX 3: $analisis['kesimpulan'] tidak ada, diganti ringkasan dari data yang tersedia --}}
         <div class="summary-box">
-            {{ $analisis['kesimpulan'] }}
+            Berdasarkan data periode <strong>{{ $tanggal ?? 'yang dipilih' }}</strong>,
+            terdapat <strong>{{ $analisis['naik'] }}</strong> komoditas dengan proyeksi harga naik,
+            <strong>{{ $analisis['turun'] }}</strong> komoditas turun, dan
+            <strong>{{ $analisis['stabil'] }}</strong> komoditas stabil.
+            @if(($analisis['inflasi'] ?? 0) > 0 || ($analisis['deflasi'] ?? 0) > 0)
+                Secara aktual, <strong>{{ $analisis['inflasi'] ?? 0 }}</strong> komoditas mengalami inflasi
+                dan <strong>{{ $analisis['deflasi'] ?? 0 }}</strong> komoditas mengalami deflasi.
+            @endif
         </div>
     </div>
 

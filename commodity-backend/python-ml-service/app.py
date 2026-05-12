@@ -86,9 +86,9 @@ _DEFAULT_HP = {
     'seasonality_mode':        'additive',
     'weekly_seasonality':      False,
     'yearly_seasonality':      True,
-    'yearly_fourier_order':    20,
+    'yearly_fourier_order':    10,
     'monthly_seasonality':     True,
-    'n_changepoints':          25,
+    'n_changepoints':          15,
     'changepoint_range':       0.85,
 }
 
