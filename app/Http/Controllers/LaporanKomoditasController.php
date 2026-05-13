@@ -364,6 +364,7 @@ class LaporanKomoditasController extends Controller
                 $tglIni->year, $tglIni->month, $komoditasId, 'aktual', $varianFilter
             );
 
+            // Cek apakah bulan yang dipilih adalah bulan masa depan (belum ada data aktual sama sekali)
             $totalAktualBulanIni = DB::table('price_data')
                 ->whereYear('tanggal', $tglIni->year)
                 ->whereMonth('tanggal', $tglIni->month)
@@ -400,7 +401,21 @@ class LaporanKomoditasController extends Controller
                 $info  = $detail[$kId] ?? null;
                 $hLalu = isset($hLaluMap[$kId]) ? round((float) $hLaluMap[$kId]) : null;
                 $hIni  = isset($hIniMap[$kId])  ? round((float) $hIniMap[$kId])  : null;
-                $hPrediksi = isset($hPrediksiMap[$kId]) ? round((float) $hPrediksiMap[$kId]) : null;
+
+                // ─────────────────────────────────────────────────────────────────
+                // FIX: Tampilkan harga prediksi HANYA jika:
+                //   1. Bulan yang dipilih adalah bulan masa depan ($isFutureMonth), ATAU
+                //   2. Komoditas ini tidak memiliki data aktual di bulan yang dipilih ($hIni === null)
+                //
+                // Dengan demikian, data Januari/Februari 2026 yang sudah ada harga aktualnya
+                // tidak akan menampilkan kolom prediksi di baris yang bersangkutan.
+                // ─────────────────────────────────────────────────────────────────
+                $hPrediksi = null;
+                if (isset($hPrediksiMap[$kId])) {
+                    if ($isFutureMonth || $hIni === null) {
+                        $hPrediksi = round((float) $hPrediksiMap[$kId]);
+                    }
+                }
 
                 $selisihMom = ($hIni !== null && $hLalu !== null && $hLalu > 0)
                     ? $hIni - $hLalu : null;
