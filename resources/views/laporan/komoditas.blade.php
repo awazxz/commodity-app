@@ -1212,7 +1212,7 @@ function sortTable(e, key) {
     });
     rows.forEach(r => tbody.appendChild(r));
 }
-// update
+// update column forecast
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 @endsection
