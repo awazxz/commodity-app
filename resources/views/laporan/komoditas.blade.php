@@ -332,7 +332,6 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
 @endphp
 
 <div class="kmd fade-up" style="padding: 22px 22px 60px; background: #f8fafc; min-height: 100vh;">
-<!-- html.dark equivalent handled by parent -->
 
 {{-- ══ 1. PAGE HEADER ══ --}}
 <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:18px; padding-bottom:16px; border-bottom:2px solid #1a56db;">
@@ -482,7 +481,7 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
 {{-- ══ 5. ANALISIS + PROYEKSI ══ --}}
 <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; align-items:stretch;">
 
-    {{-- Kartu Kiri: Aktual MtM — stretch agar sama tinggi dengan kanan --}}
+    {{-- Kartu Kiri: Aktual MtM --}}
     <div class="card card-stretch">
         <div class="sec" style="margin-bottom:3px;">Perubahan Harga Aktual (MtM)</div>
         <p class="sec-sub">{{ $lblLalu }} → <strong style="color:#374151;">{{ $lblIni }}</strong></p>
@@ -530,7 +529,6 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
         </div>
         @endif
 
-        {{-- Spacer mendorong note ke bawah agar kartu sama tinggi --}}
         <div class="spacer"></div>
 
         <div class="note">
@@ -556,13 +554,13 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px;">
             <div class="sec gray">Proyeksi Model Forecast (Prophet)</div>
             @if($kondisiForecast === 'inflasi')
-                <span class="pill p-up"></i> Prediksi Inflasi</span>
+                <span class="pill p-up"><i class="fas fa-arrow-trend-up" style="font-size:8px;"></i> Prediksi Inflasi</span>
             @elseif($kondisiForecast === 'deflasi')
-                <span class="pill p-dn"></i> Prediksi Deflasi</span>
+                <span class="pill p-dn"><i class="fas fa-arrow-trend-down" style="font-size:8px;"></i> Prediksi Deflasi</span>
             @elseif($kondisiForecast === 'stabil')
-                <span class="pill p-st"></i> Prediksi Stabil</span>
+                <span class="pill p-st"><i class="fas fa-minus" style="font-size:8px;"></i> Prediksi Stabil</span>
             @else
-                <span class="pill p-st"></i> Belum Ada Data</span>
+                <span class="pill p-st"><i class="fas fa-minus" style="font-size:8px;"></i> Belum Ada Data</span>
             @endif
         </div>
         <p class="sec-sub">{{ $lblIni }} → <strong style="color:#374151;">{{ $lblDepan }}</strong></p>
@@ -833,6 +831,11 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
             </thead>
             <tbody id="mainTbody">
             @forelse($data as $item)
+                @php
+                    // Tentukan apakah baris ini adalah data historis (aktual ada) atau forecast (aktual kosong)
+                    $isAktual   = $item->harga_bulan_ini !== null;
+                    $isForecast = !$isAktual;
+                @endphp
                 <tr class="row-item"
                     data-nama="{{ strtolower($item->nama_komoditas) }}"
                     data-mom="{{ $item->persen_mom ?? 0 }}"
@@ -840,22 +843,43 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                     data-ytd="{{ $item->persen_ytd ?? 0 }}"
                     data-harga="{{ $item->harga_bulan_ini ?? 0 }}">
 
-                    <td><span style="font-size:12px;font-weight:500;color:#0f172a;">{{ $item->nama_komoditas }}</span></td>
-
-                    <td class="td-r">
-                        @if($item->harga_bulan_ini)
-                            <span class="mono" style="font-size:12px;font-weight:500;">Rp {{ number_format($item->harga_bulan_ini,0,',','.') }}</span>
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                    <td>
+                        <span style="font-size:12px;font-weight:500;color:#0f172a;">{{ $item->nama_komoditas }}</span>
+                        @if($isForecast)
+                            <span class="pill p-fc" style="margin-left:5px;font-size:9px;padding:1px 6px;">Forecast</span>
+                        @endif
                     </td>
+
+                    {{-- ── Harga Bulan Ini ── --}}
+                    <td class="td-r">
+                        @if($isAktual)
+                            <span class="mono" style="font-size:12px;font-weight:500;">Rp {{ number_format($item->harga_bulan_ini,0,',','.') }}</span>
+                        @else
+                            {{-- Tampilkan harga prediksi di kolom "harga bulan ini" jika aktual belum ada --}}
+                            @if(isset($item->harga_prediksi) && $item->harga_prediksi !== null)
+                                <span class="mono blu-txt" style="font-size:12px;font-weight:500;" title="Nilai dari forecast">
+                                    Rp {{ number_format($item->harga_prediksi,0,',','.') }}
+                                </span>
+                                <span style="display:block;font-size:9px;color:#9ca3af;margin-top:1px;">est.</span>
+                            @else
+                                <span style="color:#d1d5db;">—</span>
+                            @endif
+                        @endif
+                    </td>
+
+                    {{-- ── Harga Bulan Lalu ── --}}
                     <td class="td-r">
                         @if($item->harga_bulan_lalu)
                             <span class="mono" style="font-size:12px;color:#6b7280;">Rp {{ number_format($item->harga_bulan_lalu,0,',','.') }}</span>
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
 
                     @if($bulanFilter)
+                    {{-- ── Selisih MtM ── --}}
                     <td class="td-r g-sep">
-                        @if($item->selisih_mom !== null)
+                        @if($isAktual && $item->selisih_mom !== null)
                             @if($item->selisih_mom > 0)
                                 <span class="mono up-txt" style="font-size:12px;">+Rp {{ number_format($item->selisih_mom,0,',','.') }}</span>
                             @elseif($item->selisih_mom < 0)
@@ -863,10 +887,14 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                             @else
                                 <span class="mono nt-txt" style="font-size:12px;">Rp 0</span>
                             @endif
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
+
+                    {{-- ── % MtM ── --}}
                     <td class="td-r">
-                        @if($item->persen_mom !== null)
+                        @if($isAktual && $item->persen_mom !== null)
                             @if($item->persen_mom > 0)
                                 <span class="mono up-txt" style="font-size:12px;font-weight:500;">+{{ number_format($item->persen_mom,2,',','.') }}%</span>
                             @elseif($item->persen_mom < 0)
@@ -874,82 +902,121 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                             @else
                                 <span class="mono nt-txt" style="font-size:12px;">0,00%</span>
                             @endif
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
+
+                    {{-- ── Status MtM ── --}}
                     <td class="td-c">
-                        @switch($item->status_mom)
-                            @case('inflasi')       <span class="pill p-up">Naik</span> @break
-                            @case('deflasi')       <span class="pill p-dn">Turun</span> @break
-                            @case('stabil')        <span class="pill p-st">Stabil</span> @break
-                            @case('only-forecast') <span class="pill p-fc">Proyeksi</span> @break
-                            @default               <span style="color:#d1d5db;">—</span>
-                        @endswitch
+                        @if($isAktual)
+                            @switch($item->status_mom)
+                                @case('inflasi')  <span class="pill p-up">Naik</span> @break
+                                @case('deflasi')  <span class="pill p-dn">Turun</span> @break
+                                @case('stabil')   <span class="pill p-st">Stabil</span> @break
+                                @default          <span style="color:#d1d5db;">—</span>
+                            @endswitch
+                        @else
+                            <span class="pill p-fc">Proyeksi</span>
+                        @endif
                     </td>
+
+                    {{-- ── YtD ── --}}
                     <td class="td-r g-sep">
-                        @if(isset($item->persen_ytd) && $item->persen_ytd !== null)
+                        @if($isAktual && isset($item->persen_ytd) && $item->persen_ytd !== null)
                             <span class="mono {{ $item->persen_ytd > 0 ? 'up-txt' : ($item->persen_ytd < 0 ? 'dn-txt' : 'nt-txt') }}" style="font-size:12px;">
                                 {{ ($item->persen_ytd > 0 ? '+' : '') . number_format($item->persen_ytd,2,',','.') }}%
                             </span>
                             @if(isset($item->harga_awal_tahun) && $item->harga_awal_tahun)
                             <span style="display:block;font-size:10px;color:#9ca3af;margin-top:1px;">Jan: Rp {{ number_format($item->harga_awal_tahun,0,',','.') }}</span>
                             @endif
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
+
+                    {{-- ── Status YtD ── --}}
                     <td class="td-c">
-                        @if(isset($item->persen_ytd) && $item->persen_ytd !== null)
-                            @if($item->persen_ytd > 0.5) <span class="pill p-up">Naik</span>
+                        @if($isAktual && isset($item->persen_ytd) && $item->persen_ytd !== null)
+                            @if($item->persen_ytd > 0.5)     <span class="pill p-up">Naik</span>
                             @elseif($item->persen_ytd < -0.5) <span class="pill p-dn">Turun</span>
-                            @else <span class="pill p-st">Stabil</span> @endif
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                            @else                              <span class="pill p-st">Stabil</span>
+                            @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
+
+                    {{-- ── YoY ── --}}
                     <td class="td-r g-sep">
-                        @if(isset($item->persen_yoy) && $item->persen_yoy !== null)
+                        @if($isAktual && isset($item->persen_yoy) && $item->persen_yoy !== null)
                             <span class="mono {{ $item->persen_yoy > 0 ? 'up-txt' : ($item->persen_yoy < 0 ? 'dn-txt' : 'nt-txt') }}" style="font-size:12px;">
                                 {{ ($item->persen_yoy > 0 ? '+' : '') . number_format($item->persen_yoy,2,',','.') }}%
                             </span>
                             @if(isset($item->harga_tahun_lalu) && $item->harga_tahun_lalu)
                             <span style="display:block;font-size:10px;color:#9ca3af;margin-top:1px;">{{ $lblLaluTahun }}: Rp {{ number_format($item->harga_tahun_lalu,0,',','.') }}</span>
                             @endif
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
+
+                    {{-- ── Status YoY ── --}}
                     <td class="td-c">
-                        @if(isset($item->persen_yoy) && $item->persen_yoy !== null)
-                            @if($item->persen_yoy > 0.5) <span class="pill p-up">Naik</span>
+                        @if($isAktual && isset($item->persen_yoy) && $item->persen_yoy !== null)
+                            @if($item->persen_yoy > 0.5)     <span class="pill p-up">Naik</span>
                             @elseif($item->persen_yoy < -0.5) <span class="pill p-dn">Turun</span>
-                            @else <span class="pill p-st">Stabil</span> @endif
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                            @else                              <span class="pill p-st">Stabil</span>
+                            @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
                     @endif
 
+                    {{-- ── RH ── --}}
                     <td class="td-r g-sep">
-                        @if(isset($item->rh) && $item->rh !== null)
-                            <span class="mono nt-txt" style="font-size:12px;">{{ number_format($item->rh,2,',','.') }}</span>
-                        @elseif($item->harga_bulan_ini && $item->harga_bulan_lalu && $item->harga_bulan_lalu > 0)
-                            @php $rh = $item->harga_bulan_ini / $item->harga_bulan_lalu * 100; @endphp
-                            <span class="mono nt-txt" style="font-size:12px;">{{ number_format($rh,2,',','.') }}</span>
-                        @else <span style="color:#d1d5db;">—</span> @endif
-                    </td>
-                    <td class="td-r">
-                        @if(isset($item->ihk) && $item->ihk !== null)
-                            <span class="mono nt-txt" style="font-size:12px;font-weight:500;">{{ number_format($item->ihk,2,',','.') }}</span>
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                        @if($isAktual)
+                            @if(isset($item->rh) && $item->rh !== null)
+                                <span class="mono nt-txt" style="font-size:12px;">{{ number_format($item->rh,2,',','.') }}</span>
+                            @elseif($item->harga_bulan_ini && $item->harga_bulan_lalu && $item->harga_bulan_lalu > 0)
+                                @php $rh = $item->harga_bulan_ini / $item->harga_bulan_lalu * 100; @endphp
+                                <span class="mono nt-txt" style="font-size:12px;">{{ number_format($rh,2,',','.') }}</span>
+                            @else
+                                <span style="color:#d1d5db;">—</span>
+                            @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
 
+                    {{-- ── IHK Aktual ── --}}
+                    <td class="td-r">
+                        @if($isAktual && isset($item->ihk) && $item->ihk !== null)
+                            <span class="mono nt-txt" style="font-size:12px;font-weight:500;">{{ number_format($item->ihk,2,',','.') }}</span>
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
+                    </td>
+
+                    {{-- ── Prediksi Harga (hanya tampil jika aktual BELUM ada) ── --}}
                     <td class="td-r g-sep">
-                        @if(isset($item->harga_prediksi) && $item->harga_prediksi !== null)
+                        @if($isForecast && isset($item->harga_prediksi) && $item->harga_prediksi !== null)
                             <span class="mono blu-txt" style="font-size:12px;font-weight:500;">Rp {{ number_format($item->harga_prediksi,0,',','.') }}</span>
-                            @php $baseHarga = $item->harga_bulan_ini ?? $item->harga_bulan_lalu ?? null; $selPred = $baseHarga ? ($item->harga_prediksi - $baseHarga) : null; @endphp
+                            @php $selPred = $item->harga_bulan_lalu ? ($item->harga_prediksi - $item->harga_bulan_lalu) : null; @endphp
                             @if($selPred !== null)
                             <span style="display:block;font-size:10px;margin-top:1px;color:{{ $selPred > 0 ? '#7a2828' : ($selPred < 0 ? '#265226' : '#9ca3af') }};">
                                 {{ $selPred > 0 ? '+' : '' }}Rp {{ number_format($selPred,0,',','.') }}
                             </span>
                             @endif
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
 
-                    {{-- IHK Forecast PER KOMODITAS dari ihk_komoditas_forecast --}}
+                    {{-- ── IHK Forecast per Komoditas (hanya tampil jika aktual BELUM ada) ── --}}
                     <td class="td-r">
-                        @php $fcKmd = $ihkKomoditasForecast[$item->komoditas_id] ?? null; @endphp
+                        @php $fcKmd = $isForecast ? ($ihkKomoditasForecast[$item->komoditas_id] ?? null) : null; @endphp
                         @if($fcKmd)
                             <span class="mono nt-txt" style="font-size:12px;font-weight:500;">
                                 {{ number_format($fcKmd['nilai_ihk_forecast'], 2, ',', '.') }}
@@ -966,8 +1033,9 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                         @endif
                     </td>
 
+                    {{-- ── Tren Model (hanya tampil jika aktual BELUM ada) ── --}}
                     <td class="td-c">
-                        @if(isset($item->tren_model))
+                        @if($isForecast && isset($item->tren_model) && $item->tren_model !== null)
                             @if($item->tren_model === 'naik')
                                 <span style="display:inline-flex;align-items:center;gap:3px;color:#265226;font-size:11px;font-weight:500;">
                                     <i class="fas fa-arrow-up" style="font-size:9px;"></i> Naik
@@ -981,7 +1049,9 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                                     <i class="fas fa-minus" style="font-size:9px;"></i> Stabil
                                 </span>
                             @endif
-                        @else <span style="color:#d1d5db;">—</span> @endif
+                        @else
+                            <span style="color:#d1d5db;">—</span>
+                        @endif
                     </td>
                 </tr>
             @empty

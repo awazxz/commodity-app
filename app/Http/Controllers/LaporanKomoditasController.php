@@ -476,7 +476,7 @@ class LaporanKomoditasController extends Controller
                 }
 
                 return $this->makeRow(
-                    $kId, $info, $hLalu, $hIni, $hPrediksi,
+                    $kId, $info, $hLalu, $hIni, $hPrediksi, 
                     $selisihMom, $persenMom, $statusMom,
                     $ihkVal, $rhVal,
                     $persenYtd, $hAwalTahun,
