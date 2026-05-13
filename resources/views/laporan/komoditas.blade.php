@@ -332,7 +332,7 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
 @endphp
 
 <div class="kmd fade-up" style="padding: 22px 22px 60px; background: #f8fafc; min-height: 100vh;">
-html.dark equivalent handled by parent
+<!-- html.dark equivalent handled by parent -->
 
 {{-- ══ 1. PAGE HEADER ══ --}}
 <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:18px; padding-bottom:16px; border-bottom:2px solid #1a56db;">
