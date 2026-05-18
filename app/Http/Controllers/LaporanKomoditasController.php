@@ -24,22 +24,37 @@ class LaporanKomoditasController extends Controller
             ->unique()->sortDesc()->values();
         $tahunSekarang = (int) date('Y');
 
-        $tahunFilter  = (int) ($request->tahun ?? $tahunTersedia->first() ?? $tahunSekarang);
+        // Cari tahun+bulan aktual terakhir (terpisah dari $tahunTersedia
+        // agar tidak terpengaruh data forecast tahun depan)
+        $lastAktual = DB::table('price_data')
+            ->where('harga', '>', 0)
+            ->selectRaw('YEAR(MAX(tanggal)) as tahun, MONTH(MAX(tanggal)) as bulan')
+            ->first();
+        $lastAktualTahun = $lastAktual?->tahun ?? $tahunSekarang;
+        $lastAktualBulan = $lastAktual?->bulan ?? null;
+
+        $tahunFilter  = $request->filled('tahun') ? (int) $request->tahun : (int) $lastAktualTahun;
         $komoditasId  = $request->filled('komoditas_id') ? (int) $request->komoditas_id : null;
         $varianFilter = $request->filled('varian')       ? $request->varian             : null;
 
         if ($request->filled('bulan')) {
+            // User memilih bulan tertentu dari dropdown
             $bulanFilter = (int) $request->bulan;
+        } elseif ($request->has('bulan') && $request->bulan === '') {
+            // User sengaja pilih "Semua Bulan"
+            $bulanFilter = null;
         } else {
-            if ($request->isMethod('GET') && !$request->has('bulan')) {
-                $bulanTerakhir = DB::table('price_data')
+            // Tidak ada param bulan → default ke aktual terakhir
+            if ($tahunFilter !== (int) $lastAktualTahun) {
+                // User memilih tahun berbeda, cari bulan terakhir di tahun itu
+                $bulanFilter = DB::table('price_data')
                     ->whereYear('tanggal', $tahunFilter)
                     ->where('harga', '>', 0)
                     ->selectRaw('MONTH(MAX(tanggal)) as bulan')
                     ->value('bulan');
-                $bulanFilter = $bulanTerakhir ? (int) $bulanTerakhir : null;
+                $bulanFilter = $bulanFilter ? (int) $bulanFilter : null;
             } else {
-                $bulanFilter = null;
+                $bulanFilter = $lastAktualBulan ? (int) $lastAktualBulan : null;
             }
         }
 
@@ -61,7 +76,7 @@ class LaporanKomoditasController extends Controller
 
         $ihkData = $this->getIhkData();
 
-        // ── IHK Forecast Agregat (untuk kartu proyeksi) ───────────────────
+        // ── IHK Forecast Agregat ──────────────────────────────────────────
         $ihkForecast         = [];
         $kondisiForecast     = null;
         $inflasiMtomForecast = null;
@@ -89,17 +104,20 @@ class LaporanKomoditasController extends Controller
             \Log::warning('Flask IHK Forecast tidak tersedia: ' . $e->getMessage());
         }
 
-        // ── IHK Forecast per Komoditas (untuk kolom tabel per baris) ──────
-        // Sumber: ihk_komoditas_forecast via endpoint /api/ihk/forecast/komoditas/bulan
-        // Key by komoditas_id agar lookup O(1) di blade
+        // ── IHK Forecast per Komoditas ────────────────────────────────────
         $ihkKomoditasForecast = [];
 
         try {
-            // Tentukan bulan forecast = bulan filter + 1 bulan
             if ($bulanFilter) {
                 $tglDepanFc = Carbon::create($tahunFilter, $bulanFilter, 1)->addMonth();
             } else {
-                $tglDepanFc = Carbon::now()->addMonth()->startOfMonth();
+                $bulanTerakhirAktual = DB::table('price_data')
+                    ->whereYear('tanggal', $tahunFilter)
+                    ->where('harga', '>', 0)
+                    ->selectRaw('MONTH(MAX(tanggal)) as bulan')
+                    ->value('bulan');
+                $bulanBase  = $bulanTerakhirAktual ?? (int) date('m');
+                $tglDepanFc = Carbon::create($tahunFilter, $bulanBase, 1)->addMonth();
             }
             $bulanFcParam = $tglDepanFc->format('Y-m');
 
@@ -117,7 +135,6 @@ class LaporanKomoditasController extends Controller
         } catch (\Exception $e) {
             \Log::warning('Flask IHK Komoditas Forecast tidak tersedia: ' . $e->getMessage());
         }
-        // ──────────────────────────────────────────────────────────────────
 
         $inflasiYtd = (float) ($ihkData['inflasi_ytd'] ?? 0.0);
 
@@ -307,8 +324,13 @@ class LaporanKomoditasController extends Controller
                         ? number_format($row->harga_bulan_lalu, 0, ',', '.') : '-';
                 }
 
-                $line[] = $row->harga_bulan_ini
-                    ? number_format($row->harga_bulan_ini, 0, ',', '.') : '-';
+                // Kolom harga aktual: tampilkan aktual jika ada, jika tidak tampilkan est dari forecast t
+                $hargaAktualCsv = $row->harga_bulan_ini
+                    ?? $row->harga_bulan_ini_est
+                    ?? null;
+                $line[] = $hargaAktualCsv
+                    ? number_format($hargaAktualCsv, 0, ',', '.') . ($row->harga_bulan_ini === null ? ' (est.)' : '')
+                    : '-';
 
                 if ($bulanFilter) {
                     $line[] = $row->selisih_mom !== null
@@ -323,6 +345,7 @@ class LaporanKomoditasController extends Controller
 
                 $line[] = $row->ihk !== null ? number_format($row->ihk, 2, ',', '.') : '-';
                 $line[] = $row->rh  !== null ? number_format($row->rh,  2, ',', '.') : '-';
+                // Kolom prediksi: selalu dari harga_prediksi (forecast t+1)
                 $line[] = $row->harga_prediksi !== null
                     ? number_format($row->harga_prediksi, 0, ',', '.') : '-';
                 $line[] = $row->ihk_forecast   !== null
@@ -360,11 +383,12 @@ class LaporanKomoditasController extends Controller
             $tglLalu  = $tglIni->copy()->subMonth();
             $tglDepan = $tglIni->copy()->addMonth();
 
+            // Harga aktual bulan filter
             $hIniMap = $this->queryAvgBulanan(
                 $tglIni->year, $tglIni->month, $komoditasId, 'aktual', $varianFilter
             );
 
-            // Cek apakah bulan yang dipilih adalah bulan masa depan (belum ada data aktual sama sekali)
+            // Cek apakah bulan filter belum ada data aktual sama sekali
             $totalAktualBulanIni = DB::table('price_data')
                 ->whereYear('tanggal', $tglIni->year)
                 ->whereMonth('tanggal', $tglIni->month)
@@ -372,6 +396,7 @@ class LaporanKomoditasController extends Controller
                 ->count();
             $isFutureMonth = ($totalAktualBulanIni === 0);
 
+            // Harga aktual bulan sebelumnya
             $hLaluMap = $this->queryAvgBulanan(
                 $tglLalu->year, $tglLalu->month, $komoditasId, 'aktual', $varianFilter
             );
@@ -383,6 +408,13 @@ class LaporanKomoditasController extends Controller
                     ->merge(array_keys($hIniMap))
             )->unique()->values();
 
+            // FIX: forecast bulan filter (t) → ditampilkan di kolom "harga aktual (est)"
+            // ketika data aktual bulan filter belum ada
+            $hForecastBulanIniMap = $this->fetchNearestForecastPerKomoditas(
+                $tglIni->year, $tglIni->month, $allIds->toArray()
+            );
+
+            // Forecast bulan depan (t+1) → ditampilkan di kolom "prediksi harga"
             $hPrediksiMap = $this->fetchNearestForecastPerKomoditas(
                 $tglDepan->year, $tglDepan->month, $allIds->toArray()
             );
@@ -393,7 +425,7 @@ class LaporanKomoditasController extends Controller
             $detail        = $this->fetchDetail($allIds);
 
             $rows = $allIds->map(function ($kId) use (
-                $hLaluMap, $hIniMap, $hPrediksiMap,
+                $hLaluMap, $hIniMap, $hForecastBulanIniMap, $hPrediksiMap,
                 $ihkMap, $hAwalTahunMap, $hTahunLaluMap,
                 $detail, $threshold, $isFutureMonth,
                 &$ctrInflasi, &$ctrDeflasi, &$ctrNaik, &$ctrTurun, &$ctrStabil
@@ -402,26 +434,23 @@ class LaporanKomoditasController extends Controller
                 $hLalu = isset($hLaluMap[$kId]) ? round((float) $hLaluMap[$kId]) : null;
                 $hIni  = isset($hIniMap[$kId])  ? round((float) $hIniMap[$kId])  : null;
 
-                // ─────────────────────────────────────────────────────────────────
-                // FIX: Tampilkan harga prediksi HANYA jika:
-                //   1. Bulan yang dipilih adalah bulan masa depan ($isFutureMonth), ATAU
-                //   2. Komoditas ini tidak memiliki data aktual di bulan yang dipilih ($hIni === null)
-                //
-                // Dengan demikian, data Januari/Februari 2026 yang sudah ada harga aktualnya
-                // tidak akan menampilkan kolom prediksi di baris yang bersangkutan.
-                // ─────────────────────────────────────────────────────────────────
-                $hPrediksi = null;
-                if (isset($hPrediksiMap[$kId])) {
-                    if ($isFutureMonth || $hIni === null) {
-                        $hPrediksi = round((float) $hPrediksiMap[$kId]);
-                    }
-                }
+                // FIX: forecast bulan filter (t) → untuk kolom aktual (est) jika $hIni null
+                $hForecastBulanIni = isset($hForecastBulanIniMap[$kId])
+                    ? round((float) $hForecastBulanIniMap[$kId])
+                    : null;
 
+                // Forecast bulan depan (t+1) → selalu untuk kolom prediksi
+                $hPrediksi = isset($hPrediksiMap[$kId])
+                    ? round((float) $hPrediksiMap[$kId])
+                    : null;
+
+                // ── Kalkulasi MtM (hanya jika ada data aktual bulan ini) ──
                 $selisihMom = ($hIni !== null && $hLalu !== null && $hLalu > 0)
                     ? $hIni - $hLalu : null;
                 $persenMom  = ($selisihMom !== null && $hLalu > 0)
                     ? round(($selisihMom / $hLalu) * 100, 2) : null;
 
+                // ── Status MtM ──
                 if ($isFutureMonth) {
                     $statusMom = 'only-forecast';
                 } elseif ($selisihMom !== null) {
@@ -429,21 +458,19 @@ class LaporanKomoditasController extends Controller
                     if ($selisihMom > $batas)      { $statusMom = 'inflasi'; $ctrInflasi++; }
                     elseif ($selisihMom < -$batas) { $statusMom = 'deflasi'; $ctrDeflasi++; }
                     else                           { $statusMom = 'stabil'; }
-                } elseif ($hIni === null && $hLalu === null) {
-                    $statusMom = ($hPrediksi !== null) ? 'only-forecast' : '';
+                } elseif ($hIni === null) {
+                    $statusMom = ($hForecastBulanIni !== null || $hPrediksi !== null)
+                        ? 'only-forecast' : '';
                 } else {
                     $statusMom = 'stabil';
                 }
 
-                if ($hPrediksi !== null && $hIni !== null && $hIni > 0) {
-                    $selDep = $hPrediksi - $hIni;
-                    $basDep = $hIni * $threshold;
-                    if ($selDep > $basDep)      $ctrNaik++;
-                    elseif ($selDep < -$basDep) $ctrTurun++;
-                    else                        $ctrStabil++;
-                } elseif ($hPrediksi !== null && $hIni === null && $hLalu !== null) {
-                    $selDep = $hPrediksi - $hLalu;
-                    $basDep = $hLalu * $threshold;
+                // ── Counter tren forecast ──
+                // Basis perbandingan: aktual t → jika null, pakai forecast t → jika null, pakai aktual t-1
+                $baseUntukTren = $hIni ?? $hForecastBulanIni ?? $hLalu;
+                if ($hPrediksi !== null && $baseUntukTren !== null && $baseUntukTren > 0) {
+                    $selDep = $hPrediksi - $baseUntukTren;
+                    $basDep = $baseUntukTren * $threshold;
                     if ($selDep > $basDep)      $ctrNaik++;
                     elseif ($selDep < -$basDep) $ctrTurun++;
                     else                        $ctrStabil++;
@@ -451,6 +478,7 @@ class LaporanKomoditasController extends Controller
                     $ctrNaik++;
                 }
 
+                // ── YtD & YoY ──
                 $hAwalTahun = isset($hAwalTahunMap[$kId]) ? round((float) $hAwalTahunMap[$kId]) : null;
                 $persenYtd  = ($hIni !== null && $hAwalTahun !== null && $hAwalTahun > 0)
                     ? round((($hIni - $hAwalTahun) / $hAwalTahun) * 100, 2) : null;
@@ -459,6 +487,7 @@ class LaporanKomoditasController extends Controller
                 $persenYoy  = ($hIni !== null && $hTahunLalu !== null && $hTahunLalu > 0)
                     ? round((($hIni - $hTahunLalu) / $hTahunLalu) * 100, 2) : null;
 
+                // ── IHK & RH ──
                 $ihkRow = $ihkMap[$kId] ?? null;
                 $ihkVal = $ihkRow ? (float) $ihkRow->ihk : null;
                 $rhVal  = $ihkRow ? (float) $ihkRow->rh  : null;
@@ -466,26 +495,30 @@ class LaporanKomoditasController extends Controller
                     $rhVal = round(($hIni / $hLalu) * 100, 4);
                 }
 
+                // ── Tren model: prediksi t+1 vs base ──
                 $trenModel = null;
-                if ($hPrediksi !== null && $hIni !== null && $hIni > 0) {
-                    $s = $hPrediksi - $hIni; $b = $hIni * $threshold;
-                    $trenModel = $s > $b ? 'naik' : ($s < -$b ? 'turun' : 'stabil');
-                } elseif ($hPrediksi !== null && $hLalu !== null && $hLalu > 0) {
-                    $s = $hPrediksi - $hLalu; $b = $hLalu * $threshold;
+                if ($hPrediksi !== null && $baseUntukTren !== null && $baseUntukTren > 0) {
+                    $s = $hPrediksi - $baseUntukTren;
+                    $b = $baseUntukTren * $threshold;
                     $trenModel = $s > $b ? 'naik' : ($s < -$b ? 'turun' : 'stabil');
                 }
 
                 return $this->makeRow(
-                    $kId, $info, $hLalu, $hIni, $hPrediksi, 
+                    $kId, $info,
+                    $hLalu,
+                    $hIni,
+                    $hForecastBulanIni,
+                    $hPrediksi,
                     $selisihMom, $persenMom, $statusMom,
                     $ihkVal, $rhVal,
                     $persenYtd, $hAwalTahun,
                     $persenYoy, $hTahunLalu,
-                    $hPrediksi, $trenModel
+                    $trenModel
                 );
             });
 
         } else {
+            // ── Tampilan tanpa filter bulan: rata-rata tahunan ──
             $hAktualMap   = $this->queryAvgTahunan($tahunFilter, $komoditasId, 'aktual',   $varianFilter);
             $hForecastMap = $this->queryAvgTahunan($tahunFilter, $komoditasId, 'forecast', $varianFilter);
 
@@ -504,8 +537,10 @@ class LaporanKomoditasController extends Controller
                 $hPrediksi = isset($hForecastMap[$kId]) ? round((float) $hForecastMap[$kId]) : null;
                 $statusMom = ($hIni !== null) ? 'stabil' : (($hPrediksi !== null) ? 'only-forecast' : '');
 
-                if ($hPrediksi !== null && $hIni !== null && $hIni > 0) {
-                    $s = $hPrediksi - $hIni; $b = $hIni * $threshold;
+                $baseUntukTren = $hIni;
+                if ($hPrediksi !== null && $baseUntukTren !== null && $baseUntukTren > 0) {
+                    $s = $hPrediksi - $baseUntukTren;
+                    $b = $baseUntukTren * $threshold;
                     if ($s > $b) $ctrNaik++; elseif ($s < -$b) $ctrTurun++; else $ctrStabil++;
                 } elseif ($hPrediksi !== null && $hIni === null) {
                     $ctrNaik++;
@@ -514,16 +549,21 @@ class LaporanKomoditasController extends Controller
                 }
 
                 $trenModel = null;
-                if ($hPrediksi !== null && $hIni !== null && $hIni > 0) {
-                    $s = $hPrediksi - $hIni; $b = $hIni * $threshold;
+                if ($hPrediksi !== null && $baseUntukTren !== null && $baseUntukTren > 0) {
+                    $s = $hPrediksi - $baseUntukTren;
+                    $b = $baseUntukTren * $threshold;
                     $trenModel = $s > $b ? 'naik' : ($s < -$b ? 'turun' : 'stabil');
                 }
 
                 return $this->makeRow(
-                    $kId, $info, null, $hIni, $hPrediksi,
+                    $kId, $info,
+                    null,
+                    $hIni,
+                    null,       // hForecastBulanIni tidak relevan tanpa filter bulan
+                    $hPrediksi,
                     null, null, $statusMom,
                     null, null, null, null, null, null,
-                    $hPrediksi, $trenModel
+                    $trenModel
                 );
             });
         }
@@ -543,7 +583,7 @@ class LaporanKomoditasController extends Controller
     }
 
     // =========================================================
-    // INTERNAL: Forecast harga per komoditas bulan depan
+    // INTERNAL: Forecast harga per komoditas untuk bulan tertentu
     // =========================================================
     private function fetchNearestForecastPerKomoditas(
         int $tahun, int $bulan, array $komoditasIds
@@ -599,7 +639,7 @@ class LaporanKomoditasController extends Controller
     }
 
     // =========================================================
-    // INTERNAL: IHK & RH per komoditas dari andil_inflasi_bulanan
+    // INTERNAL: IHK & RH per komoditas
     // =========================================================
     private function fetchIhkPerKomoditas(int $tahun, int $bulan): \Illuminate\Support\Collection
     {
@@ -684,35 +724,44 @@ class LaporanKomoditasController extends Controller
 
     // =========================================================
     // INTERNAL: Buat object row
+    // $hForecastBulanIni = forecast t   → kolom "harga aktual (est)" jika aktual null
+    // $hPrediksi         = forecast t+1 → kolom "prediksi harga"
     // =========================================================
     private function makeRow(
         int $kId, mixed $info,
-        ?int $hLalu, ?int $hIni, ?int $hDepan,
-        ?float $selisihMom, ?float $persenMom, string $statusMom,
-        ?float $ihk = null, ?float $rh = null,
-        ?float $persenYtd = null, ?int $hAwalTahun = null,
-        ?float $persenYoy = null, ?int $hTahunLalu = null,
-        ?int $hPrediksi = null, ?string $trenModel = null
+        ?int $hLalu,
+        ?int $hIni,
+        ?int $hForecastBulanIni,
+        ?int $hPrediksi,
+        ?float $selisihMom  = null,
+        ?float $persenMom   = null,
+        string $statusMom   = '',
+        ?float $ihk         = null,
+        ?float $rh          = null,
+        ?float $persenYtd   = null,
+        ?int   $hAwalTahun  = null,
+        ?float $persenYoy   = null,
+        ?int   $hTahunLalu  = null,
+        ?string $trenModel  = null
     ): object {
         return (object) [
-            'komoditas_id'      => $kId,
-            'nama_komoditas'    => $info->nama_komoditas ?? '-',
-            'nama_varian'       => $info->nama_varian    ?? null,
-            'harga_bulan_lalu'  => $hLalu,
-            'harga_bulan_ini'   => $hIni,
-            'harga_bulan_depan' => $hDepan,
-            'selisih_mom'       => $selisihMom,
-            'persen_mom'        => $persenMom,
-            'status_mom'        => $statusMom,
-            'ihk'               => $ihk,
-            'rh'                => $rh,
-            'ihk_change'        => null,
-            'persen_ytd'        => $persenYtd,
-            'harga_awal_tahun'  => $hAwalTahun,
-            'persen_yoy'        => $persenYoy,
-            'harga_tahun_lalu'  => $hTahunLalu,
-            'harga_prediksi'    => $hPrediksi,
-            'tren_model'        => $trenModel,
+            'komoditas_id'        => $kId,
+            'nama_komoditas'      => $info->nama_komoditas ?? '-',
+            'nama_varian'         => $info->nama_varian    ?? null,
+            'harga_bulan_lalu'    => $hLalu,
+            'harga_bulan_ini'     => $hIni,               // aktual bulan filter, null jika belum ada
+            'harga_bulan_ini_est' => $hForecastBulanIni,  // forecast t → est. jika aktual null
+            'harga_prediksi'      => $hPrediksi,          // forecast t+1 → kolom prediksi
+            'selisih_mom'         => $selisihMom,
+            'persen_mom'          => $persenMom,
+            'status_mom'          => $statusMom,
+            'ihk'                 => $ihk,
+            'rh'                  => $rh,
+            'persen_ytd'          => $persenYtd,
+            'harga_awal_tahun'    => $hAwalTahun,
+            'persen_yoy'          => $persenYoy,
+            'harga_tahun_lalu'    => $hTahunLalu,
+            'tren_model'          => $trenModel,
         ];
     }
 

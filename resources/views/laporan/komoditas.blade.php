@@ -779,6 +779,11 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
         <span><span class="leg-line" style="background:#374151;"></span>YoY</span>
         <span><span class="leg-line" style="background:#4b5563;"></span>IHK / RH</span>
         <span><span class="leg-line" style="background:#1a56db;"></span>Forecast Prophet ({{ $bulanFilter ? $lblDepan : 'Proyeksi' }})</span>
+        @if($bulanFilter)
+        <span><span class="leg-line" style="background:#9ca3af;border-top:1px dashed #9ca3af;"></span>
+            <span style="color:#9ca3af;font-style:italic;">est. = estimasi dari forecast bulan ini</span>
+        </span>
+        @endif
     </div>
 
     <div class="toolbar">
@@ -832,17 +837,21 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
             <tbody id="mainTbody">
             @forelse($data as $item)
                 @php
-                    // Tentukan apakah baris ini adalah data historis (aktual ada) atau forecast (aktual kosong)
                     $isAktual   = $item->harga_bulan_ini !== null;
                     $isForecast = !$isAktual;
+                    // Nilai yang ditampilkan di kolom aktual:
+                    // - jika ada data aktual → pakai harga_bulan_ini
+                    // - jika tidak ada → pakai harga_bulan_ini_est (forecast t, bukan t+1)
+                    $hargaTampil = $item->harga_bulan_ini ?? $item->harga_bulan_ini_est ?? null;
                 @endphp
                 <tr class="row-item"
                     data-nama="{{ strtolower($item->nama_komoditas) }}"
                     data-mom="{{ $item->persen_mom ?? 0 }}"
                     data-yoy="{{ $item->persen_yoy ?? 0 }}"
                     data-ytd="{{ $item->persen_ytd ?? 0 }}"
-                    data-harga="{{ $item->harga_bulan_ini ?? 0 }}">
+                    data-harga="{{ $hargaTampil ?? 0 }}">
 
+                    {{-- ── Nama Komoditas ── --}}
                     <td>
                         <span style="font-size:12px;font-weight:500;color:#0f172a;">{{ $item->nama_komoditas }}</span>
                         @if($isForecast)
@@ -851,19 +860,22 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                     </td>
 
                     {{-- ── Harga Bulan Ini ── --}}
+                    {{-- FIX: jika aktual ada → tampilkan aktual biasa
+                              jika aktual null → tampilkan harga_bulan_ini_est (forecast t) dengan label est.
+                              BUKAN harga_prediksi (forecast t+1) --}}
                     <td class="td-r">
                         @if($isAktual)
-                            <span class="mono" style="font-size:12px;font-weight:500;">Rp {{ number_format($item->harga_bulan_ini,0,',','.') }}</span>
+                            <span class="mono" style="font-size:12px;font-weight:500;">
+                                Rp {{ number_format($item->harga_bulan_ini, 0, ',', '.') }}
+                            </span>
+                        @elseif(isset($item->harga_bulan_ini_est) && $item->harga_bulan_ini_est !== null)
+                            <span class="mono blu-txt" style="font-size:12px;font-weight:500;"
+                                  title="Estimasi dari model forecast bulan {{ $lblIni }}">
+                                Rp {{ number_format($item->harga_bulan_ini_est, 0, ',', '.') }}
+                            </span>
+                            <span style="display:block;font-size:9px;color:#9ca3af;margin-top:1px;">est.</span>
                         @else
-                            {{-- Tampilkan harga prediksi di kolom "harga bulan ini" jika aktual belum ada --}}
-                            @if(isset($item->harga_prediksi) && $item->harga_prediksi !== null)
-                                <span class="mono blu-txt" style="font-size:12px;font-weight:500;" title="Nilai dari forecast">
-                                    Rp {{ number_format($item->harga_prediksi,0,',','.') }}
-                                </span>
-                                <span style="display:block;font-size:9px;color:#9ca3af;margin-top:1px;">est.</span>
-                            @else
-                                <span style="color:#d1d5db;">—</span>
-                            @endif
+                            <span style="color:#d1d5db;">—</span>
                         @endif
                     </td>
 
@@ -999,24 +1011,38 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                         @endif
                     </td>
 
-                    {{-- ── Prediksi Harga (hanya tampil jika aktual BELUM ada) ── --}}
+                    {{-- ── Prediksi Harga (forecast t+1) ── --}}
+                    {{-- FIX: kolom ini SELALU dari harga_prediksi (forecast t+1 = bulan depan dari filter)
+                              berbeda dengan kolom "Harga Aktual (est)" yang dari harga_bulan_ini_est (forecast t) --}}
                     <td class="td-r g-sep">
-                        @if($isForecast && isset($item->harga_prediksi) && $item->harga_prediksi !== null)
-                            <span class="mono blu-txt" style="font-size:12px;font-weight:500;">Rp {{ number_format($item->harga_prediksi,0,',','.') }}</span>
-                            @php $selPred = $item->harga_bulan_lalu ? ($item->harga_prediksi - $item->harga_bulan_lalu) : null; @endphp
-                            @if($selPred !== null)
-                            <span style="display:block;font-size:10px;margin-top:1px;color:{{ $selPred > 0 ? '#7a2828' : ($selPred < 0 ? '#265226' : '#9ca3af') }};">
-                                {{ $selPred > 0 ? '+' : '' }}Rp {{ number_format($selPred,0,',','.') }}
+                        @if(isset($item->harga_prediksi) && $item->harga_prediksi !== null)
+                            <span class="mono blu-txt" style="font-size:12px;font-weight:500;">
+                                Rp {{ number_format($item->harga_prediksi, 0, ',', '.') }}
                             </span>
+                            @php
+                                // Selisih prediksi t+1 vs:
+                                // - aktual t (jika ada), atau
+                                // - forecast t (est, jika aktual null), atau
+                                // - aktual t-1
+                                $baseHarga = $item->harga_bulan_ini
+                                          ?? $item->harga_bulan_ini_est
+                                          ?? $item->harga_bulan_lalu;
+                                $selPred   = $baseHarga ? ($item->harga_prediksi - $baseHarga) : null;
+                            @endphp
+                            @if($selPred !== null)
+                                <span style="display:block;font-size:10px;margin-top:1px;
+                                    color:{{ $selPred > 0 ? '#7a2828' : ($selPred < 0 ? '#265226' : '#9ca3af') }};">
+                                    {{ $selPred > 0 ? '+' : '' }}Rp {{ number_format($selPred, 0, ',', '.') }}
+                                </span>
                             @endif
                         @else
                             <span style="color:#d1d5db;">—</span>
                         @endif
                     </td>
 
-                    {{-- ── IHK Forecast per Komoditas (hanya tampil jika aktual BELUM ada) ── --}}
+                    {{-- ── IHK Forecast per Komoditas ── --}}
                     <td class="td-r">
-                        @php $fcKmd = $isForecast ? ($ihkKomoditasForecast[$item->komoditas_id] ?? null) : null; @endphp
+                        @php $fcKmd = $ihkKomoditasForecast[$item->komoditas_id] ?? null; @endphp
                         @if($fcKmd)
                             <span class="mono nt-txt" style="font-size:12px;font-weight:500;">
                                 {{ number_format($fcKmd['nilai_ihk_forecast'], 2, ',', '.') }}
@@ -1025,7 +1051,8 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                                 {{ number_format($fcKmd['ihk_lower'], 2, ',', '.') }}–{{ number_format($fcKmd['ihk_upper'], 2, ',', '.') }}
                             </span>
                             @php $kd = $fcKmd['kondisi_forecast'] ?? null; @endphp
-                            <span style="display:block;font-size:10px;font-weight:500;margin-top:1px;color:{{ $kd==='inflasi'?'#7a2828':($kd==='deflasi'?'#265226':'#6b7280') }};">
+                            <span style="display:block;font-size:10px;font-weight:500;margin-top:1px;
+                                color:{{ $kd==='inflasi'?'#7a2828':($kd==='deflasi'?'#265226':'#6b7280') }};">
                                 {{ ucfirst($kd ?? '—') }}
                             </span>
                         @else
@@ -1033,9 +1060,9 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                         @endif
                     </td>
 
-                    {{-- ── Tren Model (hanya tampil jika aktual BELUM ada) ── --}}
+                    {{-- ── Tren Model ── --}}
                     <td class="td-c">
-                        @if($isForecast && isset($item->tren_model) && $item->tren_model !== null)
+                        @if(isset($item->tren_model) && $item->tren_model !== null)
                             @if($item->tren_model === 'naik')
                                 <span style="display:inline-flex;align-items:center;gap:3px;color:#265226;font-size:11px;font-weight:500;">
                                     <i class="fas fa-arrow-up" style="font-size:9px;"></i> Naik
@@ -1053,6 +1080,7 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
                             <span style="color:#d1d5db;">—</span>
                         @endif
                     </td>
+
                 </tr>
             @empty
                 <tr>
@@ -1212,7 +1240,6 @@ function sortTable(e, key) {
     });
     rows.forEach(r => tbody.appendChild(r));
 }
-// update column forecast
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 @endsection

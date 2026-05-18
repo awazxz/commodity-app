@@ -141,18 +141,19 @@
     }
 
     .fitted-badge {
-        display: inline-block;
-        margin-left: 4px;
-        font-size: 9px;
-        background: #eff6ff;
-        color: #1d4ed8;
-        border: 1px solid #bfdbfe;
-        border-radius: 4px;
-        padding: 0px 4px;
-        font-weight: 700;
-        text-transform: uppercase;
-        vertical-align: middle;
-    }
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 9px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+    border-radius: 4px;
+    padding: 0px 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+    vertical-align: middle;
+    letter-spacing: 0; /* tambahkan ini agar ℹ rapi */
+}
     html.dark .fitted-badge {
         background: #1e3a5f;
         color: #93c5fd;
@@ -518,7 +519,7 @@
         </div>
 
         {{-- Chart --}}
-        <div class="col-span-12 lg:col-span-8 card-standard overflow-hidden flex flex-col">
+        <div class="col-span-12 lg:col-span-8 card-standard overflow-hidden flex flex-col" id="hasil-prediksi">
             <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex flex-col lg:flex-row justify-between items-center gap-4 flex-shrink-0">
                 <div>
                     <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">{{ __('messages.visualisasi_tren') }}</h3>
@@ -553,13 +554,19 @@
                 <span class="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold px-2 py-0.5 rounded-full">
                     MAPE: {{ number_format($mape ?? 0, 2) }}%
                 </span>
-                <span class="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500">
+                <span class="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500 cursor-help"
+                    data-tooltip-title="In-sample fit"
+                    data-tooltip-color="blue"
+                    data-tooltip-body="Nilai yang diprediksi model Prophet untuk periode yang sudah ada data aktualnya — digunakan untuk mengukur seberapa baik model mencocokkan data historis. Semakin dekat ke aktual, semakin baik model.">
                     <span class="inline-block w-2 h-2 rounded-sm bg-blue-200 dark:bg-blue-900 border border-blue-400"></span>
-                    In-sample fit
+                    <span class="border-b border-dashed border-gray-400">In-sample fit</span>
                 </span>
-                <span class="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500">
+                <span class="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500 cursor-help"
+                    data-tooltip-title="Proyeksi"
+                    data-tooltip-color="orange"
+                    data-tooltip-body="Prediksi harga untuk periode yang belum ada data aktualnya — hasil forecast model ke depan beserta rentang batas bawah/atas kepercayaan 80%.">
                     <span class="inline-block w-2 h-2 rounded-sm bg-orange-100 dark:bg-orange-900/30 border border-orange-300"></span>
-                    Proyeksi
+                    <span class="border-b border-dashed border-gray-400">Proyeksi</span>
                 </span>
             </div>
         </div>
@@ -1381,6 +1388,12 @@
         </div>
     </div>
 @endif
+{{-- Global Floating Tooltip --}}
+    <div id="global-tooltip"
+         class="fixed z-[9999] hidden bg-gray-900 dark:bg-gray-700 text-white rounded-xl shadow-2xl pointer-events-none max-w-xs"
+         style="padding: 10px 14px; font-size: 11px; line-height: 1.6;">
+    </div>
+
 
 </div>{{-- end dashboard-container --}}
 
@@ -1690,8 +1703,8 @@ function updateInsightTable(page) {
         var rowBg = isForecastOnly ? 'bg-orange-50/30 dark:bg-orange-900/5' : (displayForecast !== null ? 'row-has-fitted' : '');
         var borderTop = (globalIdx === actualCount && forecastRows.length > 0) ? 'border-t-2 border-orange-200 dark:border-orange-800' : '';
         var periodBadge = '';
-        if (isForecastOnly) periodBadge = `<span class="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded font-bold uppercase">${trans.proyeksi}</span>`;
-        else if (displayForecast !== null) periodBadge = `<span class="fitted-badge">fit</span>`;
+            if (isForecastOnly) periodBadge = `<span class="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded font-bold uppercase">${trans.proyeksi}</span>`;
+             else if (displayForecast !== null) periodBadge = `<span class="fitted-badge">FIT</span>`;
         var actualCell    = row.actual !== null ? 'Rp ' + Math.round(row.actual).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>';
         var forecastCell  = displayForecast !== null ? 'Rp ' + Math.round(displayForecast).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>';
         var lowerCell     = displayLower !== null ? 'Rp ' + Math.round(displayLower).toLocaleString('id-ID') : '<span class="text-gray-300 dark:text-gray-600">—</span>';
@@ -1898,6 +1911,79 @@ function showNotification(message, type = 'success') {
     document.body.appendChild(notification);
     setTimeout(() => { notification.style.opacity = '0'; notification.style.transform = 'translateX(100%)'; notification.style.transition = 'all 0.3s ease'; setTimeout(() => notification.remove(), 300); }, 3000);
 }
+
+@if(request()->isMethod('post') && ($currentTab ?? 'insight') === 'insight')
+// Scroll ke hasil setelah POST submit parameter
+document.addEventListener('DOMContentLoaded', function () {
+    const el = document.getElementById('hasil-prediksi');
+    if (el) {
+        setTimeout(function () {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 300);
+    }
+});
+@endif
+
+// ── Global Floating Tooltip ──────────────────────────────────
+(function () {
+    const tooltip = document.getElementById('global-tooltip');
+    if (!tooltip) return;
+
+    const colorMap = {
+        blue:   '#93c5fd',
+        orange: '#fdba74',
+        green:  '#86efac',
+        red:    '#fca5a5',
+    };
+
+    function show(e) {
+        const el    = e.currentTarget;
+        const title = el.getAttribute('data-tooltip-title');
+        const body  = el.getAttribute('data-tooltip-body');
+        const color = el.getAttribute('data-tooltip-color') || 'blue';
+        if (!title && !body) return;
+
+        const titleColor = colorMap[color] || colorMap.blue;
+        tooltip.innerHTML = (title ? `<strong style="color:${titleColor};display:block;margin-bottom:4px;">${title}</strong>` : '') + (body || '');
+        tooltip.classList.remove('hidden');
+        move(e);
+    }
+
+    function move(e) {
+        const pad = 14;
+        const tw  = tooltip.offsetWidth  || 240;
+        const th  = tooltip.offsetHeight || 60;
+        let x = e.clientX + pad;
+        let y = e.clientY - th - pad;
+
+        if (x + tw > window.innerWidth  - pad) x = e.clientX - tw - pad;
+        if (y < pad)                            y = e.clientY + pad;
+        if (y + th > window.innerHeight - pad)  y = window.innerHeight - th - pad;
+
+        tooltip.style.left = x + 'px';
+        tooltip.style.top  = y + 'px';
+    }
+
+    function hide() {
+        tooltip.classList.add('hidden');
+    }
+
+    function bind() {
+        document.querySelectorAll('[data-tooltip-title],[data-tooltip-body]').forEach(el => {
+            el.removeEventListener('mouseenter', show);
+            el.removeEventListener('mousemove',  move);
+            el.removeEventListener('mouseleave', hide);
+            el.addEventListener('mouseenter', show);
+            el.addEventListener('mousemove',  move);
+            el.addEventListener('mouseleave', hide);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', bind);
+    // Bind ulang kalau ada konten dinamis (tabel diupdate JS)
+    const observer = new MutationObserver(bind);
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
 </script>
 
 @endsection
