@@ -24,8 +24,6 @@ class LaporanKomoditasController extends Controller
             ->unique()->sortDesc()->values();
         $tahunSekarang = (int) date('Y');
 
-        // Cari tahun+bulan aktual terakhir (terpisah dari $tahunTersedia
-        // agar tidak terpengaruh data forecast tahun depan)
         $lastAktual = DB::table('price_data')
             ->where('harga', '>', 0)
             ->selectRaw('YEAR(MAX(tanggal)) as tahun, MONTH(MAX(tanggal)) as bulan')
@@ -38,15 +36,11 @@ class LaporanKomoditasController extends Controller
         $varianFilter = $request->filled('varian')       ? $request->varian             : null;
 
         if ($request->filled('bulan')) {
-            // User memilih bulan tertentu dari dropdown
             $bulanFilter = (int) $request->bulan;
         } elseif ($request->has('bulan') && $request->bulan === '') {
-            // User sengaja pilih "Semua Bulan"
             $bulanFilter = null;
         } else {
-            // Tidak ada param bulan → default ke aktual terakhir
             if ($tahunFilter !== (int) $lastAktualTahun) {
-                // User memilih tahun berbeda, cari bulan terakhir di tahun itu
                 $bulanFilter = DB::table('price_data')
                     ->whereYear('tanggal', $tahunFilter)
                     ->where('harga', '>', 0)
@@ -76,7 +70,6 @@ class LaporanKomoditasController extends Controller
 
         $ihkData = $this->getIhkData();
 
-        // ── IHK Forecast Agregat ──────────────────────────────────────────
         $ihkForecast         = [];
         $kondisiForecast     = null;
         $inflasiMtomForecast = null;
@@ -104,7 +97,6 @@ class LaporanKomoditasController extends Controller
             \Log::warning('Flask IHK Forecast tidak tersedia: ' . $e->getMessage());
         }
 
-        // ── IHK Forecast per Komoditas ────────────────────────────────────
         $ihkKomoditasForecast = [];
 
         try {
@@ -267,6 +259,12 @@ class LaporanKomoditasController extends Controller
         $komoditasId  = $request->filled('komoditas_id') ? (int) $request->komoditas_id : null;
         $varianFilter = $request->filled('varian')       ? $request->varian             : null;
 
+        // ── FIX: Fetch IHK Komoditas Forecast dari Flask ─────────────────
+        // Diperlukan karena $row->ihk_forecast tidak disimpan di buildRows,
+        // data ini hanya tersedia via Flask dan harus di-fetch di sini.
+        $ihkKomoditasForecast = $this->fetchIhkKomoditasForecast($tahunFilter, $bulanFilter);
+        // ──────────────────────────────────────────────────────────────────
+
         [$rows] = $this->buildRows($tahunFilter, $bulanFilter, $komoditasId, $varianFilter);
 
         $bMap = $this->namaBulanMap();
@@ -291,14 +289,15 @@ class LaporanKomoditasController extends Controller
             'Expires'             => '0',
         ];
 
-        $callback = function () use ($rows, $bLalu, $bIni, $bDepan, $bulanFilter) {
+        $callback = function () use ($rows, $bLalu, $bIni, $bDepan, $bulanFilter, $ihkKomoditasForecast) {
             $out = fopen('php://output', 'w');
             fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            fputcsv($out, ['Laporan Perbandingan Harga Komoditas — BPS Provinsi Riau']);
-            fputcsv($out, ['Tanggal Cetak', now()->format('d/m/Y H:i')]);
-            fputcsv($out, []);
+            fputcsv($out, ['Laporan Perbandingan Harga Komoditas — BPS Provinsi Riau'], ';');
+            fputcsv($out, ['Tanggal Cetak', now()->format('d/m/Y H:i')], ';');
+            fputcsv($out, [], ';');
 
+            // ── Header kolom ─────────────────────────────────────────────
             $cols = ['Komoditas', 'Varian'];
             if ($bulanFilter) $cols[] = "Harga {$bLalu} (Rp)";
             $cols[] = "Harga {$bIni} (Rp)";
@@ -314,46 +313,46 @@ class LaporanKomoditasController extends Controller
             $cols[] = 'IHK Forecast';
             $cols[] = 'Tren Model';
             $cols[] = 'Status';
-            fputcsv($out, $cols);
+            fputcsv($out, $cols, ';');
+            // ─────────────────────────────────────────────────────────────
 
             foreach ($rows as $row) {
                 $line = [$row->nama_komoditas, $row->nama_varian ?? '-'];
 
                 if ($bulanFilter) {
-                    $line[] = $row->harga_bulan_lalu
+                    $line[] = $row->harga_bulan_lalu !== null
                         ? number_format($row->harga_bulan_lalu, 0, ',', '.') : '-';
                 }
 
-                // Kolom harga aktual: tampilkan aktual jika ada, jika tidak tampilkan est dari forecast t
-                $hargaAktualCsv = $row->harga_bulan_ini
-                    ?? $row->harga_bulan_ini_est
-                    ?? null;
-                $line[] = $hargaAktualCsv
+                $hargaAktualCsv = $row->harga_bulan_ini ?? $row->harga_bulan_ini_est ?? null;
+                $line[] = $hargaAktualCsv !== null
                     ? number_format($hargaAktualCsv, 0, ',', '.') . ($row->harga_bulan_ini === null ? ' (est.)' : '')
                     : '-';
 
                 if ($bulanFilter) {
-                    $line[] = $row->selisih_mom !== null
-                        ? number_format($row->selisih_mom, 0, ',', '.') : '-';
-                    $line[] = $row->persen_mom !== null
-                        ? number_format($row->persen_mom, 2, ',', '.') . '%' : '-';
-                    $line[] = $row->persen_ytd !== null
-                        ? number_format($row->persen_ytd, 2, ',', '.') . '%' : '-';
-                    $line[] = $row->persen_yoy !== null
-                        ? number_format($row->persen_yoy, 2, ',', '.') . '%' : '-';
+                    $line[] = $row->selisih_mom !== null ? number_format($row->selisih_mom, 0, ',', '.') : '-';
+                    $line[] = $row->persen_mom  !== null ? number_format($row->persen_mom,  2, ',', '.') . '%' : '-';
+                    $line[] = $row->persen_ytd  !== null ? number_format($row->persen_ytd,  2, ',', '.') . '%' : '-';
+                    $line[] = $row->persen_yoy  !== null ? number_format($row->persen_yoy,  2, ',', '.') . '%' : '-';
                 }
 
-                $line[] = $row->ihk !== null ? number_format($row->ihk, 2, ',', '.') : '-';
-                $line[] = $row->rh  !== null ? number_format($row->rh,  2, ',', '.') : '-';
-                // Kolom prediksi: selalu dari harga_prediksi (forecast t+1)
+                // ── IHK & RH: langsung dari $row (sudah di-set di buildRows) ──
+                $line[] = $row->ihk !== null ? number_format((float) $row->ihk, 2, ',', '.') : '-';
+                $line[] = $row->rh  !== null ? number_format((float) $row->rh,  2, ',', '.') : '-';
+                // ──────────────────────────────────────────────────────────────
+
                 $line[] = $row->harga_prediksi !== null
                     ? number_format($row->harga_prediksi, 0, ',', '.') : '-';
-                $line[] = $row->ihk_forecast   !== null
-                    ? number_format($row->ihk_forecast,   2, ',', '.') : '-';
+
+                // ── IHK Forecast: dari hasil fetch Flask terpisah ─────────────
+                $ihkFcVal = $ihkKomoditasForecast[(int) $row->komoditas_id]['ihk_forecast'] ?? null;
+                $line[] = $ihkFcVal !== null ? number_format((float) $ihkFcVal, 2, ',', '.') : '-';
+                // ──────────────────────────────────────────────────────────────
+
                 $line[] = $row->tren_model ?? '-';
                 $line[] = $this->statusLabel($row->status_mom);
 
-                fputcsv($out, $line);
+                fputcsv($out, $line, ';');
             }
 
             fclose($out);
@@ -379,16 +378,15 @@ class LaporanKomoditasController extends Controller
         $ctrStabil  = 0;
 
         if ($bulanFilter) {
+            // ── Mode bulanan ──────────────────────────────────────────────
             $tglIni   = Carbon::create($tahunFilter, $bulanFilter, 1);
             $tglLalu  = $tglIni->copy()->subMonth();
             $tglDepan = $tglIni->copy()->addMonth();
 
-            // Harga aktual bulan filter
             $hIniMap = $this->queryAvgBulanan(
                 $tglIni->year, $tglIni->month, $komoditasId, 'aktual', $varianFilter
             );
 
-            // Cek apakah bulan filter belum ada data aktual sama sekali
             $totalAktualBulanIni = DB::table('price_data')
                 ->whereYear('tanggal', $tglIni->year)
                 ->whereMonth('tanggal', $tglIni->month)
@@ -396,7 +394,6 @@ class LaporanKomoditasController extends Controller
                 ->count();
             $isFutureMonth = ($totalAktualBulanIni === 0);
 
-            // Harga aktual bulan sebelumnya
             $hLaluMap = $this->queryAvgBulanan(
                 $tglLalu->year, $tglLalu->month, $komoditasId, 'aktual', $varianFilter
             );
@@ -404,21 +401,17 @@ class LaporanKomoditasController extends Controller
             $masterIds = $this->fetchAllKomoditasIds($komoditasId, $varianFilter);
 
             $allIds = $masterIds->merge(
-                collect(array_keys($hLaluMap))
-                    ->merge(array_keys($hIniMap))
+                collect(array_keys($hLaluMap))->merge(array_keys($hIniMap))
             )->unique()->values();
 
-            // FIX: forecast bulan filter (t) → ditampilkan di kolom "harga aktual (est)"
-            // ketika data aktual bulan filter belum ada
             $hForecastBulanIniMap = $this->fetchNearestForecastPerKomoditas(
                 $tglIni->year, $tglIni->month, $allIds->toArray()
             );
-
-            // Forecast bulan depan (t+1) → ditampilkan di kolom "prediksi harga"
             $hPrediksiMap = $this->fetchNearestForecastPerKomoditas(
                 $tglDepan->year, $tglDepan->month, $allIds->toArray()
             );
 
+            // FIX: IHK di mode bulanan — fetch dari andil_inflasi_bulanan
             $ihkMap        = $this->fetchIhkPerKomoditas($tglIni->year, $tglIni->month);
             $hAwalTahunMap = $this->queryAvgBulanan($tglIni->year, 1, $komoditasId, 'aktual', $varianFilter);
             $hTahunLaluMap = $this->queryAvgBulanan($tglIni->year - 1, $tglIni->month, $komoditasId, 'aktual', $varianFilter);
@@ -434,23 +427,16 @@ class LaporanKomoditasController extends Controller
                 $hLalu = isset($hLaluMap[$kId]) ? round((float) $hLaluMap[$kId]) : null;
                 $hIni  = isset($hIniMap[$kId])  ? round((float) $hIniMap[$kId])  : null;
 
-                // FIX: forecast bulan filter (t) → untuk kolom aktual (est) jika $hIni null
                 $hForecastBulanIni = isset($hForecastBulanIniMap[$kId])
-                    ? round((float) $hForecastBulanIniMap[$kId])
-                    : null;
-
-                // Forecast bulan depan (t+1) → selalu untuk kolom prediksi
+                    ? round((float) $hForecastBulanIniMap[$kId]) : null;
                 $hPrediksi = isset($hPrediksiMap[$kId])
-                    ? round((float) $hPrediksiMap[$kId])
-                    : null;
+                    ? round((float) $hPrediksiMap[$kId]) : null;
 
-                // ── Kalkulasi MtM (hanya jika ada data aktual bulan ini) ──
                 $selisihMom = ($hIni !== null && $hLalu !== null && $hLalu > 0)
                     ? $hIni - $hLalu : null;
                 $persenMom  = ($selisihMom !== null && $hLalu > 0)
                     ? round(($selisihMom / $hLalu) * 100, 2) : null;
 
-                // ── Status MtM ──
                 if ($isFutureMonth) {
                     $statusMom = 'only-forecast';
                 } elseif ($selisihMom !== null) {
@@ -465,8 +451,6 @@ class LaporanKomoditasController extends Controller
                     $statusMom = 'stabil';
                 }
 
-                // ── Counter tren forecast ──
-                // Basis perbandingan: aktual t → jika null, pakai forecast t → jika null, pakai aktual t-1
                 $baseUntukTren = $hIni ?? $hForecastBulanIni ?? $hLalu;
                 if ($hPrediksi !== null && $baseUntukTren !== null && $baseUntukTren > 0) {
                     $selDep = $hPrediksi - $baseUntukTren;
@@ -478,7 +462,6 @@ class LaporanKomoditasController extends Controller
                     $ctrNaik++;
                 }
 
-                // ── YtD & YoY ──
                 $hAwalTahun = isset($hAwalTahunMap[$kId]) ? round((float) $hAwalTahunMap[$kId]) : null;
                 $persenYtd  = ($hIni !== null && $hAwalTahun !== null && $hAwalTahun > 0)
                     ? round((($hIni - $hAwalTahun) / $hAwalTahun) * 100, 2) : null;
@@ -487,15 +470,15 @@ class LaporanKomoditasController extends Controller
                 $persenYoy  = ($hIni !== null && $hTahunLalu !== null && $hTahunLalu > 0)
                     ? round((($hIni - $hTahunLalu) / $hTahunLalu) * 100, 2) : null;
 
-                // ── IHK & RH ──
+                // IHK & RH dari andil_inflasi_bulanan
                 $ihkRow = $ihkMap[$kId] ?? null;
                 $ihkVal = $ihkRow ? (float) $ihkRow->ihk : null;
                 $rhVal  = $ihkRow ? (float) $ihkRow->rh  : null;
+                // Fallback RH dari harga jika tidak ada di tabel IHK
                 if ($rhVal === null && $hIni !== null && $hLalu !== null && $hLalu > 0) {
                     $rhVal = round(($hIni / $hLalu) * 100, 4);
                 }
 
-                // ── Tren model: prediksi t+1 vs base ──
                 $trenModel = null;
                 if ($hPrediksi !== null && $baseUntukTren !== null && $baseUntukTren > 0) {
                     $s = $hPrediksi - $baseUntukTren;
@@ -505,10 +488,7 @@ class LaporanKomoditasController extends Controller
 
                 return $this->makeRow(
                     $kId, $info,
-                    $hLalu,
-                    $hIni,
-                    $hForecastBulanIni,
-                    $hPrediksi,
+                    $hLalu, $hIni, $hForecastBulanIni, $hPrediksi,
                     $selisihMom, $persenMom, $statusMom,
                     $ihkVal, $rhVal,
                     $persenYtd, $hAwalTahun,
@@ -518,7 +498,7 @@ class LaporanKomoditasController extends Controller
             });
 
         } else {
-            // ── Tampilan tanpa filter bulan: rata-rata tahunan ──
+            // ── Mode tahunan ──────────────────────────────────────────────
             $hAktualMap   = $this->queryAvgTahunan($tahunFilter, $komoditasId, 'aktual',   $varianFilter);
             $hForecastMap = $this->queryAvgTahunan($tahunFilter, $komoditasId, 'forecast', $varianFilter);
 
@@ -528,8 +508,21 @@ class LaporanKomoditasController extends Controller
 
             $detail = $this->fetchDetail($allIds);
 
+            // FIX: IHK di mode tahunan — ambil dari bulan terakhir yang
+            // tersedia di andil_inflasi_bulanan untuk tahun bersangkutan.
+            $bulanTerakhirIhk = DB::table('andil_inflasi_bulanan')
+                ->whereYear('tanggal', $tahunFilter)
+                ->selectRaw('MONTH(MAX(tanggal)) as bulan')
+                ->value('bulan');
+
+            $ihkMapTahunan = $bulanTerakhirIhk
+                ? $this->fetchIhkPerKomoditas($tahunFilter, (int) $bulanTerakhirIhk)
+                : collect();
+            // ──────────────────────────────────────────────────────────────
+
             $rows = $allIds->map(function ($kId) use (
                 $hAktualMap, $hForecastMap, $detail, $threshold,
+                $ihkMapTahunan,
                 &$ctrNaik, &$ctrTurun, &$ctrStabil
             ) {
                 $info      = $detail[$kId] ?? null;
@@ -555,14 +548,17 @@ class LaporanKomoditasController extends Controller
                     $trenModel = $s > $b ? 'naik' : ($s < -$b ? 'turun' : 'stabil');
                 }
 
+                // FIX: IHK & RH dari bulan terakhir di tahun ini
+                $ihkRow = $ihkMapTahunan[$kId] ?? null;
+                $ihkVal = $ihkRow ? (float) $ihkRow->ihk : null;
+                $rhVal  = $ihkRow ? (float) $ihkRow->rh  : null;
+
                 return $this->makeRow(
                     $kId, $info,
-                    null,
-                    $hIni,
-                    null,       // hForecastBulanIni tidak relevan tanpa filter bulan
-                    $hPrediksi,
+                    null, $hIni, null, $hPrediksi,
                     null, null, $statusMom,
-                    null, null, null, null, null, null,
+                    $ihkVal, $rhVal,   // sebelumnya selalu null, null
+                    null, null, null, null,
                     $trenModel
                 );
             });
@@ -639,7 +635,48 @@ class LaporanKomoditasController extends Controller
     }
 
     // =========================================================
-    // INTERNAL: IHK & RH per komoditas
+    // INTERNAL: IHK Komoditas Forecast dari Flask
+    // Dipisahkan menjadi method sendiri agar bisa dipakai
+    // oleh index() maupun exportCsv() tanpa duplikasi kode.
+    // =========================================================
+    private function fetchIhkKomoditasForecast(int $tahunFilter, ?int $bulanFilter): array
+    {
+        $ihkKomoditasForecast = [];
+
+        try {
+            if ($bulanFilter) {
+                $tglDepanFc = Carbon::create($tahunFilter, $bulanFilter, 1)->addMonth();
+            } else {
+                $bulanTerakhirAktual = DB::table('price_data')
+                    ->whereYear('tanggal', $tahunFilter)
+                    ->where('harga', '>', 0)
+                    ->selectRaw('MONTH(MAX(tanggal)) as bulan')
+                    ->value('bulan');
+                $bulanBase  = $bulanTerakhirAktual ?? (int) date('m');
+                $tglDepanFc = Carbon::create($tahunFilter, $bulanBase, 1)->addMonth();
+            }
+
+            $bulanFcParam  = $tglDepanFc->format('Y-m');
+            $fcKmdResponse = Http::timeout(5)->get(
+                'http://127.0.0.1:5000/api/ihk/forecast/komoditas/bulan',
+                ['bulan' => $bulanFcParam]
+            );
+
+            if ($fcKmdResponse->successful() && $fcKmdResponse->json('success')) {
+                $fcKmdList = $fcKmdResponse->json('data.komoditas') ?? [];
+                foreach ($fcKmdList as $kmd) {
+                    $ihkKomoditasForecast[(int) $kmd['komoditas_id']] = $kmd;
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Flask IHK Komoditas Forecast tidak tersedia: ' . $e->getMessage());
+        }
+
+        return $ihkKomoditasForecast;
+    }
+
+    // =========================================================
+    // INTERNAL: IHK & RH per komoditas dari DB
     // =========================================================
     private function fetchIhkPerKomoditas(int $tahun, int $bulan): \Illuminate\Support\Collection
     {
@@ -749,9 +786,9 @@ class LaporanKomoditasController extends Controller
             'nama_komoditas'      => $info->nama_komoditas ?? '-',
             'nama_varian'         => $info->nama_varian    ?? null,
             'harga_bulan_lalu'    => $hLalu,
-            'harga_bulan_ini'     => $hIni,               // aktual bulan filter, null jika belum ada
-            'harga_bulan_ini_est' => $hForecastBulanIni,  // forecast t → est. jika aktual null
-            'harga_prediksi'      => $hPrediksi,          // forecast t+1 → kolom prediksi
+            'harga_bulan_ini'     => $hIni,
+            'harga_bulan_ini_est' => $hForecastBulanIni,
+            'harga_prediksi'      => $hPrediksi,
             'selisih_mom'         => $selisihMom,
             'persen_mom'          => $persenMom,
             'status_mom'          => $statusMom,
@@ -766,7 +803,7 @@ class LaporanKomoditasController extends Controller
     }
 
     // =========================================================
-    // INTERNAL: Export data
+    // INTERNAL: Export data (untuk cetak & PDF)
     // =========================================================
     private function buildExportData(Request $request): array
     {

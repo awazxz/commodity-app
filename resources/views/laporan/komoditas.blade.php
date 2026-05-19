@@ -357,6 +357,19 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
 
 {{-- ══ 2. FILTER ══ --}}
 <div class="card" style="margin-bottom:16px;">
+
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; padding-bottom:12px; border-bottom:0.5px solid #e2e8f0;">
+        <div style="background:#eff6ff; border-radius:6px; padding:7px 9px; flex-shrink:0;">
+            <i class="fas fa-circle-info" style="font-size:13px; color:#1a56db;"></i>
+        </div>
+        <div>
+            <p style="font-size:11px; font-weight:600; color:#1a56db; margin:0 0 2px;">Pilih Tahun &amp; Bulan untuk menampilkan insight</p>
+            <p style="font-size:10.5px; color:#9ca3af; margin:0; line-height:1.5;">
+                Tentukan periode terlebih dahulu, lalu klik <strong style="color:#374151;">Terapkan</strong> — data MtM, YoY, proyeksi, dan top mover akan muncul sesuai periode yang dipilih.
+            </p>
+        </div>
+    </div>
+
     <form action="{{ route('laporan.komoditas.index') }}" method="GET">
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; align-items:end;">
             <div>
