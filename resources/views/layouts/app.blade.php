@@ -121,10 +121,11 @@
                         <p class="text-white font-arial-bold-italic text-[11px] uppercase tracking-[0.12em]">Provinsi Riau</p>
                     </div>
                     {{-- Mobile: nama singkat --}}
-                    <div class="border-l border-white/20 pl-3 sm:hidden">
-                        <p class="text-white font-arial-bold-italic text-[13px] uppercase leading-tight">BPS Riau</p>
+                        <div class="border-l border-white/20 pl-3 sm:hidden">
+                            <p class="text-white font-arial-bold-italic text-[11px] uppercase leading-tight tracking-tight">Badan Pusat Statistik</p>
+                            <p class="text-white font-arial-bold-italic text-[9px] uppercase tracking-[0.12em]">Provinsi Riau</p>
+                        </div>
                     </div>
-                </div>
 
                 {{-- NAV LINKS — desktop only --}}
                 @auth

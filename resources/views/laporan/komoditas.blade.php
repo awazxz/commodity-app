@@ -1386,6 +1386,20 @@ function sortTable(e, key) {
     });
     rows.forEach(r => tbody.appendChild(r));
 }
+<script>
+// Scroll ke tabel jika ada parameter page di URL (artinya user klik pagination)
+(function () {
+    const url = new URL(window.location.href);
+    if (url.searchParams.has('page')) {
+        const tbl = document.getElementById('mainTable');
+        if (tbl) {
+            // Sedikit delay agar DOM selesai render
+            setTimeout(() => {
+                tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 120);
+        }
+    }
+})();
 </script>
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 @endsection

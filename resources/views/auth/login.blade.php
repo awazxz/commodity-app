@@ -55,7 +55,7 @@
             <div class="flex items-center space-x-4">
                 <img src="https://upload.wikimedia.org/wikipedia/commons/2/28/Lambang_Badan_Pusat_Statistik_%28BPS%29_Indonesia.svg"
                      alt="Logo BPS" class="h-12 drop-shadow-md">
-                <div class="border-l border-white/30 pl-4 hidden md:block">
+               <div class="border-l border-white/30 pl-4">
                     <p class="text-white font-arial-bold-italic text-[17px] uppercase leading-tight tracking-tight">Badan Pusat Statistik</p>
                     <p class="text-white font-arial-bold-italic text-[13px] uppercase tracking-[0.15em]">Provinsi Riau</p>
                 </div>
@@ -143,11 +143,8 @@
                         </div>
 
                         <button type="submit"
-                                class="w-full bg-[#00337C] hover:bg-[#002861] dark:bg-blue-700 dark:hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98] flex items-center justify-center space-x-2">
+                            class="w-full bg-[#00337C] hover:bg-[#002861] dark:bg-blue-700 dark:hover:bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-900/20 transition-all active:scale-[0.98] flex items-center justify-center space-x-2">
                             <span>Masuk</span>
-                            <!-- <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> -->
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
-                            </svg>
                         </button>
                     </form>
 
