@@ -279,8 +279,134 @@ html.dark .exp-item:hover { background: #2d3748; }
 .scrollbar-x::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
 
+nav[aria-label="Pagination Navigation"] p {
+    display: none !important;
+}
+
 @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 .fade-up { animation: fadeUp .3s ease-out; }
+/* ══ MOBILE RESPONSIVE ══ */
+@media (max-width: 640px) {
+
+    /* Wrapper utama: kurangi padding di mobile */
+    .kmd { font-size: 12px; }
+    .kmd > div:first-child { padding: 14px 14px 48px !important; }
+
+    /* Page header: stack vertikal */
+    .kmd > div:first-child > div:first-child {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+
+    /* Grid 2 kolom → 1 kolom di mobile */
+    .grid2 {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    /* Analisis + Proyeksi juga 1 kolom */
+    div[style*="grid-template-columns:1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* KPI grid: 2 kolom di mobile (bukan auto-fit 140px) */
+    .kpi-grid {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+    }
+
+    /* KPI box: lebih compact */
+    .kpi-box { padding: 10px 12px !important; }
+    .kpi-val { font-size: 17px !important; }
+    .kpi-lbl { font-size: 9px !important; }
+    .kpi-sub { font-size: 9px !important; display: none; }
+
+    /* Card padding lebih kecil */
+    .card { padding: 14px 14px !important; }
+
+    /* Filter: 1 kolom penuh */
+    form > div[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+        gap: 8px !important;
+    }
+
+    /* Chart: lebih pendek di mobile */
+    #chartMtm, #chartYoY {
+        height: 160px !important;
+    }
+    div[style*="height:200px"] {
+        height: 160px !important;
+    }
+
+    /* Stat boxes tetap 3 kolom tapi lebih compact */
+    .stat3 { gap: 6px !important; }
+    .sbox { padding: 8px 4px !important; }
+    .sbox-n { font-size: 18px !important; }
+    .sbox-s { display: none; }
+
+    /* KV grid: 1 kolom */
+    .kv2 { grid-template-columns: 1fr !important; }
+
+    /* IHK row: stack */
+    .ihk-row { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+
+    /* Top movers header info: sembunyikan subtitle */
+    .page-header-pills { display: none !important; }
+
+    /* Tabel toolbar: search full width */
+    .toolbar {
+        padding: 8px 12px !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+    .tbl-search { width: 100% !important; }
+    .toolbar > div:last-child {
+        margin-left: 0 !important;
+        justify-content: flex-start !important;
+    }
+
+    /* Topbar: stack */
+    .topbar {
+        flex-direction: column !important;
+        padding: 12px 14px !important;
+        gap: 10px !important;
+    }
+
+    /* Ekspor button: full width */
+    .topbar > div:last-child { align-self: flex-start !important; }
+
+    /* Legend bar: wrap lebih rapat */
+    .legend-bar { gap: 8px !important; padding: 6px 12px !important; }
+
+    /* Pagination: stack vertikal di mobile */
+    div[style*="justify-content: space-between"][style*="padding: 16px 28px"] {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        padding: 12px 14px !important;
+        gap: 10px !important;
+    }
+
+    /* Page header icon: lebih kecil */
+    div[style*="background:#1a56db; border-radius:8px; padding:10px 12px"] {
+        padding: 8px 10px !important;
+    }
+    h1[style*="font-size:18px"] { font-size: 15px !important; }
+
+    /* Note text: lebih kecil */
+    .note { font-size: 10.5px !important; }
+    .sec-sub { font-size: 10px !important; margin-bottom: 10px !important; }
+}
+
+/* Tablet (641–1023px): chart 2 kolom ok, tapi analisis tetap 1 kolom */
+@media (min-width: 641px) and (max-width: 900px) {
+    div[style*="grid-template-columns:1fr 1fr"][style*="margin-bottom:14px; align-items:stretch"] {
+        grid-template-columns: 1fr !important;
+    }
+    .kpi-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+    }
+}
 </style>
 
 @php
@@ -331,7 +457,7 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
     $topTurun       = $collection->where('status_mom','deflasi')->sortBy('persen_mom')->take(5);
 @endphp
 
-<div class="kmd fade-up" style="padding: 22px 22px 60px; background: #f8fafc; min-height: 100vh;">
+<div class="kmd fade-up" style="padding: clamp(12px, 3vw, 22px) clamp(12px, 3vw, 22px) 60px; background: #f8fafc; min-height: 100vh;">
 
 {{-- ══ 1. PAGE HEADER ══ --}}
 <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:18px; padding-bottom:16px; border-bottom:2px solid #1a56db;">
@@ -1109,12 +1235,19 @@ html.dark .scrollbar-x::-webkit-scrollbar-thumb { background: #4a5568; }
         </table>
     </div>
 
-    @if($data->hasPages())
-    <div style="padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-top:0.5px solid #f1f5f9;background:#f8fafc;">
-        <span style="font-size:11px;color:#6b7280;">Menampilkan {{ $data->firstItem() }}–{{ $data->lastItem() }} dari {{ $data->total() }} data</span>
-        <div>{{ $data->appends(request()->all())->links() }}</div>
+  @if($data->hasPages())
+    <div style="padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; border-top: 0.5px solid #f1f5f9; background: #f8fafc; gap: 20px; flex-wrap: wrap;">
+        
+        <span style="font-size: 12px; color: #6b7280; white-space: nowrap; flex-shrink: 0;">
+            Menampilkan {{ $data->firstItem() }}–{{ $data->lastItem() }} dari {{ $data->total() }} data
+        </span>
+        
+        <div style="flex-shrink: 0;">
+            {{ $data->appends(request()->all())->links() }}
+        </div>
+
     </div>
-    @endif
+@endif
 </div>
 
 </div>{{-- end kmd --}}

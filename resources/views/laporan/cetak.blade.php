@@ -202,7 +202,7 @@
             Proyeksi bulan berikutnya: <strong class="{{ $kondisiForecast==='inflasi'?'c-red':($kondisiForecast==='deflasi'?'c-green':'c-gray') }}">{{ ucfirst($kondisiForecast) }}</strong> (model Prophet IHK BPS 2022=100).
         @endif
     </div>
-    <div class="insight-bar-cell">
+    <!-- <div class="insight-bar-cell">
         <div class="bar-lbl">Distribusi MtM</div>
         <div class="bar-track">
             <div class="bar-inner">
@@ -217,7 +217,7 @@
                 <td style="font-size:7px;text-align:right;" class="c-green">{{ $pTurun }}% turun</td>
             </tr>
         </table>
-    </div>
+    </div> -->
 </div>
 
 {{-- ══ TABEL ══ --}}
