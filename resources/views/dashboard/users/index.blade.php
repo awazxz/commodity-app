@@ -146,7 +146,7 @@
             <input type="hidden" name="seasonality_prior_scale" value="{{ $seasonScale }}">
             <input type="hidden" name="seasonality_mode"        value="{{ $seasonalityMode }}">
             <input type="hidden" name="yearly"                  value="{{ $yearlyActive ? 'on' : 'off' }}">
-            <input type="hidden" name="forecast_months"         value="{{ $forecastMonths ?? 12 }}">
+            <input type="hidden" name="forecast_months"         value="{{ $forecastWeeks ?? 12 }}">
         </form>
     </div>
 
@@ -193,15 +193,14 @@
                 </h3>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                     {{ $selectedCommodity }} — {{ __('messages.data_historis_vs_proyeksi') }}
-                    @if(isset($forecastMonths))
+                    @if(isset($forecastWeeks))
                         <span class="ml-2 horizon-pill">
                             <i class="fas fa-calendar-alt" style="font-size:8px;"></i>
-                            {{ $forecastMonths }} {{ __('messages.bulanan') }}
+                            {{ $forecastWeeks }} {{ __('messages.bulanan') }}
                         </span>
                     @endif
                 </p>
             </div>
-            {{-- Hanya bulanan & tahunan untuk data bulanan --}}
             <div class="flex bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 p-1 rounded-md shadow-sm">
                 <button onclick="changeChartPeriod('monthly')" class="filter-btn active" id="btn-monthly">{{ __('messages.bulanan') }}</button>
                 <button onclick="changeChartPeriod('yearly')"  class="filter-btn"        id="btn-yearly">{{ __('messages.tahunan') }}</button>
@@ -234,8 +233,8 @@
                         MAPE: {{ number_format($mape, 2) }}%
                     </span>
                 @endif
-                @if(isset($forecastMonths))
-                    <span class="horizon-pill">{{ $forecastMonths }} {{ __('messages.bulanan') }}</span>
+                @if(isset($forecastWeeks))
+                    <span class="horizon-pill">{{ $forecastWeeks }} {{ __('messages.bulanan') }}</span>
                 @endif
             </div>
         </div>
@@ -280,7 +279,7 @@
             Model Prophet dilatih dengan <strong>changepoint_prior_scale={{ $cpScale ?? 0.05 }}</strong>,
             <strong>seasonality_prior_scale={{ $seasonScale ?? 10 }}</strong>,
             mode <strong>{{ $seasonalityMode ?? 'multiplicative' }}</strong>,
-            horizon prediksi <strong>{{ $forecastMonths ?? 12 }} bulan ke depan</strong>.
+            horizon prediksi <strong>{{ $forecastWeeks ?? 12 }} minggu ke depan</strong>.
             Nilai MAPE sebesar <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
             menunjukkan {{ ($mape ?? 0) < 5 ? 'akurasi sangat baik' : (($mape ?? 0) < 10 ? 'akurasi baik' : 'perlu penyesuaian hyperparameter') }}.
         </p>
@@ -292,7 +291,7 @@
 <script>
 const SELECTED_COMMODITY = '{{ addslashes($selectedCommodity ?? "") }}';
 
-// Data hanya monthly & yearly — weekly dihapus
+// ── Data chart: monthly & yearly ──────────────────────────────────────
 const chartData = {
     monthly: {
         labels:   @json($monthlyLabels   ?? []),
@@ -310,8 +309,10 @@ const chartData = {
     }
 };
 
-const forecastSuccess = (chartData.monthly.forecast && chartData.monthly.forecast.some(v => v !== null)) ||
-                        (chartData.yearly.forecast  && chartData.yearly.forecast.some(v => v !== null));
+// Cek apakah ada data forecast sama sekali
+const forecastSuccess =
+    (chartData.monthly.forecast && chartData.monthly.forecast.some(v => v !== null)) ||
+    (chartData.yearly.forecast  && chartData.yearly.forecast.some(v  => v !== null));
 
 const trans = {
     monthly:  "{{ __('messages.bulanan') }}",
@@ -326,14 +327,17 @@ const trans = {
     noData:   "{{ __('messages.tidak_ada_data') }}",
 };
 
-// Default tampilan bulanan
 let currentPeriod = 'monthly';
 let mainChart     = null;
 
 const isDark    = () => document.documentElement.classList.contains('dark');
-const fmtRupiah = v  => (v !== null && v !== undefined) ? 'Rp ' + Math.round(v).toLocaleString('id-ID') : '—';
+const fmtRupiah = v  => (v !== null && v !== undefined)
+    ? 'Rp ' + Math.round(v).toLocaleString('id-ID')
+    : '—';
 
-/* ── FLASK STATUS ── */
+/* ═══════════════════════════════════════════
+   FLASK STATUS
+═══════════════════════════════════════════ */
 function checkFlaskStatus() {
     const badge = document.getElementById('flask-status-badge');
     const dot   = document.getElementById('flask-status-dot');
@@ -358,10 +362,17 @@ function checkFlaskStatus() {
         });
 }
 
-/* ── CHART ── */
+/* ═══════════════════════════════════════════
+   CHART
+   FIX: Tidak ada bridge manual lagi.
+   Garis forecast sudah ada dari awal (in-sample).
+   Segmen putus-putus otomatis hanya di bagian
+   di mana actual = null (masa depan).
+═══════════════════════════════════════════ */
 function initializeChart() {
     const canvas = document.getElementById('mainChart');
     if (!canvas) return;
+
     const ctx  = canvas.getContext('2d');
     const data = chartData[currentPeriod];
     const dark = isDark();
@@ -380,54 +391,90 @@ function initializeChart() {
     gradActual.addColorStop(1, 'rgba(4,50,119,0)');
 
     const gradForecast = ctx.createLinearGradient(0, 0, 0, 400);
-    gradForecast.addColorStop(0, 'rgba(249,115,22,0.15)');
+    gradForecast.addColorStop(0, 'rgba(249,115,22,0.18)');
     gradForecast.addColorStop(1, 'rgba(249,115,22,0)');
-
-    // ── BRIDGE: sambung garis aktual → prediksi di titik terakhir ──
-    let lastActualIndex = -1;
-    for (let i = data.actual.length - 1; i >= 0; i--) {
-        if (data.actual[i] !== null && data.actual[i] !== undefined) {
-            lastActualIndex = i; break;
-        }
-    }
-    const forecastBridged = data.forecast.map((val, i) => i === lastActualIndex ? data.actual[lastActualIndex] : val);
-    const lowerBridged    = data.lower.map((val, i)    => i === lastActualIndex ? data.actual[lastActualIndex] : val);
-    const upperBridged    = data.upper.map((val, i)    => i === lastActualIndex ? data.actual[lastActualIndex] : val);
 
     if (mainChart) mainChart.destroy();
 
+    // ── Datasets ─────────────────────────────────────
     const datasets = [
+        // Interval bawah (fill ke atas = upper)
         {
-            label: trans.lower, data: lowerBridged,
-            backgroundColor: 'rgba(34,197,94,0.08)', borderColor: 'transparent',
-            fill: '+1', pointRadius: 0, tension: 0.4, order: 4, spanGaps: false
+            label: trans.lower,
+            data: data.lower,
+            backgroundColor: 'rgba(34,197,94,0.08)',
+            borderColor: 'transparent',
+            fill: '+1',
+            pointRadius: 0,
+            tension: 0.4,
+            order: 4,
+            spanGaps: true
         },
+        // Interval atas
         {
-            label: trans.upper, data: upperBridged,
-            borderColor: 'transparent', fill: false,
-            pointRadius: 0, tension: 0.4, order: 4, spanGaps: false
+            label: trans.upper,
+            data: data.upper,
+            borderColor: 'transparent',
+            fill: false,
+            pointRadius: 0,
+            tension: 0.4,
+            order: 4,
+            spanGaps: true
         },
+        // Garis aktual (historis)
         {
-            label: trans.actual, data: data.actual,
+            label: trans.actual,
+            data: data.actual,
             borderColor: dark ? '#60a5fa' : '#043277',
             backgroundColor: gradActual,
-            borderWidth: 2.5, fill: true, tension: 0.4,
-            pointRadius: 0, pointHoverRadius: 6,
+            borderWidth: 2.5,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 6,
             pointHoverBackgroundColor: dark ? '#60a5fa' : '#043277',
-            pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
-            spanGaps: false, order: 1
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2,
+            spanGaps: false,
+            order: 1
         },
     ];
 
+    // Tambahkan garis forecast hanya jika ada data
     if (forecastSuccess) {
         datasets.push({
-            label: trans.forecast, data: forecastBridged,
-            borderColor: '#f97316', backgroundColor: gradForecast,
-            borderDash: [8, 4], borderWidth: 2.5, fill: true, tension: 0.4,
-            pointRadius: 0, pointHoverRadius: 6,
+            label: trans.forecast,
+            data: data.forecast,
+            borderColor: '#f97316',
+            backgroundColor: gradForecast,
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 6,
             pointHoverBackgroundColor: '#f97316',
-            pointHoverBorderColor: '#fff', pointHoverBorderWidth: 2,
-            spanGaps: false, order: 2
+            pointHoverBorderColor: '#fff',
+            pointHoverBorderWidth: 2,
+            spanGaps: true,
+            order: 2,
+            // FIX: segment — garis solid saat overlap historis,
+            //               putus-putus saat pure proyeksi
+            segment: {
+                borderDash: ctx => {
+                    const idx = ctx.p1DataIndex;
+                    // Jika titik berikutnya tidak punya actual → masa depan → putus-putus
+                    return (data.actual[idx] === null || data.actual[idx] === undefined)
+                        ? [8, 4]
+                        : [];
+                },
+                borderColor: ctx => {
+                    const idx = ctx.p1DataIndex;
+                    // Sedikit transparan saat overlap historis agar aktual tetap menonjol
+                    return (data.actual[idx] === null || data.actual[idx] === undefined)
+                        ? '#f97316'
+                        : 'rgba(249,115,22,0.55)';
+                }
+            }
         });
     }
 
@@ -435,20 +482,26 @@ function initializeChart() {
         type: 'line',
         data: { labels: data.labels, datasets },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             interaction: { intersect: false, mode: 'index' },
             plugins: {
                 title: {
-                    display: true, text: SELECTED_COMMODITY,
+                    display: true,
+                    text: SELECTED_COMMODITY,
                     color: dark ? '#93c5fd' : '#043277',
                     font: { size: 14, weight: '600', family: 'Inter' },
                     padding: { top: 10, bottom: 15 }
                 },
                 legend: {
-                    display: true, position: 'top', align: 'end',
+                    display: true,
+                    position: 'top',
+                    align: 'end',
                     labels: {
-                        boxWidth: 12, usePointStyle: true,
+                        boxWidth: 12,
+                        usePointStyle: true,
                         color: dark ? '#9ca3af' : '#64748b',
+                        // Sembunyikan label interval bawah & atas dari legenda
                         filter: item => item.text !== trans.lower && item.text !== trans.upper
                     }
                 },
@@ -457,13 +510,21 @@ function initializeChart() {
                     titleColor: dark ? '#f3f4f6' : '#1e293b',
                     bodyColor: dark ? '#9ca3af' : '#475569',
                     borderColor: dark ? '#374151' : '#e2e8f0',
-                    borderWidth: 1, padding: 12, usePointStyle: true,
+                    borderWidth: 1,
+                    padding: 12,
+                    usePointStyle: true,
                     callbacks: {
                         label: ctx => {
+                            // Sembunyikan interval bawah & atas dari tooltip
                             if (ctx.dataset.label === trans.lower || ctx.dataset.label === trans.upper) return null;
                             let lbl = (ctx.dataset.label || '') + ': ';
-                            if (ctx.parsed.y !== null)
-                                lbl += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(ctx.parsed.y);
+                            if (ctx.parsed.y !== null) {
+                                lbl += new Intl.NumberFormat('id-ID', {
+                                    style: 'currency',
+                                    currency: 'IDR',
+                                    maximumFractionDigits: 0
+                                }).format(ctx.parsed.y);
+                            }
                             return lbl;
                         }
                     }
@@ -472,10 +533,14 @@ function initializeChart() {
             scales: {
                 y: {
                     beginAtZero: false,
-                    grid: { color: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', drawBorder: false },
+                    grid: {
+                        color: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9',
+                        drawBorder: false
+                    },
                     ticks: {
                         color: dark ? '#6b7280' : '#94a3b8',
-                        font: { size: 10, weight: '500' }, padding: 8,
+                        font: { size: 10, weight: '500' },
+                        padding: 8,
                         callback: v => 'Rp ' + v.toLocaleString('id-ID')
                     }
                 },
@@ -484,7 +549,9 @@ function initializeChart() {
                     ticks: {
                         color: dark ? '#6b7280' : '#94a3b8',
                         font: { size: 9, weight: '500' },
-                        maxRotation: 45, autoSkip: true, maxTicksLimit: 15
+                        maxRotation: 45,
+                        autoSkip: true,
+                        maxTicksLimit: 15
                     }
                 }
             }
@@ -492,7 +559,9 @@ function initializeChart() {
     });
 }
 
-/* ── PERIOD SWITCHER ── */
+/* ═══════════════════════════════════════════
+   PERIOD SWITCHER
+═══════════════════════════════════════════ */
 function changeChartPeriod(period) {
     currentPeriod = period;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -509,7 +578,14 @@ function changeChartPeriod(period) {
     }, 150);
 }
 
-/* ── INSIGHT TABLE ── */
+/* ═══════════════════════════════════════════
+   INSIGHT TABLE
+   FIX:
+   - Kolom prediksi tampil di semua baris (historis + proyeksi)
+   - Selisih dihitung: forecast vs actual untuk historis,
+     forecast vs actual-terakhir untuk proyeksi
+   - Badge "Proyeksi" hanya pada baris actual = null
+═══════════════════════════════════════════ */
 function updateInsightTable() {
     const data  = chartData[currentPeriod];
     const tbody = document.getElementById('insightTableBody');
@@ -523,21 +599,23 @@ function updateInsightTable() {
 
     tbody.innerHTML = '';
 
-    const actualRows   = [];
-    const forecastRows = [];
+    // Bangun array lengkap dari semua data
+    const allRows = data.labels.map((label, i) => ({
+        label,
+        actual:   data.actual[i]   ?? null,
+        forecast: data.forecast[i] ?? null,
+        lower:    data.lower[i]    ?? null,
+        upper:    data.upper[i]    ?? null,
+    }));
 
-    for (let i = 0; i < data.labels.length; i++) {
-        const row = {
-            label: data.labels[i], actual: data.actual[i],
-            forecast: data.forecast[i], lower: data.lower[i], upper: data.upper[i]
-        };
-        if (data.actual[i] !== null)                              actualRows.push(row);
-        if (data.actual[i] === null && data.forecast[i] !== null) forecastRows.push(row);
-    }
+    // Pisahkan historis dan proyeksi
+    const historisRows = allRows.filter(r => r.actual !== null);
+    const proyeksiRows = allRows.filter(r => r.actual === null && r.forecast !== null);
+    const lastHistoris = historisRows.at(-1);
 
-    const display         = [...actualRows.slice(-8), ...forecastRows];
-    const lastActualRow   = actualRows.slice(-1)[0];
-    const displayActualLen = Math.min(actualRows.length, 8);
+    // Tampilkan 8 historis terakhir + semua proyeksi
+    const display  = [...historisRows.slice(-8), ...proyeksiRows];
+    const splitIdx = Math.min(historisRows.length, 8);
 
     if (display.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 text-sm">
@@ -547,60 +625,106 @@ function updateInsightTable() {
 
     display.forEach((row, idx) => {
         const { label, actual, forecast, lower, upper } = row;
-        const isForecastOnly = actual === null && forecast !== null;
+        const isPureProyeksi = actual === null && forecast !== null;
 
         let insight = trans.stabil, insightClass = 'insight-stabil';
-        let diffColor = 'text-gray-400', diffText = '—';
+        let diffColor = 'text-gray-400 dark:text-gray-500', diffText = '—';
 
-        if (!isForecastOnly && actual !== null && forecast !== null) {
-            const diff = forecast - actual;
-            const threshold = actual * 0.01;
-            if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
-            else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
-            diffColor = diff > 0 ? 'text-red-600 dark:text-red-400' : diff < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400';
-            diffText  = (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID');
-
-        } else if (!isForecastOnly && actual !== null && forecast === null) {
-            const prevActual = idx > 0 ? display[idx - 1].actual : null;
-            if (prevActual !== null && prevActual !== 0) {
-                const diff = actual - prevActual;
-                const threshold = prevActual * 0.01;
+        if (!isPureProyeksi) {
+            // ── Baris historis ──────────────────────────────
+            if (actual !== null && forecast !== null) {
+                // Ada prediksi in-sample → selisih forecast vs actual
+                const diff      = forecast - actual;
+                const threshold = actual * 0.01;
                 if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
                 else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
-                diffColor = diff > 0 ? 'text-red-600 dark:text-red-400' : diff < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400';
-                diffText  = (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID');
-            }
+                diffColor = diff > 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : diff < 0
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-gray-500 dark:text-gray-400';
+                diffText = (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID');
 
-        } else if (isForecastOnly && lastActualRow) {
-            const diffFromLast  = forecast - lastActualRow.actual;
-            const thresholdLast = lastActualRow.actual * 0.01;
-            if (diffFromLast > thresholdLast)       { insight = trans.naik;  insightClass = 'insight-naik'; }
-            else if (diffFromLast < -thresholdLast) { insight = trans.turun; insightClass = 'insight-turun'; }
-            else                                    { insight = 'Proyeksi';  insightClass = 'insight-stabil'; }
+            } else if (actual !== null && forecast === null) {
+                // Tidak ada prediksi in-sample → bandingkan dengan baris sebelumnya
+                const prev = idx > 0 ? display[idx - 1].actual : null;
+                if (prev !== null && prev !== 0) {
+                    const diff = actual - prev;
+                    const threshold = prev * 0.01;
+                    if (diff > threshold)       { insight = trans.naik;  insightClass = 'insight-naik'; }
+                    else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
+                    diffColor = diff > 0
+                        ? 'text-red-600 dark:text-red-400'
+                        : diff < 0
+                            ? 'text-emerald-600 dark:text-emerald-400'
+                            : 'text-gray-500 dark:text-gray-400';
+                    diffText = (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID');
+                }
+            }
+        } else {
+            // ── Baris proyeksi ──────────────────────────────
+            // Selisih forecast vs historis terakhir
+            if (lastHistoris?.actual) {
+                const diff = forecast - lastHistoris.actual;
+                const thr  = lastHistoris.actual * 0.01;
+                if (diff > thr)       { insight = trans.naik;  insightClass = 'insight-naik'; }
+                else if (diff < -thr) { insight = trans.turun; insightClass = 'insight-turun'; }
+                else                  { insight = 'Proyeksi';  insightClass = 'insight-stabil'; }
+                diffColor = diff > 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : diff < 0
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-gray-500 dark:text-gray-400';
+                diffText = (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID');
+            }
         }
 
-        const borderTop = (idx === displayActualLen && forecastRows.length > 0)
-            ? 'border-t-2 border-orange-200 dark:border-orange-800' : '';
+        // Garis pembatas antara historis dan proyeksi
+        const borderTop = (idx === splitIdx && proyeksiRows.length > 0)
+            ? 'border-t-2 border-orange-200 dark:border-orange-800'
+            : '';
 
         tbody.innerHTML += `
-            <tr class="${isForecastOnly ? 'forecast-row' : ''} ${borderTop} hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+            <tr class="${isPureProyeksi ? 'forecast-row' : ''} ${borderTop}
+                        hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+
                 <td class="px-6 py-4 text-gray-600 dark:text-gray-400 font-medium text-xs">
                     ${label}
-                    ${isForecastOnly ? `<span class="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded font-bold uppercase">Proyeksi</span>` : ''}
+                    ${isPureProyeksi
+                        ? `<span class="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30
+                                       text-orange-600 dark:text-orange-400 px-1.5 py-0.5
+                                       rounded font-bold uppercase">Proyeksi</span>`
+                        : ''}
                 </td>
+
                 <td class="px-6 py-4 text-right text-xs font-medium text-gray-800 dark:text-gray-200">
-                    ${actual !== null ? fmtRupiah(actual) : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
+                    ${actual !== null
+                        ? fmtRupiah(actual)
+                        : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
                 </td>
+
                 <td class="px-6 py-4 text-right text-xs font-bold text-orange-600 dark:text-orange-400">
-                    ${forecast !== null ? fmtRupiah(forecast) : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
+                    ${forecast !== null
+                        ? fmtRupiah(forecast)
+                        : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
                 </td>
+
                 <td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">
-                    ${lower !== null ? fmtRupiah(lower) : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
+                    ${lower !== null
+                        ? fmtRupiah(lower)
+                        : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
                 </td>
+
                 <td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">
-                    ${upper !== null ? fmtRupiah(upper) : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
+                    ${upper !== null
+                        ? fmtRupiah(upper)
+                        : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
                 </td>
-                <td class="px-6 py-4 text-right text-xs font-medium ${diffColor}">${diffText}</td>
+
+                <td class="px-6 py-4 text-right text-xs font-medium ${diffColor}">
+                    ${diffText}
+                </td>
+
                 <td class="px-6 py-4 text-center">
                     <span class="insight-badge ${insightClass}">${insight}</span>
                 </td>
@@ -608,7 +732,9 @@ function updateInsightTable() {
     });
 }
 
-/* ── METRIC CARDS ── */
+/* ═══════════════════════════════════════════
+   METRIC CARDS
+═══════════════════════════════════════════ */
 function updateMetricCards() {
     const actuals = chartData[currentPeriod].actual.filter(v => v !== null);
     if (!actuals.length) return;
@@ -617,7 +743,9 @@ function updateMetricCards() {
     document.getElementById('max-price-value').textContent = fmtRupiah(Math.max(...actuals));
 }
 
-/* ── INIT ── */
+/* ═══════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
     initializeChart();
     updateInsightTable();
@@ -626,6 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(checkFlaskStatus, 30000);
 });
 
+// Re-render chart saat toggle dark mode
 new MutationObserver(muts => {
     muts.forEach(m => { if (m.attributeName === 'class') initializeChart(); });
 }).observe(document.documentElement, { attributes: true });

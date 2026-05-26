@@ -285,75 +285,44 @@ nav[aria-label="Pagination Navigation"] p {
 
 @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 .fade-up { animation: fadeUp .3s ease-out; }
+
 /* ══ MOBILE RESPONSIVE ══ */
 @media (max-width: 640px) {
-
-    /* Wrapper utama: kurangi padding di mobile */
     .kmd { font-size: 12px; }
     .kmd > div:first-child { padding: 14px 14px 48px !important; }
-
-    /* Page header: stack vertikal */
     .kmd > div:first-child > div:first-child {
         flex-direction: column !important;
         gap: 8px !important;
     }
-
-    /* Grid 2 kolom → 1 kolom di mobile */
     .grid2 {
         grid-template-columns: 1fr !important;
         gap: 10px !important;
     }
-
-    /* Analisis + Proyeksi juga 1 kolom */
     div[style*="grid-template-columns:1fr 1fr"] {
         grid-template-columns: 1fr !important;
     }
-
-    /* KPI grid: 2 kolom di mobile (bukan auto-fit 140px) */
     .kpi-grid {
         grid-template-columns: 1fr 1fr !important;
         gap: 8px !important;
     }
-
-    /* KPI box: lebih compact */
     .kpi-box { padding: 10px 12px !important; }
     .kpi-val { font-size: 17px !important; }
     .kpi-lbl { font-size: 9px !important; }
     .kpi-sub { font-size: 9px !important; display: none; }
-
-    /* Card padding lebih kecil */
     .card { padding: 14px 14px !important; }
-
-    /* Filter: 1 kolom penuh */
     form > div[style*="grid-template-columns"] {
         grid-template-columns: 1fr !important;
         gap: 8px !important;
     }
-
-    /* Chart: lebih pendek di mobile */
-    #chartMtm, #chartYoY {
-        height: 160px !important;
-    }
-    div[style*="height:200px"] {
-        height: 160px !important;
-    }
-
-    /* Stat boxes tetap 3 kolom tapi lebih compact */
+    #chartMtm, #chartYoY { height: 160px !important; }
+    div[style*="height:200px"] { height: 160px !important; }
     .stat3 { gap: 6px !important; }
     .sbox { padding: 8px 4px !important; }
     .sbox-n { font-size: 18px !important; }
     .sbox-s { display: none; }
-
-    /* KV grid: 1 kolom */
     .kv2 { grid-template-columns: 1fr !important; }
-
-    /* IHK row: stack */
     .ihk-row { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
-
-    /* Top movers header info: sembunyikan subtitle */
     .page-header-pills { display: none !important; }
-
-    /* Tabel toolbar: search full width */
     .toolbar {
         padding: 8px 12px !important;
         flex-direction: column !important;
@@ -365,40 +334,28 @@ nav[aria-label="Pagination Navigation"] p {
         margin-left: 0 !important;
         justify-content: flex-start !important;
     }
-
-    /* Topbar: stack */
     .topbar {
         flex-direction: column !important;
         padding: 12px 14px !important;
         gap: 10px !important;
     }
-
-    /* Ekspor button: full width */
     .topbar > div:last-child { align-self: flex-start !important; }
-
-    /* Legend bar: wrap lebih rapat */
     .legend-bar { gap: 8px !important; padding: 6px 12px !important; }
-
-    /* Pagination: stack vertikal di mobile */
     div[style*="justify-content: space-between"][style*="padding: 16px 28px"] {
         flex-direction: column !important;
         align-items: flex-start !important;
         padding: 12px 14px !important;
         gap: 10px !important;
     }
-
-    /* Page header icon: lebih kecil */
     div[style*="background:#1a56db; border-radius:8px; padding:10px 12px"] {
         padding: 8px 10px !important;
     }
     h1[style*="font-size:18px"] { font-size: 15px !important; }
-
-    /* Note text: lebih kecil */
     .note { font-size: 10.5px !important; }
     .sec-sub { font-size: 10px !important; margin-bottom: 10px !important; }
 }
 
-/* Tablet (641–1023px): chart 2 kolom ok, tapi analisis tetap 1 kolom */
+/* Tablet (641–900px) */
 @media (min-width: 641px) and (max-width: 900px) {
     div[style*="grid-template-columns:1fr 1fr"][style*="margin-bottom:14px; align-items:stretch"] {
         grid-template-columns: 1fr !important;
@@ -466,7 +423,6 @@ nav[aria-label="Pagination Navigation"] p {
             <i class="fas fa-chart-line" style="font-size:16px;"></i>
         </div>
         <div>
-            <p style="font-size:9.5px; font-weight:600; letter-spacing:.15em; text-transform:uppercase; color:#1a56db; margin:0 0 3px;">BPS — SIGMAPRO &nbsp;·&nbsp; Laporan Eksekutif</p>
             <h1 style="font-size:18px; font-weight:700; color:#0f172a; margin:0; line-height:1.2;">Monitoring Harga &amp; Proyeksi Komoditas</h1>
             <p style="font-size:11px; color:#9ca3af; margin:3px 0 0;">Sumber: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:10px;color:#4b5563;">price_data · price_forecasts · IHK/RH</code> — diperbarui otomatis setiap minggu</p>
         </div>
@@ -483,7 +439,6 @@ nav[aria-label="Pagination Navigation"] p {
 
 {{-- ══ 2. FILTER ══ --}}
 <div class="card" style="margin-bottom:16px;">
-
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; padding-bottom:12px; border-bottom:0.5px solid #e2e8f0;">
         <div style="background:#eff6ff; border-radius:6px; padding:7px 9px; flex-shrink:0;">
             <i class="fas fa-circle-info" style="font-size:13px; color:#1a56db;"></i>
@@ -496,7 +451,8 @@ nav[aria-label="Pagination Navigation"] p {
         </div>
     </div>
 
-    <form action="{{ route('laporan.komoditas.index') }}" method="GET">
+    {{-- action tanpa hash — scroll ditangani JS setelah load --}}
+    <form id="filterForm" action="{{ route('laporan.komoditas.index') }}" method="GET">
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; align-items:end;">
             <div>
                 <label style="display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Komoditas</label>
@@ -547,7 +503,7 @@ nav[aria-label="Pagination Navigation"] p {
 </div>
 
 {{-- ══ 3. KPI STRIP ══ --}}
-<div class="kpi-grid" style="margin-bottom:16px;">
+<div class="kpi-grid" id="sectionInsight" style="margin-bottom:16px; scroll-margin-top:80px;">
     <div class="kpi-box">
         <div class="kpi-val" style="color:#0f172a;">{{ $totalKomoditas }}</div>
         <div class="kpi-lbl">Total Komoditas</div>
@@ -874,7 +830,7 @@ nav[aria-label="Pagination Navigation"] p {
 @endif
 
 {{-- ══ 7. TABEL DETAIL ══ --}}
-<div class="tbl-card" x-data="{ exportOpen: false }">
+<div class="tbl-card" id="tabelDetail" x-data="{ exportOpen: false }" style="scroll-margin-top:80px;">
     <div class="topbar">
         <div>
             <div class="sec">Detail Perbandingan Harga Komoditas</div>
@@ -978,9 +934,6 @@ nav[aria-label="Pagination Navigation"] p {
                 @php
                     $isAktual   = $item->harga_bulan_ini !== null;
                     $isForecast = !$isAktual;
-                    // Nilai yang ditampilkan di kolom aktual:
-                    // - jika ada data aktual → pakai harga_bulan_ini
-                    // - jika tidak ada → pakai harga_bulan_ini_est (forecast t, bukan t+1)
                     $hargaTampil = $item->harga_bulan_ini ?? $item->harga_bulan_ini_est ?? null;
                 @endphp
                 <tr class="row-item"
@@ -990,7 +943,6 @@ nav[aria-label="Pagination Navigation"] p {
                     data-ytd="{{ $item->persen_ytd ?? 0 }}"
                     data-harga="{{ $hargaTampil ?? 0 }}">
 
-                    {{-- ── Nama Komoditas ── --}}
                     <td>
                         <span style="font-size:12px;font-weight:500;color:#0f172a;">{{ $item->nama_komoditas }}</span>
                         @if($isForecast)
@@ -998,10 +950,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── Harga Bulan Ini ── --}}
-                    {{-- FIX: jika aktual ada → tampilkan aktual biasa
-                              jika aktual null → tampilkan harga_bulan_ini_est (forecast t) dengan label est.
-                              BUKAN harga_prediksi (forecast t+1) --}}
                     <td class="td-r">
                         @if($isAktual)
                             <span class="mono" style="font-size:12px;font-weight:500;">
@@ -1018,7 +966,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── Harga Bulan Lalu ── --}}
                     <td class="td-r">
                         @if($item->harga_bulan_lalu)
                             <span class="mono" style="font-size:12px;color:#6b7280;">Rp {{ number_format($item->harga_bulan_lalu,0,',','.') }}</span>
@@ -1028,7 +975,6 @@ nav[aria-label="Pagination Navigation"] p {
                     </td>
 
                     @if($bulanFilter)
-                    {{-- ── Selisih MtM ── --}}
                     <td class="td-r g-sep">
                         @if($isAktual && $item->selisih_mom !== null)
                             @if($item->selisih_mom > 0)
@@ -1043,7 +989,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── % MtM ── --}}
                     <td class="td-r">
                         @if($isAktual && $item->persen_mom !== null)
                             @if($item->persen_mom > 0)
@@ -1058,7 +1003,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── Status MtM ── --}}
                     <td class="td-c">
                         @if($isAktual)
                             @switch($item->status_mom)
@@ -1072,7 +1016,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── YtD ── --}}
                     <td class="td-r g-sep">
                         @if($isAktual && isset($item->persen_ytd) && $item->persen_ytd !== null)
                             <span class="mono {{ $item->persen_ytd > 0 ? 'up-txt' : ($item->persen_ytd < 0 ? 'dn-txt' : 'nt-txt') }}" style="font-size:12px;">
@@ -1086,7 +1029,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── Status YtD ── --}}
                     <td class="td-c">
                         @if($isAktual && isset($item->persen_ytd) && $item->persen_ytd !== null)
                             @if($item->persen_ytd > 0.5)     <span class="pill p-up">Naik</span>
@@ -1098,7 +1040,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── YoY ── --}}
                     <td class="td-r g-sep">
                         @if($isAktual && isset($item->persen_yoy) && $item->persen_yoy !== null)
                             <span class="mono {{ $item->persen_yoy > 0 ? 'up-txt' : ($item->persen_yoy < 0 ? 'dn-txt' : 'nt-txt') }}" style="font-size:12px;">
@@ -1112,7 +1053,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── Status YoY ── --}}
                     <td class="td-c">
                         @if($isAktual && isset($item->persen_yoy) && $item->persen_yoy !== null)
                             @if($item->persen_yoy > 0.5)     <span class="pill p-up">Naik</span>
@@ -1125,7 +1065,6 @@ nav[aria-label="Pagination Navigation"] p {
                     </td>
                     @endif
 
-                    {{-- ── RH ── --}}
                     <td class="td-r g-sep">
                         @if($isAktual)
                             @if(isset($item->rh) && $item->rh !== null)
@@ -1141,7 +1080,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── IHK Aktual ── --}}
                     <td class="td-r">
                         @if($isAktual && isset($item->ihk) && $item->ihk !== null)
                             <span class="mono nt-txt" style="font-size:12px;font-weight:500;">{{ number_format($item->ihk,2,',','.') }}</span>
@@ -1150,19 +1088,12 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── Prediksi Harga (forecast t+1) ── --}}
-                    {{-- FIX: kolom ini SELALU dari harga_prediksi (forecast t+1 = bulan depan dari filter)
-                              berbeda dengan kolom "Harga Aktual (est)" yang dari harga_bulan_ini_est (forecast t) --}}
                     <td class="td-r g-sep">
                         @if(isset($item->harga_prediksi) && $item->harga_prediksi !== null)
                             <span class="mono blu-txt" style="font-size:12px;font-weight:500;">
                                 Rp {{ number_format($item->harga_prediksi, 0, ',', '.') }}
                             </span>
                             @php
-                                // Selisih prediksi t+1 vs:
-                                // - aktual t (jika ada), atau
-                                // - forecast t (est, jika aktual null), atau
-                                // - aktual t-1
                                 $baseHarga = $item->harga_bulan_ini
                                           ?? $item->harga_bulan_ini_est
                                           ?? $item->harga_bulan_lalu;
@@ -1179,7 +1110,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── IHK Forecast per Komoditas ── --}}
                     <td class="td-r">
                         @php $fcKmd = $ihkKomoditasForecast[$item->komoditas_id] ?? null; @endphp
                         @if($fcKmd)
@@ -1199,7 +1129,6 @@ nav[aria-label="Pagination Navigation"] p {
                         @endif
                     </td>
 
-                    {{-- ── Tren Model ── --}}
                     <td class="td-c">
                         @if(isset($item->tren_model) && $item->tren_model !== null)
                             @if($item->tren_model === 'naik')
@@ -1235,25 +1164,39 @@ nav[aria-label="Pagination Navigation"] p {
         </table>
     </div>
 
-  @if($data->hasPages())
-    <div style="padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; border-top: 0.5px solid #f1f5f9; background: #f8fafc; gap: 20px; flex-wrap: wrap;">
-        
-        <span style="font-size: 12px; color: #6b7280; white-space: nowrap; flex-shrink: 0;">
+    @if($data->hasPages())
+    <div style="padding:16px 28px; display:flex; align-items:center; justify-content:space-between; border-top:0.5px solid #f1f5f9; background:#f8fafc; gap:20px; flex-wrap:wrap;">
+        <span style="font-size:12px; color:#6b7280; white-space:nowrap; flex-shrink:0;">
             Menampilkan {{ $data->firstItem() }}–{{ $data->lastItem() }} dari {{ $data->total() }} data
         </span>
-        
-        <div style="flex-shrink: 0;">
+        <div style="flex-shrink:0;">
             {{ $data->appends(request()->all())->links() }}
         </div>
-
     </div>
-@endif
+    @endif
 </div>
 
 </div>{{-- end kmd --}}
 
+{{-- ══ SCRIPTS ══ --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
+/* ─────────────────────────────────────────────
+   UTILITAS SCROLL
+   scrollToEl(el) — scroll halus ke elemen,
+   memperhitungkan tinggi navbar otomatis.
+───────────────────────────────────────────── */
+function scrollToEl(el) {
+    if (!el) return;
+    const navH = document.querySelector('nav')?.offsetHeight ?? 64;
+    const top  = el.getBoundingClientRect().top + window.scrollY - navH - 16;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+}
+
+/* ─────────────────────────────────────────────
+   CHARTS — dibungkus DOMContentLoaded sendiri
+   agar terpisah bersih dari logika scroll/form
+───────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function () {
     const dark    = document.documentElement.classList.contains('dark');
     const gridClr = dark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.04)';
@@ -1278,7 +1221,7 @@ document.addEventListener('DOMContentLoaded', function () {
     };
     const scaleX = { grid: { color: gridClr }, ticks: { color: lblClr, font: tFont, maxRotation: 35 } };
 
-    /* ── MtM Line ── */
+    /* ── MtM Line Chart ── */
     const ctxMtm = document.getElementById('chartMtm');
     if (ctxMtm) {
         @if($bulanFilter)
@@ -1289,7 +1232,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const dataMtm = @json($sparkDataTahunan);
         @endif
 
-        const g2d = ctxMtm.getContext('2d');
+        const g2d  = ctxMtm.getContext('2d');
         const grad = g2d.createLinearGradient(0, 0, 0, 200);
         grad.addColorStop(0, 'rgba(26,79,160,0.08)');
         grad.addColorStop(1, 'rgba(26,79,160,0.0)');
@@ -1323,7 +1266,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    /* ── YoY Bar ── */
+    /* ── YoY Bar Chart ── */
     const ctxYoy = document.getElementById('chartYoY');
     if (ctxYoy) {
         const labsYoy = @json($yoySparkLabels);
@@ -1359,47 +1302,107 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
+}); /* ← TUTUP DOMContentLoaded — chart selesai di sini */
+
+/* ─────────────────────────────────────────────
+   SCROLL OTOMATIS SETELAH LOAD
+   Cek URL: ada ?scroll=insight → ke KPI strip
+            ada ?page=N         → ke tabel
+            ada hash #...       → ke elemen hash
+───────────────────────────────────────────── */
+window.addEventListener('load', function () {
+    const params = new URLSearchParams(window.location.search);
+    const hash   = window.location.hash;
+
+    if (hash === '#sectionInsight') {
+        setTimeout(() => scrollToEl(document.getElementById('sectionInsight')), 100);
+    } else if (hash === '#tabelDetail' || params.has('page')) {
+        setTimeout(() => scrollToEl(document.getElementById('tabelDetail')), 100);
+    } else if (params.get('scroll') === 'insight') {
+        setTimeout(() => scrollToEl(document.getElementById('sectionInsight')), 100);
+    }
 });
 
+/* ─────────────────────────────────────────────
+   INTERCEPT FORM FILTER
+   Tambahkan ?scroll=insight agar setelah reload
+   halaman langsung scroll ke KPI strip.
+───────────────────────────────────────────── */
+document.getElementById('filterForm').addEventListener('submit', function (e) {
+    /* Tambah hidden input scroll=insight ke form sebelum submit */
+    if (!this.querySelector('input[name="scroll"]')) {
+        const inp = document.createElement('input');
+        inp.type  = 'hidden';
+        inp.name  = 'scroll';
+        inp.value = 'insight';
+        this.appendChild(inp);
+    }
+});
+
+/* ─────────────────────────────────────────────
+   INTERCEPT KLIK PAGINATION
+   Tangkap semua klik di dalam nav pagination
+   Laravel (Tailwind/Bootstrap), tambahkan
+   #tabelDetail agar browser scroll ke anchor.
+   Menggunakan event delegation di document
+   sehingga bekerja meski Alpine.js di-mount
+   belakangan.
+───────────────────────────────────────────── */
+document.addEventListener('click', function (e) {
+    /* Cari elemen <a> terdekat dari target klik */
+    const link = e.target.closest('a[href]');
+    if (!link) return;
+
+    const href = link.getAttribute('href');
+    if (!href || href === '#' || href.startsWith('javascript')) return;
+
+    /* Hanya intercept link yang berada di dalam nav pagination */
+    const isInsidePagination = link.closest(
+        'nav[aria-label="Pagination Navigation"], ' +
+        '[data-pagination], ' +
+        '.pagination'
+    );
+    if (!isInsidePagination) return;
+
+    /* Sudah ada hash? biarkan browser tangani */
+    if (href.includes('#')) return;
+
+    e.preventDefault();
+    window.location.href = href + '#tabelDetail';
+});
+
+/* ─────────────────────────────────────────────
+   FILTER TABEL (client-side search)
+───────────────────────────────────────────── */
 function filterTable(q) {
     q = q.toLowerCase().trim();
-    document.querySelectorAll('#mainTbody .row-item').forEach(tr => {
+    document.querySelectorAll('#mainTbody .row-item').forEach(function (tr) {
         tr.style.display = (!q || tr.dataset.nama.includes(q)) ? '' : 'none';
     });
 }
 
+/* ─────────────────────────────────────────────
+   SORT TABEL (client-side sort)
+───────────────────────────────────────────── */
 function sortTable(e, key) {
-    document.querySelectorAll('.sort-chip').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.sort-chip').forEach(function (b) { b.classList.remove('active'); });
     e.target.classList.add('active');
     const tbody = document.getElementById('mainTbody');
     const rows  = Array.from(tbody.querySelectorAll('.row-item'));
-    rows.sort((a, b) => {
+    rows.sort(function (a, b) {
         switch (key) {
-            case 'nama':      return a.dataset.nama.localeCompare(b.dataset.nama);
-            case 'mom_desc':  return parseFloat(b.dataset.mom)    - parseFloat(a.dataset.mom);
-            case 'mom_asc':   return parseFloat(a.dataset.mom)    - parseFloat(b.dataset.mom);
-            case 'yoy_desc':  return parseFloat(b.dataset.yoy)    - parseFloat(a.dataset.yoy);
-            case 'ytd_desc':  return parseFloat(b.dataset.ytd)    - parseFloat(a.dataset.ytd);
-            case 'harga_desc':return parseFloat(b.dataset.harga)  - parseFloat(a.dataset.harga);
+            case 'nama':       return a.dataset.nama.localeCompare(b.dataset.nama);
+            case 'mom_desc':   return parseFloat(b.dataset.mom)   - parseFloat(a.dataset.mom);
+            case 'mom_asc':    return parseFloat(a.dataset.mom)   - parseFloat(b.dataset.mom);
+            case 'yoy_desc':   return parseFloat(b.dataset.yoy)   - parseFloat(a.dataset.yoy);
+            case 'ytd_desc':   return parseFloat(b.dataset.ytd)   - parseFloat(a.dataset.ytd);
+            case 'harga_desc': return parseFloat(b.dataset.harga) - parseFloat(a.dataset.harga);
             default: return 0;
         }
     });
-    rows.forEach(r => tbody.appendChild(r));
+    rows.forEach(function (r) { tbody.appendChild(r); });
 }
-<script>
-// Scroll ke tabel jika ada parameter page di URL (artinya user klik pagination)
-(function () {
-    const url = new URL(window.location.href);
-    if (url.searchParams.has('page')) {
-        const tbl = document.getElementById('mainTable');
-        if (tbl) {
-            // Sedikit delay agar DOM selesai render
-            setTimeout(() => {
-                tbl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }, 120);
-        }
-    }
-})();
 </script>
+
 <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 @endsection

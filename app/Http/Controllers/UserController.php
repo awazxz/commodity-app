@@ -105,8 +105,6 @@ class UserController extends Controller
         $allCommodities = $commodities;
 
         // ── STEP 2: Komoditas yang dipilih ────────────────────
-        // Satu-satunya input yang boleh dari user: memilih komoditas.
-        // Tidak ada parameter model yang dibaca dari request.
         $selectedKomoditasId = (int) (
             $request->query('komoditas_id')
             ?? $request->query('commodity')
@@ -174,8 +172,6 @@ class UserController extends Controller
         Log::info('[USER] Date range final → start=' . $startDate . ' | end=' . $queryEndDate);
 
         // ── STEP 7: Hitung user_override dari prefs admin ─────
-        // Dihitung dari selisih prefs admin vs default konstanta.
-        // BUKAN dari request user — user tidak bisa trigger ini.
         $isUserOverride = (
             (float) $cpScale      !== (float) self::DEFAULT_CP     ||
             (float) $seasonScale  !== (float) self::DEFAULT_SS     ||
@@ -260,8 +256,8 @@ class UserController extends Controller
                     $yearlySeason,
                     $startDate,
                     $queryEndDate,
-                    false,          // force_retrain: user tidak pernah trigger retrain
-                    $isUserOverride // dihitung dari prefs admin vs default
+                    false,
+                    $isUserOverride
                 );
             }
 
@@ -352,7 +348,6 @@ class UserController extends Controller
 
     // =========================================================
     // PANGGIL FLASK PROPHET API
-    // Identik dengan AdminController — payload sama persis
     // =========================================================
 
     private function callFlaskProphet(
@@ -395,9 +390,6 @@ class UserController extends Controller
                 ->where('harga', '>', 0)
                 ->count();
 
-            // Sinkron dengan AdminController:
-            // - isUserOverride atau force_retrain → Flask retrain → timeout panjang
-            // - normal (pakai cache)              → timeout pendek
             $needsLongTimeout = $forceRetrain || $isUserOverride;
             $dynamicTimeout   = $needsLongTimeout
                 ? max(300, min(600, (int) ceil($dataCount / 50) * 20 + 60))
@@ -502,6 +494,7 @@ class UserController extends Controller
 
     // =========================================================
     // AGGREGATION — Weekly
+    // FIX: Hapus "continue" agar prediksi in-sample ikut tersimpan
     // =========================================================
 
     private function aggregateWeeklyData(
@@ -532,16 +525,10 @@ class UserController extends Controller
             }
         }
 
-        $actualWeekKeys = [];
-        foreach ($weekGroups as $key => $g) {
-            if (!empty($g['actualPrices'])) $actualWeekKeys[$key] = true;
-        }
-
+        // FIX: Tidak ada lagi "continue" — prediksi historis tetap disimpan
         foreach ($forecastDates as $i => $date) {
             $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
             $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
-
-            if (isset($actualWeekKeys[$key])) continue;
 
             if (!isset($weekGroups[$key])) {
                 $weekGroups[$key] = [
@@ -584,6 +571,7 @@ class UserController extends Controller
 
     // =========================================================
     // AGGREGATION — Monthly
+    // FIX: Hapus "continue" agar prediksi in-sample ikut tersimpan
     // =========================================================
 
     private function aggregateMonthlyData(
@@ -611,16 +599,10 @@ class UserController extends Controller
             }
         }
 
-        $actualMonthKeys = [];
-        foreach ($monthGroups as $key => $g) {
-            if (!empty($g['actualPrices'])) $actualMonthKeys[$key] = true;
-        }
-
+        // FIX: Tidak ada lagi "continue" — prediksi historis tetap disimpan
         foreach ($forecastDates as $i => $date) {
             $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
             $key = $d->format('Y-m');
-
-            if (isset($actualMonthKeys[$key])) continue;
 
             if (!isset($monthGroups[$key])) {
                 $monthGroups[$key] = [
@@ -660,6 +642,7 @@ class UserController extends Controller
 
     // =========================================================
     // AGGREGATION — Yearly
+    // FIX: Hapus "continue" agar prediksi in-sample ikut tersimpan
     // =========================================================
 
     private function aggregateYearlyData(
@@ -687,16 +670,10 @@ class UserController extends Controller
             }
         }
 
-        $actualYearKeys = [];
-        foreach ($yearGroups as $key => $g) {
-            if (!empty($g['actualPrices'])) $actualYearKeys[$key] = true;
-        }
-
+        // FIX: Tidak ada lagi "continue" — prediksi historis tetap disimpan
         foreach ($forecastDates as $i => $date) {
             $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
             $key = (string) $d->year;
-
-            if (isset($actualYearKeys[$key])) continue;
 
             if (!isset($yearGroups[$key])) {
                 $yearGroups[$key] = [
@@ -735,7 +712,7 @@ class UserController extends Controller
     }
 
     // =========================================================
-    // FALLBACK FORECAST (PHP) — identik AdminController
+    // FALLBACK FORECAST (PHP)
     // =========================================================
 
     private function simpleForecast(array $dates, array $prices, int $forecastDays): array
