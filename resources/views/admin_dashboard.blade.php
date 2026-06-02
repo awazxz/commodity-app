@@ -273,6 +273,7 @@
         line-height: 1.7 !important;
     }
     
+    
 </style>
 </div>
 
@@ -290,7 +291,7 @@
 <div class="dashboard-container space-y-6 animate-fade-in">
 
 {{-- TAB NAVIGATION --}}
-<div class="card-standard p-1.5 flex gap-1">
+<!-- <div class="card-standard p-1.5 flex gap-1">
     <a href="{{ route('admin.predict', ['tab' => 'insight']) }}"
        class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-xs font-bold uppercase tracking-wider transition-all
               {{ ($currentTab ?? 'insight') === 'insight' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }}">
@@ -309,7 +310,7 @@
         <i class="fas fa-users"></i>
         <span>{{ __('messages.tab_kelola_pengguna') }}</span>
     </a>
-</div>
+</div> -->
 
 {{-- Flash Messages --}}
 @if(session('success'))
