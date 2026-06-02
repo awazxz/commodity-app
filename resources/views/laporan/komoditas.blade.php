@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
 @section('content')
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
 /* ══ RESET & BASE ══ */
 *, *::before, *::after { box-sizing: border-box; }
-.kmd { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; color: #1a202c; }
-.mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+.kmd { font-family: 'Inter', sans-serif; font-size: 15px; color: #1a202c; }
+.mono { font-family: 'Inter', monospace; font-variant-numeric: tabular-nums; }
 html.dark .kmd { color: #e2e8f0; }
 
 /* ══ LAYOUT ══ */
@@ -32,7 +32,7 @@ html.dark .card { background: #1e2433; border-color: #2d3748; }
 
 /* ══ SECTION LABEL ══ */
 .sec {
-    font-size: 9.5px; font-weight: 600;
+    font-size: 11px; font-weight: 600;
     letter-spacing: .12em; text-transform: uppercase;
     color: #1a56db; border-left: 2px solid #1a56db;
     padding-left: 7px; line-height: 1.3; margin-bottom: 3px;
@@ -42,18 +42,18 @@ html.dark .sec { color: #93c5fd; border-color: #3b82f6; }
 html.dark .sec.gray { color: #9ca3af; border-color: #6b7280; }
 
 .sec-sub {
-    font-size: 11px; color: #6b7280;
+    font-size: 13px; color: #6b7280;
     margin: 3px 0 14px 9px;
 }
 html.dark .sec-sub { color: #9ca3af; }
 
 /* ══ NOTE ══ */
 .note {
-    font-size: 11px; line-height: 1.65;
+    font-size: 13px; line-height: 1.65;
     padding: 9px 12px; border-radius: 6px;
     margin-bottom: 12px;
     border: 0.5px solid #e2e8f0;
-    background: #f8fafc; color: #4b5563;
+    background: #cbd5e1; color: #4b5563;
 }
 .note.info {
     border-left: 2px solid #1a56db;
@@ -71,31 +71,32 @@ html.dark .note.info { background: rgba(37,99,235,.08); border-color: rgba(37,99
     background: #f8fafc;
 }
 html.dark .sbox { background: #1a202c; border-color: #2d3748; }
-.sbox-n { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 500; line-height: 1; }
-.sbox-l { font-size: 10px; color: #6b7280; margin-top: 5px; font-weight: 500; }
-.sbox-s { font-size: 9.5px; color: #9ca3af; margin-top: 2px; }
+.sbox-n { font-family: 'Inter', monospace; font-size: 22px; font-weight: 500; line-height: 1; }
+.sbox-l { font-size: 12px; color: #6b7280; margin-top: 5px; font-weight: 500; }
+.sbox-s { font-size: 11px; color: #9ca3af; margin-top: 2px; }
 html.dark .sbox-l { color: #9ca3af; }
 
 /* ══ BAR ══ */
 .bar-wrap { margin-bottom: 12px; }
 .bar-track { height: 3px; border-radius: 2px; background: #e2e8f0; overflow: hidden; display: flex; }
 html.dark .bar-track { background: #2d3748; }
-.bar-pct { display: flex; justify-content: space-between; margin-top: 5px; font-size: 10px; color: #6b7280; }
+.bar-pct { display: flex; justify-content: space-between; margin-top: 5px; font-size: 12px; color: #6b7280; }
 
 /* ══ KV GRID ══ */
 .kv2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.kv3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
 .kvbox {
     border: 0.5px solid #e2e8f0; border-radius: 6px;
     padding: 12px; background: #f8fafc;
 }
 html.dark .kvbox { background: #1a202c; border-color: #2d3748; }
 .kvbox-l {
-    font-size: 9.5px; font-weight: 600; letter-spacing: .07em;
+    font-size: 11px; font-weight: 600; letter-spacing: .07em;
     text-transform: uppercase; color: #6b7280; margin-bottom: 8px;
 }
 html.dark .kvbox-l { color: #9ca3af; }
-.kvbox-v { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 500; line-height: 1; }
-.kvbox-s { font-size: 10px; color: #9ca3af; margin-top: 4px; }
+.kvbox-v { font-family: 'Inter', monospace; font-size: 18px; font-weight: 500; line-height: 1; }
+.kvbox-s { font-size: 12px; color: #9ca3af; margin-top: 4px; }
 
 /* ══ IHK ROW ══ */
 .ihk-row {
@@ -104,16 +105,16 @@ html.dark .kvbox-l { color: #9ca3af; }
     padding: 12px 14px; margin-bottom: 12px; background: #f8fafc;
 }
 html.dark .ihk-row { background: #1a202c; border-color: #2d3748; }
-.ihk-l { font-size: 9.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; }
-.ihk-v { font-family: 'JetBrains Mono', monospace; font-size: 19px; font-weight: 500; color: #1a56db; }
-.ihk-int { font-size: 10px; color: #9ca3af; margin-top: 3px; }
+.ihk-l { font-size: 11px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; }
+.ihk-v { font-family: 'Inter', monospace; font-size: 22px; font-weight: 500; color: #1a56db; }
+.ihk-int { font-size: 12px; color: #9ca3af; margin-top: 3px; }
 html.dark .ihk-v { color: #93c5fd; }
 
 /* ══ PILL ══ */
 .pill {
     display: inline-flex; align-items: center; gap: 3px;
-    padding: 3px 9px; border-radius: 99px;
-    font-size: 10px; font-weight: 500; border: 0.5px solid; white-space: nowrap;
+    padding: 4px 10px; border-radius: 99px;
+    font-size: 12px; font-weight: 500; border: 0.5px solid; white-space: nowrap;
 }
 .p-up   { background: #fdf0f0; color: #7a2828; border-color: #e8b4b4; }
 .p-dn   { background: #f0f7f0; color: #265226; border-color: #a8cca8; }
@@ -139,8 +140,8 @@ html.dark .blu-txt { color: #93c5fd; }
 .f-sel {
     display: block; width: 100%;
     border: 0.5px solid #e2e8f0; border-radius: 6px;
-    font-size: 12px; font-family: inherit; font-weight: 500;
-    padding: 7px 26px 7px 10px; background: #fff; color: #0f172a;
+    font-size: 14px; font-family: inherit; font-weight: 500;
+    padding: 8px 26px 8px 10px; background: #fff; color: #0f172a;
     appearance: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%2394a3b8' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 6px center; background-size: 14px;
@@ -153,13 +154,13 @@ html.dark .f-sel { background-color: #2d3748; border-color: #4a5568; color: #e2e
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .kpi-box {
     border: 0.5px solid #e2e8f0; border-radius: 8px;
-    padding: 14px 16px; background: #fff;
+    padding: 16px 18px; background: #fff;
     border-top: 2px solid #1a56db;
 }
 html.dark .kpi-box { background: #1e2433; border-color: #2d3748; border-top-color: #3b82f6; }
-.kpi-val { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 500; line-height: 1; margin-bottom: 5px; }
-.kpi-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #6b7280; }
-.kpi-sub { font-size: 10px; color: #9ca3af; margin-top: 3px; }
+.kpi-val { font-family: 'Inter', monospace; font-size: 24px; font-weight: 500; line-height: 1; margin-bottom: 6px; }
+.kpi-lbl { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #6b7280; }
+.kpi-sub { font-size: 12px; color: #9ca3af; margin-top: 4px; }
 html.dark .kpi-lbl { color: #9ca3af; }
 
 /* ══ TABLE ══ */
@@ -173,27 +174,27 @@ html.dark .tbl-card { background: #1e2433; border-color: #2d3748; }
 html.dark .topbar { background: #1a202c; border-color: #2d3748; }
 .legend-bar {
     display: flex; flex-wrap: wrap; gap: 14px;
-    font-size: 10px; color: #6b7280;
+    font-size: 12px; color: #6b7280;
     padding: 7px 20px; border-bottom: 0.5px solid #e2e8f0;
     background: #f8fafc;
 }
 html.dark .legend-bar { background: #1a202c; border-color: #2d3748; color: #9ca3af; }
 .leg-line { width: 12px; height: 2px; border-radius: 1px; display: inline-block; vertical-align: middle; margin-right: 4px; }
 .toolbar {
-    padding: 8px 20px; display: flex; align-items: center;
+    padding: 10px 20px; display: flex; align-items: center;
     gap: 8px; flex-wrap: wrap; border-bottom: 0.5px solid #f1f5f9;
 }
 html.dark .toolbar { border-color: #1a202c; }
 .tbl-search {
     border: 0.5px solid #e2e8f0; border-radius: 6px;
-    font-size: 12px; font-family: inherit;
-    padding: 6px 10px 6px 28px; background: #fff; color: #0f172a;
-    width: 220px; transition: border-color .15s;
+    font-size: 14px; font-family: inherit;
+    padding: 7px 10px 7px 30px; background: #fff; color: #0f172a;
+    width: 240px; transition: border-color .15s;
 }
 .tbl-search:focus { outline: none; border-color: #1a56db; }
 html.dark .tbl-search { background: #2d3748; border-color: #4a5568; color: #e2e8f0; }
 .sort-chip {
-    font-size: 10px; padding: 4px 10px;
+    font-size: 12px; padding: 5px 11px;
     border: 0.5px solid #e2e8f0; border-radius: 5px;
     background: #fff; color: #6b7280; cursor: pointer;
     transition: all .12s; font-family: inherit; font-weight: 500;
@@ -203,10 +204,10 @@ html.dark .sort-chip { background: #2d3748; border-color: #4a5568; color: #9ca3a
 .sort-chip.active { border-color: #1a56db; background: #eff6ff; color: #1a56db; }
 html.dark .sort-chip.active { background: rgba(37,99,235,.15); color: #93c5fd; border-color: #3b82f6; }
 
-.data-tbl { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 920px; }
+.data-tbl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 920px; }
 .data-tbl thead th {
-    padding: 8px 12px; text-align: left;
-    font-size: 9.5px; font-weight: 600; letter-spacing: .08em;
+    padding: 9px 12px; text-align: left;
+    font-size: 11px; font-weight: 600; letter-spacing: .08em;
     text-transform: uppercase; color: #6b7280;
     background: #f8fafc; border-bottom: 0.5px solid #e2e8f0;
     white-space: nowrap; position: sticky; top: 0; z-index: 2;
@@ -214,14 +215,18 @@ html.dark .sort-chip.active { background: rgba(37,99,235,.15); color: #93c5fd; b
 html.dark .data-tbl thead th { background: #1a202c; color: #6b7280; border-color: #2d3748; }
 .data-tbl thead th.r { text-align: right; }
 .data-tbl thead th.c { text-align: center; }
-.data-tbl tbody tr { border-bottom: 0.5px solid #f1f5f9; transition: background .1s; }
-html.dark .data-tbl tbody tr { border-color: #1a202c; }
-.data-tbl tbody tr:hover { background: #f8fafc; }
-html.dark .data-tbl tbody tr:hover { background: rgba(255,255,255,.02); }
-.data-tbl td { padding: 9px 12px; color: #374151; vertical-align: middle; }
+.data-tbl tbody tr { border-bottom: none !important; transition: background .1s; }
+.data-tbl tbody tr:nth-child(odd)  { background: #ffffff; }
+.data-tbl tbody tr:nth-child(even) { background: #edf2f7; }
+html.dark .data-tbl tbody tr:nth-child(odd)  { background: #1e2433; }
+html.dark .data-tbl tbody tr:nth-child(even) { background: #161c2a; }
+.data-tbl tbody tr:hover { background: #dbeafe !important; }
+html.dark .data-tbl tbody tr:hover { background: rgba(59,130,246,.10) !important; }
+.data-tbl td { padding: 8px 12px; color: #374151; vertical-align: middle; }
 html.dark .data-tbl td { color: #d1d5db; }
 .td-r { text-align: right; }
 .td-c { text-align: center; }
+.data-tbl tbody td:first-child { min-width: 140px; }
 
 /* column group borders */
 .g-sep { border-left: 0.5px solid #f1f5f9 !important; }
@@ -229,7 +234,7 @@ html.dark .g-sep { border-left-color: #1a202c !important; }
 
 /* th group row */
 .th-grp th {
-    padding: 5px 12px; font-size: 8.5px; font-weight: 600;
+    padding: 5px 12px; font-size: 10px; font-weight: 600;
     letter-spacing: .1em; text-transform: uppercase;
     border-bottom: none; text-align: center;
 }
@@ -237,22 +242,22 @@ html.dark .g-sep { border-left-color: #1a202c !important; }
 /* ══ MOVER ══ */
 .mover-item {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 9px 16px; transition: background .1s;
+    padding: 10px 16px; transition: background .1s;
 }
 .mover-item:hover { background: #f8fafc; }
 html.dark .mover-item:hover { background: rgba(255,255,255,.02); }
 .mover-rank {
-    width: 20px; height: 20px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 10px; font-weight: 600; flex-shrink: 0;
+    font-size: 11px; font-weight: 600; flex-shrink: 0;
     background: #f1f5f9; color: #4b5563;
 }
 
 /* ══ PAGINATION ══ */
 .pg-btn {
     display: inline-flex; align-items: center; justify-content: center;
-    min-width: 28px; height: 28px; padding: 0 5px;
-    font-size: 11px; font-weight: 500; border-radius: 5px;
+    min-width: 30px; height: 30px; padding: 0 6px;
+    font-size: 13px; font-weight: 500; border-radius: 5px;
     border: 0.5px solid #e2e8f0; background: #fff; color: #374151;
     cursor: pointer; text-decoration: none;
 }
@@ -260,14 +265,14 @@ html.dark .mover-item:hover { background: rgba(255,255,255,.02); }
 
 /* ══ EXPORT DROPDOWN ══ */
 .exp-dd {
-    position: absolute; right: 0; top: calc(100% + 4px); width: 170px;
+    position: absolute; right: 0; top: calc(100% + 4px); width: 180px;
     background: #fff; border: 0.5px solid #e2e8f0; border-radius: 7px;
     box-shadow: 0 8px 24px rgba(0,0,0,.08); z-index: 50; overflow: hidden;
 }
 html.dark .exp-dd { background: #1e2433; border-color: #2d3748; }
 .exp-item {
     display: flex; align-items: center; gap: 8px;
-    padding: 9px 13px; font-size: 11px; color: #374151;
+    padding: 10px 14px; font-size: 13px; color: #374151;
     text-decoration: none; transition: background .1s;
 }
 html.dark .exp-item { color: #d1d5db; }
@@ -288,7 +293,7 @@ nav[aria-label="Pagination Navigation"] p {
 
 /* ══ MOBILE RESPONSIVE ══ */
 @media (max-width: 640px) {
-    .kmd { font-size: 12px; }
+    .kmd { font-size: 14px; }
     .kmd > div:first-child { padding: 14px 14px 48px !important; }
     .kmd > div:first-child > div:first-child {
         flex-direction: column !important;
@@ -305,10 +310,10 @@ nav[aria-label="Pagination Navigation"] p {
         grid-template-columns: 1fr 1fr !important;
         gap: 8px !important;
     }
-    .kpi-box { padding: 10px 12px !important; }
-    .kpi-val { font-size: 17px !important; }
-    .kpi-lbl { font-size: 9px !important; }
-    .kpi-sub { font-size: 9px !important; display: none; }
+    .kpi-box { padding: 12px 14px !important; }
+    .kpi-val { font-size: 20px !important; }
+    .kpi-lbl { font-size: 11px !important; }
+    .kpi-sub { font-size: 11px !important; display: none; }
     .card { padding: 14px 14px !important; }
     form > div[style*="grid-template-columns"] {
         grid-template-columns: 1fr !important;
@@ -320,7 +325,7 @@ nav[aria-label="Pagination Navigation"] p {
     .sbox { padding: 8px 4px !important; }
     .sbox-n { font-size: 18px !important; }
     .sbox-s { display: none; }
-    .kv2 { grid-template-columns: 1fr !important; }
+    .kv2, .kv3 { grid-template-columns: 1fr !important; }
     .ihk-row { flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
     .page-header-pills { display: none !important; }
     .toolbar {
@@ -350,19 +355,18 @@ nav[aria-label="Pagination Navigation"] p {
     div[style*="background:#1a56db; border-radius:8px; padding:10px 12px"] {
         padding: 8px 10px !important;
     }
-    h1[style*="font-size:18px"] { font-size: 15px !important; }
-    .note { font-size: 10.5px !important; }
-    .sec-sub { font-size: 10px !important; margin-bottom: 10px !important; }
+    h1[style*="font-size:18px"] { font-size: 16px !important; }
+    .note { font-size: 12px !important; }
+    .sec-sub { font-size: 12px !important; margin-bottom: 10px !important; }
+    .fc-full-grid { grid-template-columns: 1fr !important; }
 }
 
 /* Tablet (641–900px) */
 @media (min-width: 641px) and (max-width: 900px) {
-    div[style*="grid-template-columns:1fr 1fr"][style*="margin-bottom:14px; align-items:stretch"] {
-        grid-template-columns: 1fr !important;
-    }
     .kpi-grid {
         grid-template-columns: repeat(3, 1fr) !important;
     }
+    .fc-full-grid { grid-template-columns: 1fr 1fr !important; }
 }
 </style>
 
@@ -420,15 +424,15 @@ nav[aria-label="Pagination Navigation"] p {
 <div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:18px; padding-bottom:16px; border-bottom:2px solid #1a56db;">
     <div style="display:flex; align-items:center; gap:12px;">
         <div style="background:#1a56db; border-radius:8px; padding:10px 12px; color:#fff;">
-            <i class="fas fa-chart-line" style="font-size:16px;"></i>
+            <i class="fas fa-chart-line" style="font-size:18px;"></i>
         </div>
         <div>
-            <h1 style="font-size:18px; font-weight:700; color:#0f172a; margin:0; line-height:1.2;">Monitoring Harga &amp; Proyeksi Komoditas</h1>
-            <p style="font-size:11px; color:#9ca3af; margin:3px 0 0;">Sumber: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:10px;color:#4b5563;">price_data · price_forecasts · IHK/RH</code> — diperbarui otomatis setiap minggu</p>
+            <h1 style="font-size:20px; font-weight:700; color:#0f172a; margin:0; line-height:1.2;">Monitoring Harga &amp; Proyeksi Komoditas</h1>
+            <p style="font-size:13px; color:#9ca3af; margin:3px 0 0;">Sumber: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:12px;color:#4b5563;">price_data · price_forecasts · IHK/RH</code> — diperbarui otomatis setiap minggu</p>
         </div>
     </div>
-    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;">
-        <span class="pill p-fc"><i class="fas fa-calendar" style="font-size:8px;"></i> {{ $lblIni }}</span>
+    <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;" class="page-header-pills">
+        <span class="pill p-fc"><i class="fas fa-calendar" style="font-size:10px;"></i> {{ $lblIni }}</span>
         @if($bulanFilter)
             <span class="pill {{ $inflasiMtm >= 0 ? 'p-up' : 'p-dn' }}">MtM {{ ($inflasiMtm>=0?'+':'').number_format($inflasiMtm,2,',','.') }}%</span>
             <span class="pill {{ $inflasiYoy >= 0 ? 'p-up' : 'p-dn' }}">YoY {{ ($inflasiYoy>=0?'+':'').number_format($inflasiYoy,2,',','.') }}%</span>
@@ -441,21 +445,20 @@ nav[aria-label="Pagination Navigation"] p {
 <div class="card" style="margin-bottom:16px;">
     <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; padding-bottom:12px; border-bottom:0.5px solid #e2e8f0;">
         <div style="background:#eff6ff; border-radius:6px; padding:7px 9px; flex-shrink:0;">
-            <i class="fas fa-circle-info" style="font-size:13px; color:#1a56db;"></i>
+            <i class="fas fa-circle-info" style="font-size:15px; color:#1a56db;"></i>
         </div>
         <div>
-            <p style="font-size:11px; font-weight:600; color:#1a56db; margin:0 0 2px;">Pilih Tahun &amp; Bulan untuk menampilkan insight</p>
-            <p style="font-size:10.5px; color:#9ca3af; margin:0; line-height:1.5;">
+            <p style="font-size:13px; font-weight:600; color:#1a56db; margin:0 0 2px;">Pilih Tahun &amp; Bulan untuk menampilkan insight</p>
+            <p style="font-size:12px; color:#9ca3af; margin:0; line-height:1.5;">
                 Tentukan periode terlebih dahulu, lalu klik <strong style="color:#374151;">Terapkan</strong> — data MtM, YoY, proyeksi, dan top mover akan muncul sesuai periode yang dipilih.
             </p>
         </div>
     </div>
 
-    {{-- action tanpa hash — scroll ditangani JS setelah load --}}
     <form id="filterForm" action="{{ route('laporan.komoditas.index') }}" method="GET">
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; align-items:end;">
             <div>
-                <label style="display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Komoditas</label>
+                <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Komoditas</label>
                 <select name="komoditas_id" class="f-sel">
                     <option value="">Semua Komoditas</option>
                     @foreach($daftarKomoditas as $k)
@@ -464,7 +467,7 @@ nav[aria-label="Pagination Navigation"] p {
                 </select>
             </div>
             <div>
-                <label style="display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Tahun</label>
+                <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Tahun</label>
                 <select name="tahun" class="f-sel">
                     @foreach($tahunTersedia as $t)
                         <option value="{{ $t }}" {{ (int)$tahunFilter===(int)$t?'selected':'' }}>{{ $t }}{{ (int)$t>$tahunNow?' (Forecast)':'' }}</option>
@@ -472,7 +475,7 @@ nav[aria-label="Pagination Navigation"] p {
                 </select>
             </div>
             <div>
-                <label style="display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Bulan</label>
+                <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Bulan</label>
                 <select name="bulan" class="f-sel">
                     <option value="" {{ !$bulanFilter?'selected':'' }}>Semua Bulan</option>
                     @foreach($nl as $num => $nama)
@@ -481,7 +484,7 @@ nav[aria-label="Pagination Navigation"] p {
                 </select>
             </div>
             <div>
-                <label style="display:block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Status Harga</label>
+                <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Status Harga</label>
                 <select name="status" class="f-sel">
                     <option value="">Semua Status</option>
                     <option value="naik"   {{ request('status')=='naik'   ?'selected':'' }}>Naik</option>
@@ -491,11 +494,11 @@ nav[aria-label="Pagination Navigation"] p {
                 </select>
             </div>
             <div style="display:flex; gap:7px;">
-                <button type="submit" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 12px;background:#1a56db;color:#fff;font-size:11px;font-weight:600;border:none;border-radius:6px;cursor:pointer;">
-                    <i class="fas fa-filter" style="font-size:10px;"></i> Terapkan
+                <button type="submit" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:9px 12px;background:#1a56db;color:#fff;font-size:13px;font-weight:600;border:none;border-radius:6px;cursor:pointer;">
+                    <i class="fas fa-filter" style="font-size:11px;"></i> Terapkan
                 </button>
-                <a href="{{ route('laporan.komoditas.index') }}" style="display:flex;align-items:center;justify-content:center;padding:7px 11px;background:#f1f5f9;color:#6b7280;border-radius:6px;text-decoration:none;font-size:11px;" title="Reset">
-                    <i class="fas fa-rotate-left" style="font-size:11px;"></i>
+                <a href="{{ route('laporan.komoditas.index') }}" style="display:flex;align-items:center;justify-content:center;padding:9px 12px;background:#f1f5f9;color:#6b7280;border-radius:6px;text-decoration:none;font-size:13px;" title="Reset">
+                    <i class="fas fa-rotate-left" style="font-size:13px;"></i>
                 </a>
             </div>
         </div>
@@ -549,12 +552,137 @@ nav[aria-label="Pagination Navigation"] p {
     @endif
 </div>
 
+{{-- ══ 3.5. PROYEKSI MODEL FORECAST — FULL WIDTH (dipindah dari section 5) ══ --}}
+<div class="card" style="margin-bottom:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:3px; flex-wrap:wrap; gap:8px;">
+        <div>
+            <div class="sec gray">Proyeksi Model Forecast (Prophet)</div>
+            <p class="sec-sub">{{ $lblIni }} → <strong style="color:#374151;">{{ $lblDepan }}</strong></p>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            @if($kondisiForecast === 'inflasi')
+                <span class="pill p-up" style="font-size:13px;padding:5px 13px;"><i class="fas fa-arrow-trend-up" style="font-size:10px;"></i> Prediksi Inflasi</span>
+            @elseif($kondisiForecast === 'deflasi')
+                <span class="pill p-dn" style="font-size:13px;padding:5px 13px;"><i class="fas fa-arrow-trend-down" style="font-size:10px;"></i> Prediksi Deflasi</span>
+            @elseif($kondisiForecast === 'stabil')
+                <span class="pill p-st" style="font-size:13px;padding:5px 13px;"><i class="fas fa-minus" style="font-size:10px;"></i> Prediksi Stabil</span>
+            @else
+                <span class="pill p-st" style="font-size:13px;padding:5px 13px;"><i class="fas fa-minus" style="font-size:10px;"></i> Belum Ada Data</span>
+            @endif
+            @if($trend3Bulan)
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:12px;color:#9ca3af;">Tren 3 Bulan:</span>
+                @if($trend3Bulan === 'meningkat')
+                    <span class="pill p-up"><i class="fas fa-arrow-trend-up" style="font-size:10px;"></i> Meningkat</span>
+                @elseif($trend3Bulan === 'menurun')
+                    <span class="pill p-dn"><i class="fas fa-arrow-trend-down" style="font-size:10px;"></i> Menurun</span>
+                @else
+                    <span class="pill p-st"><i class="fas fa-minus" style="font-size:10px;"></i> Stabil</span>
+                @endif
+            </div>
+            @endif
+        </div>
+    </div>
+
+    <div class="note info" style="margin-bottom:16px;">
+        Proyeksi dari model <strong>Prophet</strong> menggunakan IHK agregat berbobot chain-linked NK BPS 2022=100. Kondisi ditentukan dari <code style="font-size:12px;background:rgba(26,79,160,.1);padding:1px 5px;border-radius:3px;">inflasi_mtom_forecast</code> agregat, threshold ±0,1%.
+    </div>
+
+    {{-- Grid utama forecast: 3 kolom di desktop --}}
+    <div class="fc-full-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:start;">
+
+        {{-- Kolom 1: Kondisi & MtM Forecast --}}
+        <div class="kv2" style="margin-bottom:0;">
+            <div class="kvbox">
+                <div class="kvbox-l">Kondisi Agregat</div>
+                @if($kondisiForecast === 'inflasi')
+                    <span class="pill p-up" style="font-size:13px;padding:5px 12px;margin-top:6px;display:inline-flex;">
+                        <i class="fas fa-arrow-trend-up" style="font-size:12px;"></i> Inflasi
+                    </span>
+                @elseif($kondisiForecast === 'deflasi')
+                    <span class="pill p-dn" style="font-size:13px;padding:5px 12px;margin-top:6px;display:inline-flex;">
+                        <i class="fas fa-arrow-trend-down" style="font-size:12px;"></i> Deflasi
+                    </span>
+                @elseif($kondisiForecast === 'stabil')
+                    <span class="pill p-st" style="font-size:13px;padding:5px 12px;margin-top:6px;display:inline-flex;">
+                        <i class="fas fa-minus" style="font-size:12px;"></i> Stabil
+                    </span>
+                @else
+                    <span style="font-size:13px;color:#9ca3af;display:block;margin-top:8px;">—</span>
+                @endif
+                <div class="kvbox-s" style="margin-top:10px;">IHK berbobot BPS</div>
+            </div>
+            <div class="kvbox">
+                <div class="kvbox-l">Inflasi MtM Forecast</div>
+                @if($inflasiMtomForecast !== null)
+                    <div class="kvbox-v {{ $inflasiMtomForecast > 0.1 ? 'up-txt' : ($inflasiMtomForecast < -0.1 ? 'dn-txt' : 'nt-txt') }}" style="margin-top:6px; font-size:20px;">
+                        {{ ($inflasiMtomForecast >= 0 ? '+' : '') . number_format($inflasiMtomForecast, 4, ',', '.') }}%
+                    </div>
+                    <div class="kvbox-s">Threshold BPS ±0,1%</div>
+                @else
+                    <div class="kvbox-v nt-txt" style="margin-top:6px;">—</div>
+                    <div class="kvbox-s">Belum tersedia</div>
+                @endif
+            </div>
+        </div>
+
+        {{-- Kolom 2: IHK Agregat Forecast --}}
+        @if($fcBulanDepan)
+        <div class="ihk-row" style="margin-bottom:0; flex-direction:column; align-items:flex-start; gap:6px;">
+            <div class="ihk-l">IHK Agregat Forecast — {{ $lblDepan }}</div>
+            <div class="ihk-v" style="font-size:28px;">{{ number_format($fcBulanDepan['nilai_ihk_forecast'], 2, ',', '.') }}</div>
+            <div class="ihk-int">
+                Interval 80%: {{ number_format($fcBulanDepan['ihk_lower'], 2, ',', '.') }} – {{ number_format($fcBulanDepan['ihk_upper'], 2, ',', '.') }}
+            </div>
+        </div>
+        @else
+        <div class="ihk-row" style="margin-bottom:0; align-items:center; justify-content:center;">
+            <span style="font-size:13px;color:#9ca3af;">Data IHK forecast belum tersedia</span>
+        </div>
+        @endif
+
+        {{-- Kolom 3: Distribusi 3 Bulan --}}
+        <div>
+            @if(!empty($ihkForecast['forecast_3_bulan']))
+            @php
+                $fc3        = $ihkForecast['forecast_3_bulan'];
+                $fc3Inflasi = collect($fc3)->where('kondisi_forecast','inflasi')->count();
+                $fc3Deflasi = collect($fc3)->where('kondisi_forecast','deflasi')->count();
+                $fc3Stabil  = collect($fc3)->where('kondisi_forecast','stabil')->count();
+                $fc3Total   = count($fc3);
+                $pFc3I = $fc3Total > 0 ? round($fc3Inflasi / $fc3Total * 100) : 0;
+                $pFc3D = $fc3Total > 0 ? round($fc3Deflasi / $fc3Total * 100) : 0;
+                $pFc3S = $fc3Total > 0 ? round($fc3Stabil  / $fc3Total * 100) : 0;
+            @endphp
+            <div style="font-size:12px;color:#6b7280;margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;">Distribusi kondisi 3 bulan ke depan</div>
+            <div class="bar-wrap">
+                <div class="bar-track" style="height:6px;">
+                    @if($pFc3I > 0)<div style="width:{{ $pFc3I }}%;background:#b84848;"></div>@endif
+                    @if($pFc3S > 0)<div style="width:{{ $pFc3S }}%;background:#d1d5db;"></div>@endif
+                    @if($pFc3D > 0)<div style="width:{{ $pFc3D }}%;background:#3b6d11;"></div>@endif
+                </div>
+                <div class="bar-pct" style="font-size:13px; margin-top:8px;">
+                    <span class="up-txt" style="font-weight:500;">{{ $pFc3I }}% inflasi</span>
+                    <span>{{ $pFc3S }}% stabil</span>
+                    <span class="dn-txt" style="font-weight:500;">{{ $pFc3D }}% deflasi</span>
+                </div>
+            </div>
+            @endif
+
+            <div class="note" style="font-size:12px;line-height:1.7;margin-top:8px;margin-bottom:0;">
+                MtM &gt; +0,1% = Inflasi &nbsp;·&nbsp; MtM &lt; −0,1% = Deflasi &nbsp;·&nbsp; lainnya = Stabil.<br>
+                Kondisi dari IHK agregat berbobot, bukan jumlah komoditas naik/turun.
+            </div>
+        </div>
+    </div>
+</div>
+
 {{-- ══ 4. CHARTS ══ --}}
 <div class="grid2" style="margin-bottom:14px;">
     <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;">
             <div class="sec">@if($bulanFilter) Tren Perubahan Harga (13 Bulan) @else Perubahan Harga Per Bulan — {{ $tahunFilter }} @endif</div>
-            <span style="font-size:10px;color:#9ca3af;background:#f8fafc;padding:2px 8px;border-radius:4px;border:0.5px solid #e2e8f0;font-family:'JetBrains Mono',monospace;">MtM %</span>
+            <span style="font-size:12px;color:#9ca3af;background:#f8fafc;padding:2px 8px;border-radius:4px;border:0.5px solid #e2e8f0;font-family:'Inter',monospace;">MtM %</span>
         </div>
         <p class="sec-sub">Rata-rata perubahan harga (%) seluruh komoditas vs bulan sebelumnya</p>
         <div style="position:relative;height:200px;">
@@ -564,7 +692,7 @@ nav[aria-label="Pagination Navigation"] p {
     <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:2px;">
             <div class="sec gray">Perubahan YoY Per Bulan — {{ $tahunFilter }}</div>
-            <span style="font-size:10px;color:#9ca3af;background:#f8fafc;padding:2px 8px;border-radius:4px;border:0.5px solid #e2e8f0;font-family:'JetBrains Mono',monospace;">YoY %</span>
+            <span style="font-size:12px;color:#9ca3af;background:#f8fafc;padding:2px 8px;border-radius:4px;border:0.5px solid #e2e8f0;font-family:'Inter',monospace;">YoY %</span>
         </div>
         <p class="sec-sub">Perbandingan rata-rata harga tiap bulan vs bulan yang sama tahun {{ $tahunFilter - 1 }}</p>
         <div style="position:relative;height:200px;">
@@ -573,199 +701,15 @@ nav[aria-label="Pagination Navigation"] p {
     </div>
 </div>
 
-{{-- ══ 5. ANALISIS + PROYEKSI ══ --}}
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; align-items:stretch;">
-
-    {{-- Kartu Kiri: Aktual MtM --}}
-    <div class="card card-stretch">
-        <div class="sec" style="margin-bottom:3px;">Perubahan Harga Aktual (MtM)</div>
-        <p class="sec-sub">{{ $lblLalu }} → <strong style="color:#374151;">{{ $lblIni }}</strong></p>
-
-        <div class="note">
-            Naik/turun dihitung berdasarkan perubahan IHK per komoditas menggunakan bobot resmi BPS. Mencakup <strong>21 komoditas</strong> terpilih, bukan angka inflasi gabungan resmi BPS.
-        </div>
-
-        @if($bulanFilter)
-        <div class="stat3">
-            <div class="sbox">
-                <div class="sbox-n up-txt">{{ $inflasi }}</div>
-                <div class="sbox-l">Harga naik</div>
-                <div class="sbox-s">&gt; +0,5% MtM</div>
-            </div>
-            <div class="sbox">
-                <div class="sbox-n dn-txt">{{ $deflasi }}</div>
-                <div class="sbox-l">Harga turun</div>
-                <div class="sbox-s">&gt; −0,5% MtM</div>
-            </div>
-            <div class="sbox">
-                <div class="sbox-n nt-txt">{{ max(0, $totalKomoditas - $inflasi - $deflasi) }}</div>
-                <div class="sbox-l">Stabil</div>
-                <div class="sbox-s">±0,5% MtM</div>
-            </div>
-        </div>
-
-        @if($totalKomoditas > 0)
-        @php
-            $pNaik   = round($inflasi / $totalKomoditas * 100, 1);
-            $pTurun  = round($deflasi / $totalKomoditas * 100, 1);
-            $pStabil = round(max(0, $totalKomoditas - $inflasi - $deflasi) / $totalKomoditas * 100, 1);
-        @endphp
-        <div class="bar-wrap">
-            <div class="bar-track">
-                @if($pNaik > 0)<div style="width:{{ $pNaik }}%;background:#b84848;"></div>@endif
-                @if($pStabil > 0)<div style="width:{{ $pStabil }}%;background:#d1d5db;"></div>@endif
-                @if($pTurun > 0)<div style="width:{{ $pTurun }}%;background:#3b6d11;"></div>@endif
-            </div>
-            <div class="bar-pct">
-                <span class="up-txt">{{ $pNaik }}% naik</span>
-                <span>{{ $pStabil }}% stabil</span>
-                <span class="dn-txt">{{ $pTurun }}% turun</span>
-            </div>
-        </div>
-        @endif
-
-        <div class="spacer"></div>
-
-        <div class="note">
-            @if($inflasi > $deflasi)
-                {{ __('messages.kesimpulan_inflasi', ['inflasi'=>$inflasi,'deflasi'=>$deflasi,'naik'=>$analisis['naik'],'turun'=>$analisis['turun'],'stabil'=>$analisis['stabil'],'total'=>$totalKomoditas,'bulan_ini'=>$lblIni,'bulan_depan'=>$lblDepan]) }}
-            @elseif($deflasi > $inflasi)
-                {{ __('messages.kesimpulan_deflasi', ['inflasi'=>$inflasi,'deflasi'=>$deflasi,'naik'=>$analisis['naik'],'turun'=>$analisis['turun'],'stabil'=>$analisis['stabil'],'total'=>$totalKomoditas,'bulan_ini'=>$lblIni,'bulan_depan'=>$lblDepan]) }}
-            @else
-                {{ __('messages.kesimpulan_stabil', ['naik'=>$analisis['naik'],'turun'=>$analisis['turun'],'stabil'=>$analisis['stabil'],'total'=>$totalKomoditas,'bulan_ini'=>$lblIni,'bulan_depan'=>$lblDepan]) }}
-            @endif
-        </div>
-        @else
-        <div class="spacer"></div>
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 0;color:#d1d5db;">
-            <i class="fas fa-calendar-xmark" style="font-size:24px;margin-bottom:8px;"></i>
-            <p style="font-size:12px;color:#9ca3af;text-align:center;">Pilih bulan untuk melihat perbandingan MtM aktual</p>
-        </div>
-        @endif
-    </div>
-
-    {{-- Kartu Kanan: Proyeksi IHK --}}
-    <div class="card card-stretch">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3px;">
-            <div class="sec gray">Proyeksi Model Forecast (Prophet)</div>
-            @if($kondisiForecast === 'inflasi')
-                <span class="pill p-up"><i class="fas fa-arrow-trend-up" style="font-size:8px;"></i> Prediksi Inflasi</span>
-            @elseif($kondisiForecast === 'deflasi')
-                <span class="pill p-dn"><i class="fas fa-arrow-trend-down" style="font-size:8px;"></i> Prediksi Deflasi</span>
-            @elseif($kondisiForecast === 'stabil')
-                <span class="pill p-st"><i class="fas fa-minus" style="font-size:8px;"></i> Prediksi Stabil</span>
-            @else
-                <span class="pill p-st"><i class="fas fa-minus" style="font-size:8px;"></i> Belum Ada Data</span>
-            @endif
-        </div>
-        <p class="sec-sub">{{ $lblIni }} → <strong style="color:#374151;">{{ $lblDepan }}</strong></p>
-
-        <div class="note info">
-            Proyeksi dari model <strong>Prophet</strong> menggunakan IHK agregat berbobot chain-linked NK BPS 2022=100. Kondisi ditentukan dari <code style="font-size:10px;background:rgba(26,79,160,.1);padding:1px 4px;border-radius:3px;">inflasi_mtom_forecast</code> agregat, threshold ±0,1%.
-        </div>
-
-        <div class="kv2">
-            <div class="kvbox">
-                <div class="kvbox-l">Kondisi Agregat</div>
-                @if($kondisiForecast === 'inflasi')
-                    <span class="pill p-up" style="font-size:11px;padding:4px 11px;margin-top:4px;display:inline-flex;">
-                        <i class="fas fa-arrow-trend-up" style="font-size:11px;"></i> Inflasi
-                    </span>
-                @elseif($kondisiForecast === 'deflasi')
-                    <span class="pill p-dn" style="font-size:11px;padding:4px 11px;margin-top:4px;display:inline-flex;">
-                        <i class="fas fa-arrow-trend-down" style="font-size:11px;"></i> Deflasi
-                    </span>
-                @elseif($kondisiForecast === 'stabil')
-                    <span class="pill p-st" style="font-size:11px;padding:4px 11px;margin-top:4px;display:inline-flex;">
-                        <i class="fas fa-minus" style="font-size:11px;"></i> Stabil
-                    </span>
-                @else
-                    <span style="font-size:11px;color:#9ca3af;display:block;margin-top:8px;">—</span>
-                @endif
-                <div class="kvbox-s" style="margin-top:8px;">IHK berbobot BPS</div>
-            </div>
-            <div class="kvbox">
-                <div class="kvbox-l">Inflasi MtM Forecast</div>
-                @if($inflasiMtomForecast !== null)
-                    <div class="kvbox-v {{ $inflasiMtomForecast > 0.1 ? 'up-txt' : ($inflasiMtomForecast < -0.1 ? 'dn-txt' : 'nt-txt') }}" style="margin-top:4px;">
-                        {{ ($inflasiMtomForecast >= 0 ? '+' : '') . number_format($inflasiMtomForecast, 4, ',', '.') }}%
-                    </div>
-                    <div class="kvbox-s">Threshold BPS ±0,1%</div>
-                @else
-                    <div class="kvbox-v nt-txt" style="margin-top:4px;">—</div>
-                    <div class="kvbox-s">Belum tersedia</div>
-                @endif
-            </div>
-        </div>
-
-        @if($fcBulanDepan)
-        <div class="ihk-row">
-            <div>
-                <div class="ihk-l">IHK Agregat Forecast — {{ $lblDepan }}</div>
-                <div class="ihk-v">{{ number_format($fcBulanDepan['nilai_ihk_forecast'], 2, ',', '.') }}</div>
-                <div class="ihk-int">
-                    Interval 80%: {{ number_format($fcBulanDepan['ihk_lower'], 2, ',', '.') }} – {{ number_format($fcBulanDepan['ihk_upper'], 2, ',', '.') }}
-                </div>
-            </div>
-            @if($trend3Bulan)
-            <div style="text-align:right;">
-                <div style="font-size:10px;color:#9ca3af;margin-bottom:5px;">Tren 3 Bulan</div>
-                @if($trend3Bulan === 'meningkat')
-                    <span class="pill p-up"><i class="fas fa-arrow-trend-up" style="font-size:8px;"></i> Meningkat</span>
-                @elseif($trend3Bulan === 'menurun')
-                    <span class="pill p-dn"><i class="fas fa-arrow-trend-down" style="font-size:8px;"></i> Menurun</span>
-                @else
-                    <span class="pill p-st"><i class="fas fa-minus" style="font-size:8px;"></i> Stabil</span>
-                @endif
-            </div>
-            @endif
-        </div>
-        @endif
-
-        @if(!empty($ihkForecast['forecast_3_bulan']))
-        @php
-            $fc3        = $ihkForecast['forecast_3_bulan'];
-            $fc3Inflasi = collect($fc3)->where('kondisi_forecast','inflasi')->count();
-            $fc3Deflasi = collect($fc3)->where('kondisi_forecast','deflasi')->count();
-            $fc3Stabil  = collect($fc3)->where('kondisi_forecast','stabil')->count();
-            $fc3Total   = count($fc3);
-            $pFc3I = $fc3Total > 0 ? round($fc3Inflasi / $fc3Total * 100) : 0;
-            $pFc3D = $fc3Total > 0 ? round($fc3Deflasi / $fc3Total * 100) : 0;
-            $pFc3S = $fc3Total > 0 ? round($fc3Stabil  / $fc3Total * 100) : 0;
-        @endphp
-        <div class="bar-wrap">
-            <div style="font-size:10px;color:#6b7280;margin-bottom:5px;">Distribusi kondisi 3 bulan ke depan</div>
-            <div class="bar-track">
-                @if($pFc3I > 0)<div style="width:{{ $pFc3I }}%;background:#b84848;"></div>@endif
-                @if($pFc3S > 0)<div style="width:{{ $pFc3S }}%;background:#d1d5db;"></div>@endif
-                @if($pFc3D > 0)<div style="width:{{ $pFc3D }}%;background:#3b6d11;"></div>@endif
-            </div>
-            <div class="bar-pct">
-                <span class="up-txt">{{ $pFc3I }}% inflasi</span>
-                <span>{{ $pFc3S }}% stabil</span>
-                <span class="dn-txt">{{ $pFc3D }}% deflasi</span>
-            </div>
-        </div>
-        @endif
-
-        <div class="spacer"></div>
-
-        <div class="note" style="font-size:10px;line-height:1.7;margin-bottom:0;">
-            MtM &gt; +0,1% = Inflasi &nbsp;·&nbsp; MtM &lt; −0,1% = Deflasi &nbsp;·&nbsp; lainnya = Stabil.
-            Kondisi dari IHK agregat berbobot, bukan jumlah komoditas naik/turun.
-        </div>
-    </div>
-</div>
-
 {{-- ══ 6. TOP MOVERS ══ --}}
 @if($bulanFilter && ($topNaik->count() > 0 || $topTurun->count() > 0))
 <div class="grid2" style="margin-bottom:14px;">
     <div class="card" style="padding:0;overflow:hidden;">
-        <div style="padding:11px 16px;border-bottom:0.5px solid #f1f5f9;display:flex;align-items:center;gap:9px;">
-            <i class="fas fa-arrow-trend-up up-txt" style="font-size:13px;"></i>
+        <div style="padding:12px 16px;border-bottom:0.5px solid #f1f5f9;display:flex;align-items:center;gap:9px;">
+            <i class="fas fa-arrow-trend-up up-txt" style="font-size:15px;"></i>
             <div>
-                <p style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#7a2828;margin:0;">Top 5 Kenaikan MtM</p>
-                <p style="font-size:10px;color:#9ca3af;margin:2px 0 0;">{{ $lblLalu }} → {{ $lblIni }}</p>
+                <p style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#7a2828;margin:0;">Top 5 Kenaikan MtM</p>
+                <p style="font-size:12px;color:#9ca3af;margin:2px 0 0;">{{ $lblLalu }} → {{ $lblIni }}</p>
             </div>
         </div>
         @forelse($topNaik as $item)
@@ -773,9 +717,9 @@ nav[aria-label="Pagination Navigation"] p {
             <div style="display:flex;align-items:center;gap:9px;">
                 <div class="mover-rank">{{ $loop->iteration }}</div>
                 <div>
-                    <p style="font-size:12px;font-weight:500;color:#0f172a;margin:0;">{{ $item->nama_komoditas }}</p>
+                    <p style="font-size:14px;font-weight:500;color:#0f172a;margin:0;">{{ $item->nama_komoditas }}</p>
                     @if($item->harga_bulan_lalu && $item->harga_bulan_ini)
-                    <p style="font-size:10px;color:#9ca3af;margin:2px 0 0;">
+                    <p style="font-size:12px;color:#9ca3af;margin:2px 0 0;">
                         Rp {{ number_format($item->harga_bulan_lalu,0,',','.') }}
                         → Rp {{ number_format($item->harga_bulan_ini,0,',','.') }}
                     </p>
@@ -783,22 +727,22 @@ nav[aria-label="Pagination Navigation"] p {
                 </div>
             </div>
             <div style="text-align:right;flex-shrink:0;">
-                <div class="mono up-txt" style="font-size:12px;font-weight:500;">+{{ number_format($item->persen_mom,2,',','.') }}%</div>
+                <div class="mono up-txt" style="font-size:14px;font-weight:500;">+{{ number_format($item->persen_mom,2,',','.') }}%</div>
                 @if($item->selisih_mom > 0)
-                <div style="font-size:10px;color:#9ca3af;">+Rp {{ number_format($item->selisih_mom,0,',','.') }}</div>
+                <div style="font-size:12px;color:#9ca3af;">+Rp {{ number_format($item->selisih_mom,0,',','.') }}</div>
                 @endif
             </div>
         </div>
         @empty
-        <div style="padding:20px;text-align:center;font-size:12px;color:#9ca3af;">Tidak ada data kenaikan</div>
+        <div style="padding:20px;text-align:center;font-size:14px;color:#9ca3af;">Tidak ada data kenaikan</div>
         @endforelse
     </div>
     <div class="card" style="padding:0;overflow:hidden;">
-        <div style="padding:11px 16px;border-bottom:0.5px solid #f1f5f9;display:flex;align-items:center;gap:9px;">
-            <i class="fas fa-arrow-trend-down dn-txt" style="font-size:13px;"></i>
+        <div style="padding:12px 16px;border-bottom:0.5px solid #f1f5f9;display:flex;align-items:center;gap:9px;">
+            <i class="fas fa-arrow-trend-down dn-txt" style="font-size:15px;"></i>
             <div>
-                <p style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#265226;margin:0;">Top 5 Penurunan MtM</p>
-                <p style="font-size:10px;color:#9ca3af;margin:2px 0 0;">{{ $lblLalu }} → {{ $lblIni }}</p>
+                <p style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:#265226;margin:0;">Top 5 Penurunan MtM</p>
+                <p style="font-size:12px;color:#9ca3af;margin:2px 0 0;">{{ $lblLalu }} → {{ $lblIni }}</p>
             </div>
         </div>
         @forelse($topTurun as $item)
@@ -806,9 +750,9 @@ nav[aria-label="Pagination Navigation"] p {
             <div style="display:flex;align-items:center;gap:9px;">
                 <div class="mover-rank">{{ $loop->iteration }}</div>
                 <div>
-                    <p style="font-size:12px;font-weight:500;color:#0f172a;margin:0;">{{ $item->nama_komoditas }}</p>
+                    <p style="font-size:14px;font-weight:500;color:#0f172a;margin:0;">{{ $item->nama_komoditas }}</p>
                     @if($item->harga_bulan_lalu && $item->harga_bulan_ini)
-                    <p style="font-size:10px;color:#9ca3af;margin:2px 0 0;">
+                    <p style="font-size:12px;color:#9ca3af;margin:2px 0 0;">
                         Rp {{ number_format($item->harga_bulan_lalu,0,',','.') }}
                         → Rp {{ number_format($item->harga_bulan_ini,0,',','.') }}
                     </p>
@@ -816,14 +760,14 @@ nav[aria-label="Pagination Navigation"] p {
                 </div>
             </div>
             <div style="text-align:right;flex-shrink:0;">
-                <div class="mono dn-txt" style="font-size:12px;font-weight:500;">{{ number_format($item->persen_mom,2,',','.') }}%</div>
+                <div class="mono dn-txt" style="font-size:14px;font-weight:500;">{{ number_format($item->persen_mom,2,',','.') }}%</div>
                 @if($item->selisih_mom < 0)
-                <div style="font-size:10px;color:#9ca3af;">−Rp {{ number_format(abs($item->selisih_mom),0,',','.') }}</div>
+                <div style="font-size:12px;color:#9ca3af;">−Rp {{ number_format(abs($item->selisih_mom),0,',','.') }}</div>
                 @endif
             </div>
         </div>
         @empty
-        <div style="padding:20px;text-align:center;font-size:12px;color:#9ca3af;">Tidak ada data penurunan</div>
+        <div style="padding:20px;text-align:center;font-size:14px;color:#9ca3af;">Tidak ada data penurunan</div>
         @endforelse
     </div>
 </div>
@@ -834,7 +778,7 @@ nav[aria-label="Pagination Navigation"] p {
     <div class="topbar">
         <div>
             <div class="sec">Detail Perbandingan Harga Komoditas</div>
-            <p style="font-size:11px;color:#6b7280;margin:4px 0 0 9px;">
+            <p style="font-size:13px;color:#6b7280;margin:4px 0 0 9px;">
                 @if($bulanFilter)
                     Aktual: {{ $lblLalu }} → {{ $lblIni }}
                     <span style="margin:0 5px;color:#d1d5db;">·</span>
@@ -850,20 +794,20 @@ nav[aria-label="Pagination Navigation"] p {
         </div>
         <div style="position:relative;flex-shrink:0;">
             <button @click="exportOpen = !exportOpen" @click.outside="exportOpen = false"
-                    style="display:flex;align-items:center;gap:5px;padding:7px 13px;background:#1a56db;color:#fff;font-size:11px;font-weight:600;border:none;border-radius:6px;cursor:pointer;">
-                <i class="fas fa-download" style="font-size:10px;"></i> Ekspor
-                <i class="fas fa-chevron-down" style="font-size:9px;" :style="exportOpen?'transform:rotate(180deg)':''"></i>
+                    style="display:flex;align-items:center;gap:5px;padding:8px 14px;background:#1a56db;color:#fff;font-size:13px;font-weight:600;border:none;border-radius:6px;cursor:pointer;">
+                <i class="fas fa-download" style="font-size:11px;"></i> Ekspor
+                <i class="fas fa-chevron-down" style="font-size:10px;" :style="exportOpen?'transform:rotate(180deg)':''"></i>
             </button>
             <div x-show="exportOpen" x-transition class="exp-dd" style="display:none;">
                 <a href="{{ route('laporan.komoditas.cetak', request()->all()) }}" target="_blank" class="exp-item">
-                    <i class="fas fa-print" style="color:#6b7280;width:13px;"></i> Cetak Laporan
+                    <i class="fas fa-print" style="color:#6b7280;width:14px;"></i> Cetak Laporan
                 </a>
                 <hr style="border:none;border-top:0.5px solid #f1f5f9;margin:2px 0;">
                 <a href="{{ route('laporan.komoditas.pdf', request()->all()) }}" class="exp-item">
-                    <i class="fas fa-file-pdf" style="color:#7a2828;width:13px;"></i> Unduh PDF
+                    <i class="fas fa-file-pdf" style="color:#7a2828;width:14px;"></i> Unduh PDF
                 </a>
                 <a href="{{ route('laporan.komoditas.csv', request()->all()) }}" class="exp-item">
-                    <i class="fas fa-file-csv" style="color:#265226;width:13px;"></i> Unduh CSV
+                    <i class="fas fa-file-csv" style="color:#265226;width:14px;"></i> Unduh CSV
                 </a>
             </div>
         </div>
@@ -882,8 +826,8 @@ nav[aria-label="Pagination Navigation"] p {
     </div>
 
     <div class="toolbar">
-        <div style="position:relative;width:220px;">
-            <i class="fas fa-magnifying-glass" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:10px;pointer-events:none;"></i>
+        <div style="position:relative;width:240px;">
+            <i class="fas fa-magnifying-glass" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#9ca3af;font-size:11px;pointer-events:none;"></i>
             <input type="text" id="tblSearch" class="tbl-search" placeholder="Cari komoditas..." oninput="filterTable(this.value)">
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:5px;margin-left:auto;">
@@ -944,23 +888,23 @@ nav[aria-label="Pagination Navigation"] p {
                     data-harga="{{ $hargaTampil ?? 0 }}">
 
                     <td>
-                        <span style="font-size:12px;font-weight:500;color:#0f172a;">{{ $item->nama_komoditas }}</span>
+                        <span style="font-size:14px;font-weight:500;color:#0f172a;">{{ $item->nama_komoditas }}</span>
                         @if($isForecast)
-                            <span class="pill p-fc" style="margin-left:5px;font-size:9px;padding:1px 6px;">Forecast</span>
+                            <span class="pill p-fc" style="margin-left:5px;font-size:11px;padding:2px 7px;">Forecast</span>
                         @endif
                     </td>
 
                     <td class="td-r">
                         @if($isAktual)
-                            <span class="mono" style="font-size:12px;font-weight:500;">
+                            <span class="mono" style="font-size:14px;font-weight:500;">
                                 Rp {{ number_format($item->harga_bulan_ini, 0, ',', '.') }}
                             </span>
                         @elseif(isset($item->harga_bulan_ini_est) && $item->harga_bulan_ini_est !== null)
-                            <span class="mono blu-txt" style="font-size:12px;font-weight:500;"
+                            <span class="mono blu-txt" style="font-size:14px;font-weight:500;"
                                   title="Estimasi dari model forecast bulan {{ $lblIni }}">
                                 Rp {{ number_format($item->harga_bulan_ini_est, 0, ',', '.') }}
                             </span>
-                            <span style="display:block;font-size:9px;color:#9ca3af;margin-top:1px;">est.</span>
+                            <span style="display:block;font-size:11px;color:#9ca3af;margin-top:1px;">est.</span>
                         @else
                             <span style="color:#d1d5db;">—</span>
                         @endif
@@ -968,7 +912,7 @@ nav[aria-label="Pagination Navigation"] p {
 
                     <td class="td-r">
                         @if($item->harga_bulan_lalu)
-                            <span class="mono" style="font-size:12px;color:#6b7280;">Rp {{ number_format($item->harga_bulan_lalu,0,',','.') }}</span>
+                            <span class="mono" style="font-size:14px;color:#6b7280;">Rp {{ number_format($item->harga_bulan_lalu,0,',','.') }}</span>
                         @else
                             <span style="color:#d1d5db;">—</span>
                         @endif
@@ -978,11 +922,11 @@ nav[aria-label="Pagination Navigation"] p {
                     <td class="td-r g-sep">
                         @if($isAktual && $item->selisih_mom !== null)
                             @if($item->selisih_mom > 0)
-                                <span class="mono up-txt" style="font-size:12px;">+Rp {{ number_format($item->selisih_mom,0,',','.') }}</span>
+                                <span class="mono up-txt" style="font-size:14px;">+Rp {{ number_format($item->selisih_mom,0,',','.') }}</span>
                             @elseif($item->selisih_mom < 0)
-                                <span class="mono dn-txt" style="font-size:12px;">−Rp {{ number_format(abs($item->selisih_mom),0,',','.') }}</span>
+                                <span class="mono dn-txt" style="font-size:14px;">−Rp {{ number_format(abs($item->selisih_mom),0,',','.') }}</span>
                             @else
-                                <span class="mono nt-txt" style="font-size:12px;">Rp 0</span>
+                                <span class="mono nt-txt" style="font-size:14px;">Rp 0</span>
                             @endif
                         @else
                             <span style="color:#d1d5db;">—</span>
@@ -992,11 +936,11 @@ nav[aria-label="Pagination Navigation"] p {
                     <td class="td-r">
                         @if($isAktual && $item->persen_mom !== null)
                             @if($item->persen_mom > 0)
-                                <span class="mono up-txt" style="font-size:12px;font-weight:500;">+{{ number_format($item->persen_mom,2,',','.') }}%</span>
+                                <span class="mono up-txt" style="font-size:14px;font-weight:500;">+{{ number_format($item->persen_mom,2,',','.') }}%</span>
                             @elseif($item->persen_mom < 0)
-                                <span class="mono dn-txt" style="font-size:12px;font-weight:500;">{{ number_format($item->persen_mom,2,',','.') }}%</span>
+                                <span class="mono dn-txt" style="font-size:14px;font-weight:500;">{{ number_format($item->persen_mom,2,',','.') }}%</span>
                             @else
-                                <span class="mono nt-txt" style="font-size:12px;">0,00%</span>
+                                <span class="mono nt-txt" style="font-size:14px;">0,00%</span>
                             @endif
                         @else
                             <span style="color:#d1d5db;">—</span>
@@ -1018,11 +962,11 @@ nav[aria-label="Pagination Navigation"] p {
 
                     <td class="td-r g-sep">
                         @if($isAktual && isset($item->persen_ytd) && $item->persen_ytd !== null)
-                            <span class="mono {{ $item->persen_ytd > 0 ? 'up-txt' : ($item->persen_ytd < 0 ? 'dn-txt' : 'nt-txt') }}" style="font-size:12px;">
+                            <span class="mono {{ $item->persen_ytd > 0 ? 'up-txt' : ($item->persen_ytd < 0 ? 'dn-txt' : 'nt-txt') }}" style="font-size:14px;">
                                 {{ ($item->persen_ytd > 0 ? '+' : '') . number_format($item->persen_ytd,2,',','.') }}%
                             </span>
                             @if(isset($item->harga_awal_tahun) && $item->harga_awal_tahun)
-                            <span style="display:block;font-size:10px;color:#9ca3af;margin-top:1px;">Jan: Rp {{ number_format($item->harga_awal_tahun,0,',','.') }}</span>
+                            <span style="display:block;font-size:12px;color:#9ca3af;margin-top:1px;">Jan: Rp {{ number_format($item->harga_awal_tahun,0,',','.') }}</span>
                             @endif
                         @else
                             <span style="color:#d1d5db;">—</span>
@@ -1042,11 +986,11 @@ nav[aria-label="Pagination Navigation"] p {
 
                     <td class="td-r g-sep">
                         @if($isAktual && isset($item->persen_yoy) && $item->persen_yoy !== null)
-                            <span class="mono {{ $item->persen_yoy > 0 ? 'up-txt' : ($item->persen_yoy < 0 ? 'dn-txt' : 'nt-txt') }}" style="font-size:12px;">
+                            <span class="mono {{ $item->persen_yoy > 0 ? 'up-txt' : ($item->persen_yoy < 0 ? 'dn-txt' : 'nt-txt') }}" style="font-size:14px;">
                                 {{ ($item->persen_yoy > 0 ? '+' : '') . number_format($item->persen_yoy,2,',','.') }}%
                             </span>
                             @if(isset($item->harga_tahun_lalu) && $item->harga_tahun_lalu)
-                            <span style="display:block;font-size:10px;color:#9ca3af;margin-top:1px;">{{ $lblLaluTahun }}: Rp {{ number_format($item->harga_tahun_lalu,0,',','.') }}</span>
+                            <span style="display:block;font-size:12px;color:#9ca3af;margin-top:1px;">{{ $lblLaluTahun }}: Rp {{ number_format($item->harga_tahun_lalu,0,',','.') }}</span>
                             @endif
                         @else
                             <span style="color:#d1d5db;">—</span>
@@ -1068,10 +1012,10 @@ nav[aria-label="Pagination Navigation"] p {
                     <td class="td-r g-sep">
                         @if($isAktual)
                             @if(isset($item->rh) && $item->rh !== null)
-                                <span class="mono nt-txt" style="font-size:12px;">{{ number_format($item->rh,2,',','.') }}</span>
+                                <span class="mono nt-txt" style="font-size:14px;">{{ number_format($item->rh,2,',','.') }}</span>
                             @elseif($item->harga_bulan_ini && $item->harga_bulan_lalu && $item->harga_bulan_lalu > 0)
                                 @php $rh = $item->harga_bulan_ini / $item->harga_bulan_lalu * 100; @endphp
-                                <span class="mono nt-txt" style="font-size:12px;">{{ number_format($rh,2,',','.') }}</span>
+                                <span class="mono nt-txt" style="font-size:14px;">{{ number_format($rh,2,',','.') }}</span>
                             @else
                                 <span style="color:#d1d5db;">—</span>
                             @endif
@@ -1082,7 +1026,7 @@ nav[aria-label="Pagination Navigation"] p {
 
                     <td class="td-r">
                         @if($isAktual && isset($item->ihk) && $item->ihk !== null)
-                            <span class="mono nt-txt" style="font-size:12px;font-weight:500;">{{ number_format($item->ihk,2,',','.') }}</span>
+                            <span class="mono nt-txt" style="font-size:14px;font-weight:500;">{{ number_format($item->ihk,2,',','.') }}</span>
                         @else
                             <span style="color:#d1d5db;">—</span>
                         @endif
@@ -1090,7 +1034,7 @@ nav[aria-label="Pagination Navigation"] p {
 
                     <td class="td-r g-sep">
                         @if(isset($item->harga_prediksi) && $item->harga_prediksi !== null)
-                            <span class="mono blu-txt" style="font-size:12px;font-weight:500;">
+                            <span class="mono blu-txt" style="font-size:14px;font-weight:500;">
                                 Rp {{ number_format($item->harga_prediksi, 0, ',', '.') }}
                             </span>
                             @php
@@ -1100,7 +1044,7 @@ nav[aria-label="Pagination Navigation"] p {
                                 $selPred   = $baseHarga ? ($item->harga_prediksi - $baseHarga) : null;
                             @endphp
                             @if($selPred !== null)
-                                <span style="display:block;font-size:10px;margin-top:1px;
+                                <span style="display:block;font-size:12px;margin-top:1px;
                                     color:{{ $selPred > 0 ? '#7a2828' : ($selPred < 0 ? '#265226' : '#9ca3af') }};">
                                     {{ $selPred > 0 ? '+' : '' }}Rp {{ number_format($selPred, 0, ',', '.') }}
                                 </span>
@@ -1113,14 +1057,14 @@ nav[aria-label="Pagination Navigation"] p {
                     <td class="td-r">
                         @php $fcKmd = $ihkKomoditasForecast[$item->komoditas_id] ?? null; @endphp
                         @if($fcKmd)
-                            <span class="mono nt-txt" style="font-size:12px;font-weight:500;">
+                            <span class="mono nt-txt" style="font-size:14px;font-weight:500;">
                                 {{ number_format($fcKmd['nilai_ihk_forecast'], 2, ',', '.') }}
                             </span>
-                            <span style="display:block;font-size:10px;color:#9ca3af;margin-top:1px;">
+                            <span style="display:block;font-size:12px;color:#9ca3af;margin-top:1px;">
                                 {{ number_format($fcKmd['ihk_lower'], 2, ',', '.') }}–{{ number_format($fcKmd['ihk_upper'], 2, ',', '.') }}
                             </span>
                             @php $kd = $fcKmd['kondisi_forecast'] ?? null; @endphp
-                            <span style="display:block;font-size:10px;font-weight:500;margin-top:1px;
+                            <span style="display:block;font-size:12px;font-weight:500;margin-top:1px;
                                 color:{{ $kd==='inflasi'?'#7a2828':($kd==='deflasi'?'#265226':'#6b7280') }};">
                                 {{ ucfirst($kd ?? '—') }}
                             </span>
@@ -1132,16 +1076,16 @@ nav[aria-label="Pagination Navigation"] p {
                     <td class="td-c">
                         @if(isset($item->tren_model) && $item->tren_model !== null)
                             @if($item->tren_model === 'naik')
-                                <span style="display:inline-flex;align-items:center;gap:3px;color:#265226;font-size:11px;font-weight:500;">
-                                    <i class="fas fa-arrow-up" style="font-size:9px;"></i> Naik
+                                <span style="display:inline-flex;align-items:center;gap:4px;color:#265226;font-size:13px;font-weight:500;">
+                                    <i class="fas fa-arrow-up" style="font-size:11px;"></i> Naik
                                 </span>
                             @elseif($item->tren_model === 'turun')
-                                <span style="display:inline-flex;align-items:center;gap:3px;color:#7a2828;font-size:11px;font-weight:500;">
-                                    <i class="fas fa-arrow-down" style="font-size:9px;"></i> Turun
+                                <span style="display:inline-flex;align-items:center;gap:4px;color:#7a2828;font-size:13px;font-weight:500;">
+                                    <i class="fas fa-arrow-down" style="font-size:11px;"></i> Turun
                                 </span>
                             @else
-                                <span style="display:inline-flex;align-items:center;gap:3px;color:#6b7280;font-size:11px;font-weight:500;">
-                                    <i class="fas fa-minus" style="font-size:9px;"></i> Stabil
+                                <span style="display:inline-flex;align-items:center;gap:4px;color:#6b7280;font-size:13px;font-weight:500;">
+                                    <i class="fas fa-minus" style="font-size:11px;"></i> Stabil
                                 </span>
                             @endif
                         @else
@@ -1155,7 +1099,7 @@ nav[aria-label="Pagination Navigation"] p {
                     <td colspan="{{ $bulanFilter ? 15 : 8 }}">
                         <div style="display:flex;flex-direction:column;align-items:center;padding:48px 0;color:#d1d5db;gap:8px;">
                             <i class="fas fa-box-open" style="font-size:28px;"></i>
-                            <p style="font-size:12px;color:#9ca3af;">{{ __('messages.data_tidak_ditemukan') }}</p>
+                            <p style="font-size:14px;color:#9ca3af;">{{ __('messages.data_tidak_ditemukan') }}</p>
                         </div>
                     </td>
                 </tr>
@@ -1166,7 +1110,7 @@ nav[aria-label="Pagination Navigation"] p {
 
     @if($data->hasPages())
     <div style="padding:16px 28px; display:flex; align-items:center; justify-content:space-between; border-top:0.5px solid #f1f5f9; background:#f8fafc; gap:20px; flex-wrap:wrap;">
-        <span style="font-size:12px; color:#6b7280; white-space:nowrap; flex-shrink:0;">
+        <span style="font-size:13px; color:#6b7280; white-space:nowrap; flex-shrink:0;">
             Menampilkan {{ $data->firstItem() }}–{{ $data->lastItem() }} dari {{ $data->total() }} data
         </span>
         <div style="flex-shrink:0;">
@@ -1183,8 +1127,6 @@ nav[aria-label="Pagination Navigation"] p {
 <script>
 /* ─────────────────────────────────────────────
    UTILITAS SCROLL
-   scrollToEl(el) — scroll halus ke elemen,
-   memperhitungkan tinggi navbar otomatis.
 ───────────────────────────────────────────── */
 function scrollToEl(el) {
     if (!el) return;
@@ -1194,15 +1136,14 @@ function scrollToEl(el) {
 }
 
 /* ─────────────────────────────────────────────
-   CHARTS — dibungkus DOMContentLoaded sendiri
-   agar terpisah bersih dari logika scroll/form
+   CHARTS
 ───────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', function () {
     const dark    = document.documentElement.classList.contains('dark');
     const gridClr = dark ? 'rgba(255,255,255,.04)' : 'rgba(0,0,0,.04)';
     const lblClr  = dark ? '#4b5563' : '#9ca3af';
-    const tFont   = { size: 10, family: "'Plus Jakarta Sans', sans-serif" };
-    const mFont   = { size: 10, family: "'JetBrains Mono', monospace" };
+    const tFont   = { size: 11, family: "'Inter', sans-serif" };
+    const mFont   = { size: 11, family: "'Inter', monospace" };
 
     const tip = {
         backgroundColor: dark ? '#1e2433' : '#fff',
@@ -1210,8 +1151,8 @@ document.addEventListener('DOMContentLoaded', function () {
         bodyColor:       dark ? '#94a3b8' : '#4b5563',
         borderColor:     dark ? '#374151' : '#e2e8f0',
         borderWidth: 1, padding: 10, cornerRadius: 6,
-        titleFont: { size: 11, weight: '500', family: "'Plus Jakarta Sans',sans-serif" },
-        bodyFont:  { size: 11, family: "'JetBrains Mono',monospace" },
+        titleFont: { size: 12, weight: '500', family: "'Inter',sans-serif" },
+        bodyFont:  { size: 12, family: "'Inter',monospace" },
     };
 
     const scaleY = {
@@ -1302,13 +1243,10 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-}); /* ← TUTUP DOMContentLoaded — chart selesai di sini */
+});
 
 /* ─────────────────────────────────────────────
    SCROLL OTOMATIS SETELAH LOAD
-   Cek URL: ada ?scroll=insight → ke KPI strip
-            ada ?page=N         → ke tabel
-            ada hash #...       → ke elemen hash
 ───────────────────────────────────────────── */
 window.addEventListener('load', function () {
     const params = new URLSearchParams(window.location.search);
@@ -1325,11 +1263,8 @@ window.addEventListener('load', function () {
 
 /* ─────────────────────────────────────────────
    INTERCEPT FORM FILTER
-   Tambahkan ?scroll=insight agar setelah reload
-   halaman langsung scroll ke KPI strip.
 ───────────────────────────────────────────── */
 document.getElementById('filterForm').addEventListener('submit', function (e) {
-    /* Tambah hidden input scroll=insight ke form sebelum submit */
     if (!this.querySelector('input[name="scroll"]')) {
         const inp = document.createElement('input');
         inp.type  = 'hidden';
@@ -1341,22 +1276,14 @@ document.getElementById('filterForm').addEventListener('submit', function (e) {
 
 /* ─────────────────────────────────────────────
    INTERCEPT KLIK PAGINATION
-   Tangkap semua klik di dalam nav pagination
-   Laravel (Tailwind/Bootstrap), tambahkan
-   #tabelDetail agar browser scroll ke anchor.
-   Menggunakan event delegation di document
-   sehingga bekerja meski Alpine.js di-mount
-   belakangan.
 ───────────────────────────────────────────── */
 document.addEventListener('click', function (e) {
-    /* Cari elemen <a> terdekat dari target klik */
     const link = e.target.closest('a[href]');
     if (!link) return;
 
     const href = link.getAttribute('href');
     if (!href || href === '#' || href.startsWith('javascript')) return;
 
-    /* Hanya intercept link yang berada di dalam nav pagination */
     const isInsidePagination = link.closest(
         'nav[aria-label="Pagination Navigation"], ' +
         '[data-pagination], ' +
@@ -1364,7 +1291,6 @@ document.addEventListener('click', function (e) {
     );
     if (!isInsidePagination) return;
 
-    /* Sudah ada hash? biarkan browser tangani */
     if (href.includes('#')) return;
 
     e.preventDefault();

@@ -21,6 +21,7 @@
         body {
             font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
             -webkit-font-smoothing: antialiased;
+            font-size: 15px;
             background-color: #f8fafc;
             background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2300337c' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
             /* FIX 2: Cegah horizontal scroll global */
@@ -77,6 +78,27 @@
                 max-width: 300px !important;
             }
         }
+        /* ── Font-size override navbar & layout ── */
+        .nav-link-active,
+        nav a { font-size: 11px !important; }
+
+        nav .text-\[9px\]  { font-size: 11px !important; }
+        nav .text-\[10px\] { font-size: 12px !important; }
+        nav .text-\[11px\] { font-size: 12px !important; }
+        nav .text-xs       { font-size: 13px !important; }
+        nav .text-sm       { font-size: 14px !important; }
+
+        .user-dropdown-panel .text-\[9px\]  { font-size: 11px !important; }
+        .user-dropdown-panel .text-\[10px\] { font-size: 12px !important; }
+        .user-dropdown-panel .text-xs       { font-size: 13px !important; }
+        .user-dropdown-panel .text-sm       { font-size: 14px !important; }
+
+        footer p { font-size: 13px !important; }
+
+        main .text-xs  { font-size: 13px; }
+        main .text-sm  { font-size: 14px; }
+        main input, main select, main textarea { font-size: 14px; }
+        main button { font-size: 13px; }
 
         /* FIX 5: Cegah auto-zoom Safari saat focus input */
         @supports (-webkit-touch-callout: none) {

@@ -6,7 +6,8 @@
 
 <div id="real-content">
 <style>
-    .dashboard-container { font-family: 'Inter', sans-serif; }
+    .dashboard-container { font-family: 'Inter', sans-serif; font-size: 15px; color: #1a202c; }
+    html.dark .dashboard-container { color: #e2e8f0; }
 
     .card-standard {
         background: white;
@@ -25,7 +26,7 @@
     .filter-btn {
         padding: 0.5rem 1rem;
         border-radius: 0.375rem;
-        font-size: 0.75rem;
+        font-size: 13px;
         font-weight: 600;
         transition: all 0.2s;
         border: 1px solid #d1d5db;
@@ -44,7 +45,7 @@
     .insight-badge {
         padding: 0.25rem 0.625rem;
         border-radius: 9999px;
-        font-size: 10px;
+        font-size: 12px;
         font-weight: 700;
         text-transform: uppercase;
     }
@@ -99,7 +100,7 @@
         padding: 0.75rem 1.25rem;
         border-radius: 0.5rem;
         box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-        font-size: 0.75rem;
+        font-size: 13px;
         font-weight: 600;
         animation: fadeIn 0.3s ease-out;
         cursor: pointer;
@@ -114,7 +115,7 @@
     .pg-btn {
         display: inline-flex; align-items: center; justify-content: center;
         min-width: 2rem; height: 2rem; padding: 0 0.5rem;
-        font-size: 0.75rem; font-weight: 500;
+        font-size: 13px; font-weight: 500;
         border-radius: 0.375rem; border: 1px solid #e5e7eb;
         background: white; color: #374151;
         cursor: pointer; transition: all 0.15s;
@@ -141,19 +142,19 @@
     }
 
     .fitted-badge {
-    display: inline-block;
-    margin-left: 4px;
-    font-size: 9px;
-    background: #eff6ff;
-    color: #1d4ed8;
-    border: 1px solid #bfdbfe;
-    border-radius: 4px;
-    padding: 0px 4px;
-    font-weight: 700;
-    text-transform: uppercase;
-    vertical-align: middle;
-    letter-spacing: 0; /* tambahkan ini agar ℹ rapi */
-}
+        display: inline-block;
+        margin-left: 4px;
+        font-size: 10px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+        border-radius: 4px;
+        padding: 0px 4px;
+        font-weight: 700;
+        text-transform: uppercase;
+        vertical-align: middle;
+        letter-spacing: 0;
+    }
     html.dark .fitted-badge {
         background: #1e3a5f;
         color: #93c5fd;
@@ -163,9 +164,39 @@
     .row-has-fitted {
         border-left: 2px solid #bfdbfe;
     }
+    /* ── Zebra striping insight table ── */
+    .dashboard-container table tbody tr:nth-child(odd)  { background: #ffffff; }
+    .dashboard-container table tbody tr:nth-child(even) { background: #edf2f7; }
+    html.dark .dashboard-container table tbody tr:nth-child(odd)  { background: #1e2433; }
+    html.dark .dashboard-container table tbody tr:nth-child(even) { background: #161c2a; }
+    .dashboard-container table tbody tr { border-bottom: none !important; transition: background .1s; }
+    .dashboard-container table tbody td:first-child { min-width: 130px; }
+
+    /* hover tetap terlihat di atas stripe */
+    .dashboard-container table tbody tr:hover { background: #dbeafe !important; }
+    html.dark .dashboard-container table tbody tr:hover { background: rgba(59,130,246,.10) !important; }
+
+    /* override Tailwind divide-y yang masih bikin garis */
+    .dashboard-container table tbody tr.border-b  { border-bottom: none !important; }
+    .dashboard-container .divide-y > tr           { border-top: none !important; }
     html.dark .row-has-fitted {
         border-left: 2px solid #1e40af;
     }
+
+    /* ── Tailwind font-size override untuk keterbacaan 30+ ── */
+    .dashboard-container .text-\[9px\]  { font-size: 11px !important; }
+    .dashboard-container .text-\[10px\] { font-size: 12px !important; }
+    .dashboard-container .text-\[11px\] { font-size: 12px !important; }
+    .dashboard-container .text-xs       { font-size: 13px !important; }
+    .dashboard-container .text-sm       { font-size: 14px !important; }
+    .dashboard-container .text-xl       { font-size: 20px !important; }
+    .dashboard-container .text-lg       { font-size: 18px !important; }
+    .dashboard-container input,
+    .dashboard-container select,
+    .dashboard-container textarea       { font-size: 14px !important; }
+    .dashboard-container button         { font-size: 13px !important; }
+    .dashboard-container th             { font-size: 12px !important; }
+    .dashboard-container td             { font-size: 14px !important; }
 </style>
 </div>
 
