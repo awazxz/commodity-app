@@ -183,20 +183,96 @@
         border-left: 2px solid #1e40af;
     }
 
-    /* ── Tailwind font-size override untuk keterbacaan 30+ ── */
-    .dashboard-container .text-\[9px\]  { font-size: 11px !important; }
-    .dashboard-container .text-\[10px\] { font-size: 12px !important; }
-    .dashboard-container .text-\[11px\] { font-size: 12px !important; }
-    .dashboard-container .text-xs       { font-size: 13px !important; }
-    .dashboard-container .text-sm       { font-size: 14px !important; }
-    .dashboard-container .text-xl       { font-size: 20px !important; }
+   /* ── Font size override — keterbacaan semua usia ── */
+    .dashboard-container .text-\[8px\]  { font-size: 12px !important; }
+    .dashboard-container .text-\[9px\]  { font-size: 13px !important; }
+    .dashboard-container .text-\[10px\] { font-size: 13px !important; }
+    .dashboard-container .text-\[11px\] { font-size: 13px !important; }
+    .dashboard-container .text-xs       { font-size: 14px !important; }
+    .dashboard-container .text-sm       { font-size: 15px !important; }
+    .dashboard-container .text-base     { font-size: 16px !important; }
     .dashboard-container .text-lg       { font-size: 18px !important; }
+    .dashboard-container .text-xl       { font-size: 20px !important; }
     .dashboard-container input,
     .dashboard-container select,
-    .dashboard-container textarea       { font-size: 14px !important; }
-    .dashboard-container button         { font-size: 13px !important; }
-    .dashboard-container th             { font-size: 12px !important; }
-    .dashboard-container td             { font-size: 14px !important; }
+    .dashboard-container textarea       { font-size: 15px !important; }
+    .dashboard-container button         { font-size: 14px !important; }
+    .dashboard-container th             { font-size: 13px !important; }
+    .dashboard-container td             { font-size: 15px !important; }
+
+    /* Label & deskripsi hyperparameter panel */
+    .dashboard-container .space-y-5 span,
+    .dashboard-container .space-y-5 p,
+    .dashboard-container .space-y-5 label { font-size: 13px !important; }
+
+    /* Badge & pill kecil — minimal tetap 12px */
+    .dashboard-container .rounded-full  { font-size: 12px !important; }
+    .dashboard-container .insight-badge { font-size: 12px !important; }
+
+    /* Preview parameter aktif */
+    #param-preview-box span { font-size: 13px !important; }
+    #param-preview-box p    { font-size: 12px !important; }
+    /* ── Center teks dalam Stats Cards ── */
+    .dashboard-container .card-standard.hover-card {
+        text-align: center !important;
+    }
+
+    /* ── Center teks dalam tabel insight header & legend ── */
+    .dashboard-container .card-standard:not(.hover-card) .flex.items-center.gap-3 {
+        flex-wrap: wrap;
+    }
+    /* ── Perbaikan kontras warna teks ── */
+
+    /* Label & deskripsi kecil — dari gray-400/500 ke gray-600/700 */
+    .dashboard-container .text-gray-400 { color: #4b5563 !important; } /* gray-600 */
+    .dashboard-container .text-gray-500 { color: #374151 !important; } /* gray-700 */
+    .dashboard-container .text-gray-300 { color: #6b7280 !important; } /* gray-500 */
+
+    /* Dark mode — jangan terlalu terang juga */
+    html.dark .dashboard-container .text-gray-400 { color: #d1d5db !important; } /* gray-300 */
+    html.dark .dashboard-container .text-gray-500 { color: #e5e7eb !important; } /* gray-200 */
+    html.dark .dashboard-container .text-gray-300 { color: #9ca3af !important; } /* gray-400 */
+
+    /* Deskripsi sub-label di hyperparameter panel */
+    .dashboard-container .space-y-5 p {
+        color: #4b5563 !important; /* gray-600, bukan gray-400 */
+    }
+    html.dark .dashboard-container .space-y-5 p {
+        color: #d1d5db !important;
+    }
+
+    /* Teks hint di bawah slider (1 Bulanan, 12 Bulanan, 24 Bulanan) */
+    .dashboard-container .text-gray-300.dark\:text-gray-600 {
+        color: #6b7280 !important; /* gray-500 */
+    }
+    html.dark .dashboard-container .text-gray-300.dark\:text-gray-600 {
+        color: #9ca3af !important;
+    }
+
+    /* Preview parameter aktif */
+    #param-preview-box .text-gray-400,
+    #param-preview-box .text-gray-500 {
+        color: #374151 !important;
+    }
+    html.dark #param-preview-box .text-gray-400,
+    html.dark #param-preview-box .text-gray-500 {
+        color: #d1d5db !important;
+    }
+    /* ── Center teks Stats Cards ── */
+    .dashboard-container .grid.grid-cols-1.sm\:grid-cols-2.md\:grid-cols-4 > div {
+        text-align: center !important;
+    }
+
+    /* Periode data: flex jadi center */
+    .dashboard-container .grid.grid-cols-1.sm\:grid-cols-2.md\:grid-cols-4 > div .flex.items-center.gap-2 {
+        justify-content: center !important;
+    }
+    /* ── Tooltip font size ── */
+    #global-tooltip {
+        font-size: 13px !important;
+        line-height: 1.7 !important;
+    }
+    
 </style>
 </div>
 
@@ -328,18 +404,18 @@
 
     {{-- Stats Cards --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-        <div class="card-standard hover-card p-5">
+        <div class="card-standard hover-card p-5 text-center">
             <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold tracking-wider mb-2">{{ __('messages.rata_rata_harga') }}</p>
             <p class="text-xl font-bold text-gray-900 dark:text-gray-100">Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</p>
             <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{{ $countData ?? 0 }} {{ __('messages.data_poin') }}</p>
         </div>
 
-        <div class="card-standard hover-card p-5">
+        <div class="card-standard hover-card p-5 text-center">
             <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold tracking-wider mb-2">{{ __('messages.harga_tertinggi') }}</p>
             <p class="text-xl font-bold text-red-600 dark:text-red-400">Rp {{ number_format($maxPrice ?? 0, 0, ',', '.') }}</p>
         </div>
 
-        <div class="card-standard hover-card p-5">
+        <div class="card-standard hover-card p-5 text-center">
             <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold tracking-wider mb-2">{{ __('messages.periode_data') }}</p>
             <div class="flex items-center gap-2">
                 <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -1420,9 +1496,9 @@
     </div>
 @endif
 {{-- Global Floating Tooltip --}}
-    <div id="global-tooltip"
-         class="fixed z-[9999] hidden bg-gray-900 dark:bg-gray-700 text-white rounded-xl shadow-2xl pointer-events-none max-w-xs"
-         style="padding: 10px 14px; font-size: 11px; line-height: 1.6;">
+    <<div id="global-tooltip"
+     class="fixed z-[9999] hidden bg-gray-900 dark:bg-gray-700 text-white rounded-xl shadow-2xl pointer-events-none max-w-xs"
+     style="padding: 12px 16px; font-size: 13px; line-height: 1.7;">
     </div>
 
 

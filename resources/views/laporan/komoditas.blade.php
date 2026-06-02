@@ -294,11 +294,22 @@ nav[aria-label="Pagination Navigation"] p {
 /* ══ MOBILE RESPONSIVE ══ */
 @media (max-width: 640px) {
     .kmd { font-size: 14px; }
-    .kmd > div:first-child { padding: 14px 14px 48px !important; }
+    .kmd > div:first-child { padding: 14px 14px 16px !important; }
+
+    /* Header: icon + judul tetap sejajar horizontal, pills hilang */
     .kmd > div:first-child > div:first-child {
-        flex-direction: column !important;
-        gap: 8px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 10px !important;
     }
+
+    /* Sembunyikan subtitle sumber di mobile */
+    .kmd > div:first-child p {
+        display: none !important;
+    }
+
+    /* Pills header juga disembunyikan (sudah ada class ini) */
+    .page-header-pills { display: none !important; }
     .grid2 {
         grid-template-columns: 1fr !important;
         gap: 10px !important;
@@ -306,6 +317,7 @@ nav[aria-label="Pagination Navigation"] p {
     div[style*="grid-template-columns:1fr 1fr"] {
         grid-template-columns: 1fr !important;
     }
+    
     .kpi-grid {
         grid-template-columns: 1fr 1fr !important;
         gap: 8px !important;
@@ -318,6 +330,21 @@ nav[aria-label="Pagination Navigation"] p {
     form > div[style*="grid-template-columns"] {
         grid-template-columns: 1fr !important;
         gap: 8px !important;
+    }
+
+    /* Teks dalam KPI card */
+    .kpi-box { text-align: center !important; }
+
+    /* Teks dalam forecast kvbox */
+    .kvbox { text-align: center !important; }
+    .kvbox-l { text-align: center !important; }
+    .kvbox-v { text-align: center !important; }
+    .kvbox-s { text-align: center !important; }
+
+    /* IHK row */
+    .ihk-l { text-align: center !important; width: 100% !important; }
+    .ihk-v { text-align: center !important; width: 100% !important; }
+    .ihk-int { text-align: center !important; width: 100% !important; }
     }
     #chartMtm, #chartYoY { height: 160px !important; }
     div[style*="height:200px"] { height: 160px !important; }
@@ -421,14 +448,14 @@ nav[aria-label="Pagination Navigation"] p {
 <div class="kmd fade-up" style="padding: clamp(12px, 3vw, 22px) clamp(12px, 3vw, 22px) 60px; background: #f8fafc; min-height: 100vh;">
 
 {{-- ══ 1. PAGE HEADER ══ --}}
-<div style="display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:18px; padding-bottom:16px; border-bottom:2px solid #1a56db;">
-    <div style="display:flex; align-items:center; gap:12px;">
-        <div style="background:#1a56db; border-radius:8px; padding:10px 12px; color:#fff;">
-            <i class="fas fa-chart-line" style="font-size:18px;"></i>
+<div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:18px; padding-bottom:16px; border-bottom:2px solid #1a56db;">
+    <div style="display:flex; align-items:center; gap:10px;">
+        <div style="background:#1a56db; border-radius:8px; padding:8px 10px; color:#fff; flex-shrink:0;">
+            <i class="fas fa-chart-line" style="font-size:16px;"></i>
         </div>
         <div>
-            <h1 style="font-size:20px; font-weight:700; color:#0f172a; margin:0; line-height:1.2;">Monitoring Harga &amp; Proyeksi Komoditas</h1>
-            <p style="font-size:13px; color:#9ca3af; margin:3px 0 0;">Sumber: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:12px;color:#4b5563;">price_data · price_forecasts · IHK/RH</code> — diperbarui otomatis setiap minggu</p>
+            <h1 style="font-size:18px; font-weight:700; color:#0f172a; margin:0; line-height:1.2;">Monitoring Harga &amp; Proyeksi Komoditas</h1>
+            <p style="font-size:12px; color:#9ca3af; margin:2px 0 0; line-height:1.4;">Sumber: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;color:#4b5563;">price_data · price_forecasts · IHK/RH</code> — diperbarui otomatis setiap minggu</p>
         </div>
     </div>
     <div style="display:flex; flex-wrap:wrap; align-items:center; gap:5px;" class="page-header-pills">
@@ -589,10 +616,10 @@ nav[aria-label="Pagination Navigation"] p {
     </div>
 
     {{-- Grid utama forecast: 3 kolom di desktop --}}
-    <div class="fc-full-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:start;">
+   <div class="fc-full-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:center;">
 
         {{-- Kolom 1: Kondisi & MtM Forecast --}}
-        <div class="kv2" style="margin-bottom:0;">
+        <div class="kv2" style="margin-bottom:0; align-self:center;">
             <div class="kvbox">
                 <div class="kvbox-l">Kondisi Agregat</div>
                 @if($kondisiForecast === 'inflasi')
