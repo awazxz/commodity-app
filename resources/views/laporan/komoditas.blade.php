@@ -156,11 +156,12 @@ html.dark .f-sel { background-color: #2d3748; border-color: #4a5568; color: #e2e
     border: 0.5px solid #e2e8f0; border-radius: 8px;
     padding: 16px 18px; background: #fff;
     border-top: 2px solid #1a56db;
+    text-align: center;
 }
 html.dark .kpi-box { background: #1e2433; border-color: #2d3748; border-top-color: #3b82f6; }
 .kpi-val { font-family: 'Inter', monospace; font-size: 24px; font-weight: 500; line-height: 1; margin-bottom: 6px; }
 .kpi-lbl { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #6b7280; }
-.kpi-sub { font-size: 12px; color: #9ca3af; margin-top: 4px; }
+.kpi-sub { font-size: 12px; color: #9ca3af; margin-top: 4px; text-align: center; }
 html.dark .kpi-lbl { color: #9ca3af; }
 
 /* ══ TABLE ══ */
@@ -279,6 +280,67 @@ html.dark .exp-item { color: #d1d5db; }
 .exp-item:hover { background: #f8fafc; }
 html.dark .exp-item:hover { background: #2d3748; }
 
+/* ══ FORECAST GRID — desktop default: 4 kolom sejajar ══ */
+.fc-full-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.5fr 1.8fr;
+    gap: 12px;
+    align-items: stretch;
+}
+
+/* ══ FORECAST KVBOX — CENTER ALL CONTENT ══ */
+.fc-full-grid .kvbox {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 130px;
+    padding: 16px 14px;
+}
+.fc-full-grid .kvbox-l {
+    text-align: center;
+    width: 100%;
+    margin-bottom: 10px;
+}
+.fc-full-grid .kvbox-v {
+    text-align: center;
+    width: 100%;
+}
+.fc-full-grid .kvbox-s {
+    text-align: center;
+    width: 100%;
+}
+.fc-full-grid .ihk-v {
+    text-align: center;
+    width: 100%;
+    font-family: 'Inter', monospace;
+    font-weight: 500;
+    color: #1a56db;
+}
+html.dark .fc-full-grid .ihk-v { color: #93c5fd; }
+.fc-full-grid .ihk-int {
+    text-align: center;
+    width: 100%;
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+.fc-full-grid .bar-wrap {
+    width: 100%;
+    margin-bottom: 0;
+}
+.fc-full-grid .bar-pct {
+    justify-content: space-between;
+    font-size: 12px;
+}
+.fc-full-grid .note {
+    width: 100%;
+    text-align: left;
+    margin-top: 12px;
+    margin-bottom: 0;
+}
+
 /* ══ MISC ══ */
 .scrollbar-x::-webkit-scrollbar { height: 4px; }
 .scrollbar-x::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -290,6 +352,7 @@ nav[aria-label="Pagination Navigation"] p {
 
 @keyframes fadeUp { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 .fade-up { animation: fadeUp .3s ease-out; }
+
 
 /* ══ MOBILE RESPONSIVE ══ */
 @media (max-width: 640px) {
@@ -317,7 +380,7 @@ nav[aria-label="Pagination Navigation"] p {
     div[style*="grid-template-columns:1fr 1fr"] {
         grid-template-columns: 1fr !important;
     }
-    
+
     .kpi-grid {
         grid-template-columns: 1fr 1fr !important;
         gap: 8px !important;
@@ -345,7 +408,7 @@ nav[aria-label="Pagination Navigation"] p {
     .ihk-l { text-align: center !important; width: 100% !important; }
     .ihk-v { text-align: center !important; width: 100% !important; }
     .ihk-int { text-align: center !important; width: 100% !important; }
-    }
+
     #chartMtm, #chartYoY { height: 160px !important; }
     div[style*="height:200px"] { height: 160px !important; }
     .stat3 { gap: 6px !important; }
@@ -385,14 +448,17 @@ nav[aria-label="Pagination Navigation"] p {
     h1[style*="font-size:18px"] { font-size: 16px !important; }
     .note { font-size: 12px !important; }
     .sec-sub { font-size: 12px !important; margin-bottom: 10px !important; }
+
+    /* forecast grid: 1 kolom di mobile */
     .fc-full-grid { grid-template-columns: 1fr !important; }
 }
 
-/* Tablet (641–900px) */
+/* ══ Tablet (641–900px) ══ */
 @media (min-width: 641px) and (max-width: 900px) {
     .kpi-grid {
         grid-template-columns: repeat(3, 1fr) !important;
     }
+    /* forecast grid: 2 kolom di tablet */
     .fc-full-grid { grid-template-columns: 1fr 1fr !important; }
 }
 </style>
@@ -579,7 +645,7 @@ nav[aria-label="Pagination Navigation"] p {
     @endif
 </div>
 
-{{-- ══ 3.5. PROYEKSI MODEL FORECAST — FULL WIDTH (dipindah dari section 5) ══ --}}
+{{-- ══ 3.5. PROYEKSI MODEL FORECAST — FULL WIDTH ══ --}}
 <div class="card" style="margin-bottom:16px;">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:3px; flex-wrap:wrap; gap:8px;">
         <div>
@@ -615,61 +681,61 @@ nav[aria-label="Pagination Navigation"] p {
         Proyeksi dari model <strong>Prophet</strong> menggunakan IHK agregat berbobot chain-linked NK BPS 2022=100. Kondisi ditentukan dari <code style="font-size:12px;background:rgba(26,79,160,.1);padding:1px 5px;border-radius:3px;">inflasi_mtom_forecast</code> agregat, threshold ±0,1%.
     </div>
 
-    {{-- Grid utama forecast: 3 kolom di desktop --}}
-   <div class="fc-full-grid" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; align-items:center;">
+    {{-- ══ Forecast Cards ══ --}}
+    <div class="fc-full-grid">
 
-        {{-- Kolom 1: Kondisi & MtM Forecast --}}
-        <div class="kv2" style="margin-bottom:0; align-self:center;">
-            <div class="kvbox">
-                <div class="kvbox-l">Kondisi Agregat</div>
-                @if($kondisiForecast === 'inflasi')
-                    <span class="pill p-up" style="font-size:13px;padding:5px 12px;margin-top:6px;display:inline-flex;">
-                        <i class="fas fa-arrow-trend-up" style="font-size:12px;"></i> Inflasi
-                    </span>
-                @elseif($kondisiForecast === 'deflasi')
-                    <span class="pill p-dn" style="font-size:13px;padding:5px 12px;margin-top:6px;display:inline-flex;">
-                        <i class="fas fa-arrow-trend-down" style="font-size:12px;"></i> Deflasi
-                    </span>
-                @elseif($kondisiForecast === 'stabil')
-                    <span class="pill p-st" style="font-size:13px;padding:5px 12px;margin-top:6px;display:inline-flex;">
-                        <i class="fas fa-minus" style="font-size:12px;"></i> Stabil
-                    </span>
-                @else
-                    <span style="font-size:13px;color:#9ca3af;display:block;margin-top:8px;">—</span>
-                @endif
-                <div class="kvbox-s" style="margin-top:10px;">IHK berbobot BPS</div>
-            </div>
-            <div class="kvbox">
-                <div class="kvbox-l">Inflasi MtM Forecast</div>
-                @if($inflasiMtomForecast !== null)
-                    <div class="kvbox-v {{ $inflasiMtomForecast > 0.1 ? 'up-txt' : ($inflasiMtomForecast < -0.1 ? 'dn-txt' : 'nt-txt') }}" style="margin-top:6px; font-size:20px;">
-                        {{ ($inflasiMtomForecast >= 0 ? '+' : '') . number_format($inflasiMtomForecast, 4, ',', '.') }}%
-                    </div>
-                    <div class="kvbox-s">Threshold BPS ±0,1%</div>
-                @else
-                    <div class="kvbox-v nt-txt" style="margin-top:6px;">—</div>
-                    <div class="kvbox-s">Belum tersedia</div>
-                @endif
-            </div>
+        {{-- Kolom 1: Kondisi Agregat --}}
+        <div class="kvbox">
+            <div class="kvbox-l">Kondisi Agregat</div>
+            @if($kondisiForecast === 'inflasi')
+                <span class="pill p-up" style="font-size:13px;padding:5px 12px;">
+                    <i class="fas fa-arrow-trend-up" style="font-size:12px;"></i> Inflasi
+                </span>
+            @elseif($kondisiForecast === 'deflasi')
+                <span class="pill p-dn" style="font-size:13px;padding:5px 12px;">
+                    <i class="fas fa-arrow-trend-down" style="font-size:12px;"></i> Deflasi
+                </span>
+            @elseif($kondisiForecast === 'stabil')
+                <span class="pill p-st" style="font-size:13px;padding:5px 12px;">
+                    <i class="fas fa-minus" style="font-size:12px;"></i> Stabil
+                </span>
+            @else
+                <span style="font-size:13px;color:#9ca3af;">—</span>
+            @endif
+            <div class="kvbox-s" style="margin-top:10px;">IHK berbobot BPS</div>
         </div>
 
-        {{-- Kolom 2: IHK Agregat Forecast --}}
-        @if($fcBulanDepan)
-        <div class="ihk-row" style="margin-bottom:0; flex-direction:column; align-items:flex-start; gap:6px;">
-            <div class="ihk-l">IHK Agregat Forecast — {{ $lblDepan }}</div>
-            <div class="ihk-v" style="font-size:28px;">{{ number_format($fcBulanDepan['nilai_ihk_forecast'], 2, ',', '.') }}</div>
-            <div class="ihk-int">
-                Interval 80%: {{ number_format($fcBulanDepan['ihk_lower'], 2, ',', '.') }} – {{ number_format($fcBulanDepan['ihk_upper'], 2, ',', '.') }}
-            </div>
+        {{-- Kolom 2: Inflasi MtM Forecast --}}
+        <div class="kvbox">
+            <div class="kvbox-l">Inflasi MtM Forecast</div>
+            @if($inflasiMtomForecast !== null)
+                <div class="kvbox-v {{ $inflasiMtomForecast > 0.1 ? 'up-txt' : ($inflasiMtomForecast < -0.1 ? 'dn-txt' : 'nt-txt') }}" style="font-size:20px;">
+                    {{ ($inflasiMtomForecast >= 0 ? '+' : '') . number_format($inflasiMtomForecast, 4, ',', '.') }}%
+                </div>
+                <div class="kvbox-s">Threshold BPS ±0,1%</div>
+            @else
+                <div class="kvbox-v nt-txt">—</div>
+                <div class="kvbox-s">Belum tersedia</div>
+            @endif
         </div>
-        @else
-        <div class="ihk-row" style="margin-bottom:0; align-items:center; justify-content:center;">
-            <span style="font-size:13px;color:#9ca3af;">Data IHK forecast belum tersedia</span>
-        </div>
-        @endif
 
-        {{-- Kolom 3: Distribusi 3 Bulan --}}
-        <div>
+        {{-- Kolom 3: IHK Agregat Forecast --}}
+        <div class="kvbox">
+            <div class="kvbox-l">IHK Agregat Forecast — {{ $lblDepan }}</div>
+            @if($fcBulanDepan)
+                <div class="ihk-v" style="font-size:26px;">
+                    {{ number_format($fcBulanDepan['nilai_ihk_forecast'], 2, ',', '.') }}
+                </div>
+                <div class="ihk-int">
+                    Interval 80%: {{ number_format($fcBulanDepan['ihk_lower'], 2, ',', '.') }} – {{ number_format($fcBulanDepan['ihk_upper'], 2, ',', '.') }}
+                </div>
+            @else
+                <div style="font-size:13px;color:#9ca3af;">Data belum tersedia</div>
+            @endif
+        </div>
+
+        {{-- Kolom 4: Distribusi 3 Bulan --}}
+        <div class="kvbox">
             @if(!empty($ihkForecast['forecast_3_bulan']))
             @php
                 $fc3        = $ihkForecast['forecast_3_bulan'];
@@ -681,27 +747,27 @@ nav[aria-label="Pagination Navigation"] p {
                 $pFc3D = $fc3Total > 0 ? round($fc3Deflasi / $fc3Total * 100) : 0;
                 $pFc3S = $fc3Total > 0 ? round($fc3Stabil  / $fc3Total * 100) : 0;
             @endphp
-            <div style="font-size:12px;color:#6b7280;margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;">Distribusi kondisi 3 bulan ke depan</div>
-            <div class="bar-wrap">
+            <div class="kvbox-l">Distribusi Kondisi 3 Bulan ke Depan</div>
+            <div class="bar-wrap" style="margin-top:8px;">
                 <div class="bar-track" style="height:6px;">
                     @if($pFc3I > 0)<div style="width:{{ $pFc3I }}%;background:#b84848;"></div>@endif
                     @if($pFc3S > 0)<div style="width:{{ $pFc3S }}%;background:#d1d5db;"></div>@endif
                     @if($pFc3D > 0)<div style="width:{{ $pFc3D }}%;background:#3b6d11;"></div>@endif
                 </div>
-                <div class="bar-pct" style="font-size:13px; margin-top:8px;">
+                <div class="bar-pct" style="font-size:13px; margin-top:10px;">
                     <span class="up-txt" style="font-weight:500;">{{ $pFc3I }}% inflasi</span>
-                    <span>{{ $pFc3S }}% stabil</span>
+                    <span class="nt-txt">{{ $pFc3S }}% stabil</span>
                     <span class="dn-txt" style="font-weight:500;">{{ $pFc3D }}% deflasi</span>
                 </div>
             </div>
             @endif
-
-            <div class="note" style="font-size:12px;line-height:1.7;margin-top:8px;margin-bottom:0;">
+            <div class="note" style="font-size:11px;line-height:1.6;margin-top:12px;margin-bottom:0;text-align:left;">
                 MtM &gt; +0,1% = Inflasi &nbsp;·&nbsp; MtM &lt; −0,1% = Deflasi &nbsp;·&nbsp; lainnya = Stabil.<br>
                 Kondisi dari IHK agregat berbobot, bukan jumlah komoditas naik/turun.
             </div>
         </div>
-    </div>
+
+    </div>{{-- end fc-full-grid --}}
 </div>
 
 {{-- ══ 4. CHARTS ══ --}}
