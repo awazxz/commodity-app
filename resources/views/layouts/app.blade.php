@@ -17,6 +17,9 @@
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
+        /* FIX 2: Sembunyikan elemen Alpine.js sebelum hydration selesai */
+        [x-cloak] { display: none !important; }
+
         body {
             font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
             -webkit-font-smoothing: antialiased;
@@ -218,7 +221,13 @@
                 {{-- NAV LINKS — desktop only --}}
                 @auth
                     @php
-                        $isAnalisisActive =
+                        $currentTab = request()->get('tab');
+
+                        $isManageActive = $currentTab === 'manage';
+                        $isUsersActive  = $currentTab === 'users';
+
+                        // Analisis hanya aktif jika TIDAK sedang di tab manage/users
+                        $isAnalisisActive = !$isManageActive && !$isUsersActive && (
                             request()->routeIs('dashboard') ||
                             request()->routeIs('admin.dashboard') ||
                             request()->routeIs('admin.predict') ||
@@ -227,32 +236,30 @@
                             request()->routeIs('user.dashboard') ||
                             request()->routeIs('user.analisis') ||
                             request()->routeIs('user.olah-data') ||
-                            request()->routeIs('user.forecast.*');
-
-                        $isManageActive = request()->get('tab') == 'manage';
-                        $isUsersActive  = request()->get('tab') == 'users';
+                            request()->routeIs('user.forecast.*')
+                        );
                     @endphp
 
                     <div class="hidden md:flex items-center h-full">
 
                         {{-- Beranda --}}
                         <a href="{{ route('laporan.komoditas.index') }}"
-                           data-analisis-link
+                           data-nav-link
                            class="text-white/80 px-4 h-16 text-[11px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5 {{ request()->routeIs('laporan.komoditas.*') ? 'nav-link-active' : '' }}">
                             <i class="fas fa-home opacity-50 text-[11px]"></i> {{ __('messages.beranda') }}
                         </a>
 
                         {{-- Analisis --}}
                         <a href="{{ route('dashboard') }}"
-                           data-analisis-link
+                           data-nav-link
                            class="text-white/80 px-4 h-16 text-[11px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5 {{ $isAnalisisActive ? 'nav-link-active' : '' }}">
                             <i class="fas fa-chart-line opacity-50 text-[11px]"></i> {{ __('messages.analisis') }}
                         </a>
 
                         {{-- Manajemen Data --}}
                         @if(auth()->user()->isAdmin() || auth()->user()->isOperator())
-                            <a href="{{ auth()->user()->isAdmin() ? route('admin.dashboard', ['tab' => 'manage']) : route('operator.dashboard', ['tab' => 'manage']) }}"
-                               data-analisis-link
+                            <a href="{{ auth()->user()->isAdmin() ? route('admin.predict', ['tab' => 'manage']) : route('operator.predict', ['tab' => 'manage']) }}"
+                               data-nav-link
                                class="text-white/80 px-4 h-16 text-[11px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5 {{ $isManageActive ? 'nav-link-active' : '' }}">
                                 <i class="fas fa-database opacity-50 text-[11px]"></i>
                                 <span class="hidden lg:inline">{{ __('messages.manajemen_data') }}</span>
@@ -262,7 +269,8 @@
 
                         {{-- Manajemen Pengguna --}}
                         @if(auth()->user()->isAdmin())
-                            <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}"
+                            <a href="{{ route('admin.predict', ['tab' => 'users']) }}"
+                               data-nav-link
                                class="text-white/80 px-4 h-16 text-[11px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5 {{ $isUsersActive ? 'nav-link-active' : '' }}">
                                 <i class="fas fa-users opacity-50 text-[11px]"></i>
                                 <span class="hidden lg:inline">{{ __('messages.manajemen_pengguna') }}</span>
@@ -282,7 +290,7 @@
                         <span class="text-white text-xs font-semibold block">{{ Auth::user()->name }}</span>
                     </div>
 
-                    {{-- User dropdown --}}
+                    {{-- FIX 2: x-cloak mencegah dropdown flash saat halaman load --}}
                     <div x-data="{ open: false }" class="relative">
                         <button @click="open = !open"
                                 class="flex items-center gap-1 group"
@@ -295,9 +303,13 @@
                         </button>
 
                         <div x-show="open"
+                             x-cloak
                              x-transition:enter="transition ease-out duration-100"
                              x-transition:enter-start="opacity-0 scale-95"
                              x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-75"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
                              @click.outside="open = false"
                              class="user-dropdown-panel absolute right-0 mt-3 w-80 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 py-2 z-[60] overflow-hidden">
 
@@ -383,7 +395,7 @@
             <div class="px-4 py-3 space-y-1 bg-[#002a6b] dark:bg-[#001020]">
 
                 <a href="{{ route('laporan.komoditas.index') }}"
-                   data-analisis-link
+                   data-nav-link
                    class="flex items-center gap-3 px-3 py-3 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-standard text-sm font-semibold
                    {{ request()->routeIs('laporan.komoditas.*') ? 'mobile-nav-link-active' : '' }}">
                     <i class="fas fa-home w-4 text-center opacity-70"></i>
@@ -391,7 +403,7 @@
                 </a>
 
                 <a href="{{ route('dashboard') }}"
-                   data-analisis-link
+                   data-nav-link
                    class="flex items-center gap-3 px-3 py-3 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-standard text-sm font-semibold
                    {{ $isAnalisisActive ? 'mobile-nav-link-active' : '' }}">
                     <i class="fas fa-chart-line w-4 text-center opacity-70"></i>
@@ -399,8 +411,8 @@
                 </a>
 
                 @if(auth()->user()->isAdmin() || auth()->user()->isOperator())
-                    <a href="{{ auth()->user()->isAdmin() ? route('admin.dashboard', ['tab' => 'manage']) : route('operator.dashboard', ['tab' => 'manage']) }}"
-                       data-analisis-link
+                    <a href="{{ auth()->user()->isAdmin() ? route('admin.predict', ['tab' => 'manage']) : route('operator.predict', ['tab' => 'manage']) }}"
+                       data-nav-link
                        class="flex items-center gap-3 px-3 py-3 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-standard text-sm font-semibold
                        {{ $isManageActive ? 'mobile-nav-link-active' : '' }}">
                         <i class="fas fa-database w-4 text-center opacity-70"></i>
@@ -409,7 +421,8 @@
                 @endif
 
                 @if(auth()->user()->isAdmin())
-                    <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}"
+                    <a href="{{ route('admin.predict', ['tab' => 'users']) }}"
+                       data-nav-link
                        class="flex items-center gap-3 px-3 py-3 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-standard text-sm font-semibold
                        {{ $isUsersActive ? 'mobile-nav-link-active' : '' }}">
                         <i class="fas fa-users w-4 text-center opacity-70"></i>
@@ -523,7 +536,7 @@
             if (window.innerWidth >= 768 && mobileMenuOpen) toggleMobileMenu();
         });
 
-        /* ── Loading overlay untuk semua link navigasi ── */
+        /* ── Loading overlay ── */
         (function () {
             const overlay = document.getElementById('loading-overlay');
 
@@ -543,9 +556,9 @@
                 }, 200);
             }
 
-            // Tampilkan overlay saat klik link yang punya atribut data-analisis-link
+            // Tampilkan overlay saat klik link navigasi
             document.addEventListener('click', function (e) {
-                const link = e.target.closest('[data-analisis-link]');
+                const link = e.target.closest('[data-nav-link]');
                 if (!link) return;
 
                 // Jangan tampilkan jika sudah di halaman yang sama
@@ -558,12 +571,13 @@
                 showLoading();
             });
 
-            // Sembunyikan setelah halaman selesai load (termasuk tombol back/forward)
-            window.addEventListener('pageshow', function () {
+            // Sembunyikan overlay setelah halaman selesai load
+            window.addEventListener('pageshow', function (e) {
+                // pageshow juga terpanggil saat back/forward dari cache (bfcache)
                 hideLoading();
             });
 
-            // Safety: sembunyikan jika navigasi dibatalkan / sudah di halaman tujuan
+            // Safety: sembunyikan saat DOM siap (mencegah overlay nyangkut)
             document.addEventListener('DOMContentLoaded', function () {
                 hideLoading();
             });

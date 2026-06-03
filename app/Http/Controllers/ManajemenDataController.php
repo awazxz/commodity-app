@@ -11,20 +11,21 @@ use Carbon\Carbon;
 class ManajemenDataController extends Controller
 {
     // =========================================================
-    // INDEX — tampilkan halaman manajemen data
+    // INDEX — redirect ke tab manage di halaman admin/operator
     // =========================================================
     public function index(Request $request)
     {
-        $commodities = MasterKomoditas::orderBy('nama_komoditas')->get();
+        $user = auth()->user();
 
-        $selectedKomoditasId = (int) ($request->query('komoditas_id') ?? optional($commodities->first())->id);
+        if ($user->isAdmin()) {
+            return redirect()->route('admin.predict', ['tab' => 'manage']);
+        }
 
-        $latestData = CommodityPrice::where('komoditas_id', $selectedKomoditasId)
-            ->orderBy('tanggal', 'desc')
-            ->paginate(10)
-            ->withQueryString();
+        if ($user->isOperator()) {
+            return redirect()->route('operator.predict', ['tab' => 'manage']);
+        }
 
-        return view('manajemen_data', compact('commodities', 'selectedKomoditasId', 'latestData'));
+        return redirect()->route('dashboard');
     }
 
     // =========================================================
@@ -432,20 +433,20 @@ class ManajemenDataController extends Controller
     }
 
     // =========================================================
-    // HELPER — resolve redirect URL berdasarkan referer/role
+    // HELPER — resolve redirect URL berdasarkan role user
     // =========================================================
     private function resolveRedirectRoute(Request $request): string
     {
-        $referer = $request->headers->get('referer', '');
+        $user = auth()->user();
 
-        if (str_contains($referer, '/operator/')) {
-            return route('operator.predict', ['tab' => 'manage']);
-        }
-
-        if (str_contains($referer, '/admin/')) {
+        if ($user->isAdmin()) {
             return route('admin.predict', ['tab' => 'manage']);
         }
 
-        return $referer ?: url('/');
+        if ($user->isOperator()) {
+            return route('operator.predict', ['tab' => 'manage']);
+        }
+
+        return route('dashboard');
     }
 }

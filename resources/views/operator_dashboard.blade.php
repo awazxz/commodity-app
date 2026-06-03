@@ -593,7 +593,7 @@
     <div class="space-y-6 animate-fade-in">
 
         {{-- ── BARIS 1: Tambah Data Baru + Riwayat Database ── --}}
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div id="section-tambah-data" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1">
                 <div class="card-standard p-6">
                     <h3 class="text-sm font-bold text-gray-900 mb-6 uppercase tracking-tight">{{ __('messages.tambah_data_baru') }}</h3>
@@ -809,7 +809,7 @@
         </div>
 
         {{-- ── BARIS 2: Form Input Bobot + Tabel Riwayat Bobot ── --}}
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div id="section-bobot" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {{-- Form Input Bobot --}}
             <div class="lg:col-span-1">
