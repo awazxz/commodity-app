@@ -2,7 +2,6 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="light">
 <head>
     <meta charset="utf-8">
-    {{-- FIX 1: maximum-scale=1 agar Safari tidak auto-zoom dan layout tidak bergeser --}}
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -24,14 +23,13 @@
             font-size: 15px;
             background-color: #f8fafc;
             background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%2300337c' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-            /* FIX 2: Cegah horizontal scroll global */
             overflow-x: hidden;
         }
         html { overflow-x: hidden; }
 
         html.dark body {
             background-color: #111827;
-            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
         }
 
         .font-arial-bold-italic {
@@ -46,7 +44,6 @@
             color: white !important;
         }
 
-        /* Mobile nav aktif pakai border-left */
         .mobile-nav-link-active {
             background-color: rgba(255,255,255,0.1);
             border-left: 3px solid #00a2e9;
@@ -58,7 +55,6 @@
         .dark-toggle-thumb { transition: transform 0.25s cubic-bezier(0.4,0,0.2,1); }
         html.dark .dark-toggle-thumb { transform: translateX(18px); }
 
-        /* FIX 3: Mobile menu slide animation */
         #mobile-menu {
             max-height: 0;
             overflow: hidden;
@@ -70,7 +66,6 @@
             opacity: 1;
         }
 
-        /* FIX 4: Dropdown tidak keluar layar kanan di mobile */
         @media (max-width: 639px) {
             .user-dropdown-panel {
                 right: -0.25rem !important;
@@ -78,7 +73,7 @@
                 max-width: 300px !important;
             }
         }
-        /* ── Font-size override navbar & layout ── */
+
         .nav-link-active,
         nav a { font-size: 11px !important; }
 
@@ -100,7 +95,6 @@
         main input, main select, main textarea { font-size: 14px; }
         main button { font-size: 13px; }
 
-        /* FIX 5: Cegah auto-zoom Safari saat focus input */
         @supports (-webkit-touch-callout: none) {
             input[type="text"],
             input[type="email"],
@@ -112,10 +106,38 @@
             }
         }
         @media (max-width: 768px) {
-    .grid2 {
-        grid-template-columns: 1fr !important;
-    }
-}
+            .grid2 {
+                grid-template-columns: 1fr !important;
+            }
+        }
+
+        /* ── Loading overlay ── */
+        #loading-overlay {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+        }
+        #loading-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        @keyframes loadingBar {
+            0%   { width: 0%;  margin-left: 0%; }
+            50%  { width: 60%; margin-left: 20%; }
+            100% { width: 0%;  margin-left: 100%; }
+        }
+        .loading-bar {
+            animation: loadingBar 1.4s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50%       { opacity: 1;   transform: scale(1.2); }
+        }
+        .dot1 { animation: pulse-dot 1.2s ease-in-out infinite 0s; }
+        .dot2 { animation: pulse-dot 1.2s ease-in-out infinite 0.2s; }
+        .dot3 { animation: pulse-dot 1.2s ease-in-out infinite 0.4s; }
     </style>
 
     <script>
@@ -128,6 +150,52 @@
 
 <body class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
 
+    {{-- ═══ LOADING OVERLAY ═══ --}}
+    <div id="loading-overlay"
+         class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl px-8 py-7 flex flex-col items-center gap-4 w-72 mx-4 border border-gray-100 dark:border-gray-700">
+
+            {{-- Icon + Spinner --}}
+            <div class="relative w-16 h-16">
+                {{-- Outer ring --}}
+                <div class="absolute inset-0 rounded-full border-4 border-[#00337C]/10 dark:border-[#00a2e9]/10"></div>
+                {{-- Spinning ring --}}
+                <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-[#00a2e9] border-r-[#00337C]/30 animate-spin"></div>
+                {{-- Center icon --}}
+                <div class="absolute inset-0 flex items-center justify-center">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-[#00337C] to-[#00a2e9] flex items-center justify-center shadow-md">
+                        <i class="fas fa-chart-line text-white text-sm"></i>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Text --}}
+            <div class="text-center">
+                <p class="text-sm font-extrabold text-gray-800 dark:text-gray-100 uppercase tracking-widest">
+                    {{ __('messages.memproses_data') ?? 'Memproses Data' }}
+                </p>
+                <div class="flex items-center justify-center gap-1 mt-1.5">
+                    <p class="text-xs text-gray-400 dark:text-gray-500">
+                        {{ __('messages.harap_tunggu') ?? 'Harap tunggu sebentar' }}
+                    </p>
+                    <span class="dot1 inline-block w-1 h-1 rounded-full bg-[#00a2e9]"></span>
+                    <span class="dot2 inline-block w-1 h-1 rounded-full bg-[#00a2e9]"></span>
+                    <span class="dot3 inline-block w-1 h-1 rounded-full bg-[#00a2e9]"></span>
+                </div>
+            </div>
+
+            {{-- Progress bar --}}
+            <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                <div class="loading-bar h-full bg-gradient-to-r from-[#00337C] to-[#00a2e9] rounded-full"></div>
+            </div>
+
+            {{-- Sub info --}}
+            <p class="text-[10px] text-gray-300 dark:text-gray-600 uppercase tracking-widest font-semibold">
+                SIGMAPRO &mdash; BPS Provinsi Riau
+            </p>
+        </div>
+    </div>
+
     {{-- ═══ NAVBAR ═══ --}}
     <nav class="bg-[#00337C] dark:bg-[#001530] shadow-lg border-b-4 border-[#00a2e9] sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -137,43 +205,68 @@
                 <div class="flex items-center gap-3 flex-shrink-0">
                     <img src="https://upload.wikimedia.org/wikipedia/commons/2/28/Lambang_Badan_Pusat_Statistik_%28BPS%29_Indonesia.svg"
                          alt="Logo BPS" class="h-9 filter drop-shadow-sm">
-                    {{-- Desktop: nama lengkap --}}
                     <div class="border-l border-white/20 pl-3 hidden sm:block">
                         <p class="text-white font-arial-bold-italic text-[14px] uppercase leading-tight tracking-tight">Badan Pusat Statistik</p>
                         <p class="text-white font-arial-bold-italic text-[11px] uppercase tracking-[0.12em]">Provinsi Riau</p>
                     </div>
-                    {{-- Mobile: nama singkat --}}
-                        <div class="border-l border-white/20 pl-3 sm:hidden">
-                            <p class="text-white font-arial-bold-italic text-[11px] uppercase leading-tight tracking-tight">Badan Pusat Statistik</p>
-                            <p class="text-white font-arial-bold-italic text-[9px] uppercase tracking-[0.12em]">Provinsi Riau</p>
-                        </div>
+                    <div class="border-l border-white/20 pl-3 sm:hidden">
+                        <p class="text-white font-arial-bold-italic text-[11px] uppercase leading-tight tracking-tight">Badan Pusat Statistik</p>
+                        <p class="text-white font-arial-bold-italic text-[9px] uppercase tracking-[0.12em]">Provinsi Riau</p>
                     </div>
+                </div>
 
                 {{-- NAV LINKS — desktop only --}}
                 @auth
-                    <div class="hidden md:flex items-center">
+                    @php
+                        $isAnalisisActive =
+                            request()->routeIs('dashboard') ||
+                            request()->routeIs('admin.dashboard') ||
+                            request()->routeIs('admin.predict') ||
+                            request()->routeIs('operator.dashboard') ||
+                            request()->routeIs('operator.predict') ||
+                            request()->routeIs('user.dashboard') ||
+                            request()->routeIs('user.analisis') ||
+                            request()->routeIs('user.olah-data') ||
+                            request()->routeIs('user.forecast.*');
+
+                        $isManageActive = request()->get('tab') == 'manage';
+                        $isUsersActive  = request()->get('tab') == 'users';
+                    @endphp
+
+                    <div class="hidden md:flex items-center h-full">
+
+                        {{-- Beranda --}}
                         <a href="{{ route('laporan.komoditas.index') }}"
-                        class="text-white/80 px-3 py-[22px] text-[10px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5
-                        {{ request()->routeIs('laporan.komoditas.*') ? 'nav-link-active' : '' }}">
-                        <i class="fas fa-home opacity-50 text-[10px]"></i> {{ __('messages.beranda') }}
+                           data-analisis-link
+                           class="text-white/80 px-4 h-16 text-[11px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5 {{ request()->routeIs('laporan.komoditas.*') ? 'nav-link-active' : '' }}">
+                            <i class="fas fa-home opacity-50 text-[11px]"></i> {{ __('messages.beranda') }}
                         </a>
+
+                        {{-- Analisis --}}
                         <a href="{{ route('dashboard') }}"
-                        class="text-white/80 px-3 py-[22px] text-[10px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5
-                        {{ request()->routeIs('dashboard') ? 'nav-link-active' : '' }}">
-                        <i class="fas fa-chart-line opacity-50 text-[10px]"></i> {{ __('messages.analisis') }}
+                           data-analisis-link
+                           class="text-white/80 px-4 h-16 text-[11px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5 {{ $isAnalisisActive ? 'nav-link-active' : '' }}">
+                            <i class="fas fa-chart-line opacity-50 text-[11px]"></i> {{ __('messages.analisis') }}
                         </a>
+
+                        {{-- Manajemen Data --}}
                         @if(auth()->user()->isAdmin() || auth()->user()->isOperator())
                             <a href="{{ auth()->user()->isAdmin() ? route('admin.dashboard', ['tab' => 'manage']) : route('operator.dashboard', ['tab' => 'manage']) }}"
-                            class="text-white/80 px-3 py-[22px] text-[10px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5
-                            {{ request()->get('tab') == 'manage' ? 'nav-link-active' : '' }}">
-                            <i class="fas fa-database opacity-50 text-[10px]"></i> <span class="hidden lg:inline">{{ __('messages.manajemen_data') }}</span><span class="lg:hidden">Data</span>
+                               data-analisis-link
+                               class="text-white/80 px-4 h-16 text-[11px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5 {{ $isManageActive ? 'nav-link-active' : '' }}">
+                                <i class="fas fa-database opacity-50 text-[11px]"></i>
+                                <span class="hidden lg:inline">{{ __('messages.manajemen_data') }}</span>
+                                <span class="lg:hidden">Data</span>
                             </a>
                         @endif
+
+                        {{-- Manajemen Pengguna --}}
                         @if(auth()->user()->isAdmin())
                             <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}"
-                            class="text-white/80 px-3 py-[22px] text-[10px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5
-                            {{ request()->get('tab') == 'users' ? 'nav-link-active' : '' }}">
-                            <i class="fas fa-users opacity-50 text-[10px]"></i> <span class="hidden lg:inline">{{ __('messages.manajemen_pengguna') }}</span><span class="lg:hidden">Users</span>
+                               class="text-white/80 px-4 h-16 text-[11px] font-bold uppercase tracking-wider hover:text-white hover:bg-white/5 transition-standard flex items-center gap-1.5 {{ $isUsersActive ? 'nav-link-active' : '' }}">
+                                <i class="fas fa-users opacity-50 text-[11px]"></i>
+                                <span class="hidden lg:inline">{{ __('messages.manajemen_pengguna') }}</span>
+                                <span class="lg:hidden">Users</span>
                             </a>
                         @endif
                     </div>
@@ -182,8 +275,6 @@
                 {{-- KANAN: User avatar + hamburger --}}
                 @auth
                 <div class="flex items-center gap-2">
-
-                    {{-- Nama & role — desktop saja --}}
                     <div class="hidden sm:block text-right">
                         <span class="text-[#00a2e9] text-[9px] font-black uppercase tracking-wider block">
                             {{ auth()->user()->isAdmin() ? __('messages.administrator') : (auth()->user()->isOperator() ? __('messages.operator') : __('messages.pengguna')) }}
@@ -256,7 +347,6 @@
                             <div class="px-4 py-3 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/50">
                                 <p class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase">{{ __('messages.login_sebagai') }}</p>
                                 <p class="text-sm font-bold text-[#00337C] dark:text-[#00a2e9] truncate">{{ Auth::user()->email }}</p>
-                                {{-- Nama hanya di mobile (karena header name disembunyikan) --}}
                                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 sm:hidden">{{ Auth::user()->name }}</p>
                             </div>
 
@@ -287,12 +377,13 @@
             </div>
         </div>
 
-        {{-- MOBILE NAV MENU (dropdown di bawah navbar) --}}
+        {{-- MOBILE NAV MENU --}}
         @auth
         <div id="mobile-menu" class="md:hidden border-t border-white/10">
             <div class="px-4 py-3 space-y-1 bg-[#002a6b] dark:bg-[#001020]">
 
                 <a href="{{ route('laporan.komoditas.index') }}"
+                   data-analisis-link
                    class="flex items-center gap-3 px-3 py-3 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-standard text-sm font-semibold
                    {{ request()->routeIs('laporan.komoditas.*') ? 'mobile-nav-link-active' : '' }}">
                     <i class="fas fa-home w-4 text-center opacity-70"></i>
@@ -300,16 +391,18 @@
                 </a>
 
                 <a href="{{ route('dashboard') }}"
+                   data-analisis-link
                    class="flex items-center gap-3 px-3 py-3 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-standard text-sm font-semibold
-                   {{ request()->routeIs('dashboard') ? 'mobile-nav-link-active' : '' }}">
+                   {{ $isAnalisisActive ? 'mobile-nav-link-active' : '' }}">
                     <i class="fas fa-chart-line w-4 text-center opacity-70"></i>
                     <span>{{ __('messages.analisis') }}</span>
                 </a>
 
                 @if(auth()->user()->isAdmin() || auth()->user()->isOperator())
                     <a href="{{ auth()->user()->isAdmin() ? route('admin.dashboard', ['tab' => 'manage']) : route('operator.dashboard', ['tab' => 'manage']) }}"
+                       data-analisis-link
                        class="flex items-center gap-3 px-3 py-3 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-standard text-sm font-semibold
-                       {{ request()->get('tab') == 'manage' ? 'mobile-nav-link-active' : '' }}">
+                       {{ $isManageActive ? 'mobile-nav-link-active' : '' }}">
                         <i class="fas fa-database w-4 text-center opacity-70"></i>
                         <span>{{ __('messages.manajemen_data') }}</span>
                     </a>
@@ -318,13 +411,12 @@
                 @if(auth()->user()->isAdmin())
                     <a href="{{ route('admin.dashboard', ['tab' => 'users']) }}"
                        class="flex items-center gap-3 px-3 py-3 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-standard text-sm font-semibold
-                       {{ request()->get('tab') == 'users' ? 'mobile-nav-link-active' : '' }}">
+                       {{ $isUsersActive ? 'mobile-nav-link-active' : '' }}">
                         <i class="fas fa-users w-4 text-center opacity-70"></i>
                         <span>{{ __('messages.manajemen_pengguna') }}</span>
                     </a>
                 @endif
 
-                {{-- Divider + info user --}}
                 <div class="pt-2 mt-1 border-t border-white/10 px-3 pb-1">
                     <p class="text-[9px] text-white/40 uppercase font-bold tracking-wider">
                         {{ auth()->user()->isAdmin() ? __('messages.administrator') : (auth()->user()->isOperator() ? __('messages.operator') : __('messages.pengguna')) }}
@@ -418,7 +510,6 @@
             }
         }
 
-        /* Tutup saat klik di luar */
         document.addEventListener('click', function(e) {
             if (!mobileMenuOpen) return;
             const menu = document.getElementById('mobile-menu');
@@ -428,10 +519,55 @@
             }
         });
 
-        /* Tutup saat resize ke desktop */
         window.addEventListener('resize', function() {
             if (window.innerWidth >= 768 && mobileMenuOpen) toggleMobileMenu();
         });
+
+        /* ── Loading overlay untuk semua link navigasi ── */
+        (function () {
+            const overlay = document.getElementById('loading-overlay');
+
+            function showLoading() {
+                overlay.classList.remove('hidden');
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(function () {
+                        overlay.classList.add('visible');
+                    });
+                });
+            }
+
+            function hideLoading() {
+                overlay.classList.remove('visible');
+                setTimeout(function () {
+                    overlay.classList.add('hidden');
+                }, 200);
+            }
+
+            // Tampilkan overlay saat klik link yang punya atribut data-analisis-link
+            document.addEventListener('click', function (e) {
+                const link = e.target.closest('[data-analisis-link]');
+                if (!link) return;
+
+                // Jangan tampilkan jika sudah di halaman yang sama
+                try {
+                    const dest = new URL(link.href, window.location.origin);
+                    if (dest.pathname === window.location.pathname &&
+                        dest.search  === window.location.search) return;
+                } catch (err) { return; }
+
+                showLoading();
+            });
+
+            // Sembunyikan setelah halaman selesai load (termasuk tombol back/forward)
+            window.addEventListener('pageshow', function () {
+                hideLoading();
+            });
+
+            // Safety: sembunyikan jika navigasi dibatalkan / sudah di halaman tujuan
+            document.addEventListener('DOMContentLoaded', function () {
+                hideLoading();
+            });
+        })();
     </script>
 
 </body>

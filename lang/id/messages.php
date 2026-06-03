@@ -275,4 +275,7 @@ return [
 
     // ── FLASK API STATUS ─────────────────────────────────────────
     'memeriksa'                    => 'Memeriksa...',
+
+    'memproses_data' => 'Memproses Data',
+    'harap_tunggu'   => 'Harap tunggu sebentar',
 ];
