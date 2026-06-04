@@ -1246,6 +1246,7 @@ private function processUsersTab(Request $request)
         foreach ($data as $item) {
             if (is_null($item->harga) || $item->harga <= 0) {
                 $issues[] = (object)[
+                    'id'     => $item->id,
                     'date'   => $item->tanggal,
                     'issue'  => 'Missing Value',
                     'value'  => 0,
@@ -1253,6 +1254,7 @@ private function processUsersTab(Request $request)
                 ];
             } elseif ($item->harga < ($q1 - 1.5 * $iqr) || $item->harga > ($q3 + 1.5 * $iqr)) {
                 $issues[] = (object)[
+                    'id'     => $item->id,
                     'date'   => $item->tanggal,
                     'issue'  => 'Outlier',
                     'value'  => $item->harga,

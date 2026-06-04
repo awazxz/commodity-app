@@ -256,7 +256,7 @@ class IHKForecaster:
     # PUBLIC — Forecast
     # ═══════════════════════════════════════════════════════
 
-    def forecast(self, periods: int = 6) -> dict:
+    def forecast(self, periods: int = 12) -> dict:
         """
         Forecast IHK dan inflasi N bulan ke depan.
 
@@ -388,7 +388,7 @@ class IHKForecaster:
     # PUBLIC — Query hasil forecast dari DB
     # ═══════════════════════════════════════════════════════
 
-    def get_forecast_result(self, limit: int = 12) -> dict:
+    def get_forecast_result(self, limit: int = 24) -> dict:
         """Ambil hasil forecast IHK terbaru dari DB."""
         query = """
             SELECT
@@ -535,6 +535,24 @@ class IHKForecaster:
         # ── 2. Forecast dimulai dari bulan setelah ref_date ──────────────────
         next_month = (ref_date + pd.DateOffset(months=1)).replace(day=1)
 
+        # ← TAMBAHKAN DI SINI: cek apakah next_month persis ada di tabel
+        check_query = """
+            SELECT COUNT(*) FROM ihk_forecast_bulanan
+            WHERE DATE_FORMAT(tanggal, '%Y-%m') = :target
+        """
+        with self.db.engine.connect() as conn:
+            count = conn.execute(text(check_query), {
+                'target': next_month.strftime('%Y-%m')
+            }).scalar()
+
+        if not count:
+            return {
+                'success': False,
+                'message': (
+                    f'Belum ada forecast untuk periode setelah '
+                    f'{ref_date.strftime("%Y-%m")}.'
+                ),
+            }
         query = """
             SELECT
                 tanggal,

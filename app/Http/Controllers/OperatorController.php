@@ -370,7 +370,8 @@ class OperatorController extends Controller
 
             return redirect()
                 ->route('operator.predict', ['tab' => 'manage', 'komoditas_id' => $request->komoditas_id])
-                ->with('success', 'Bobot komoditas berhasil disimpan!');
+                ->with('success', 'Bobot komoditas berhasil disimpan!')
+                ->withFragment('section-bobot');
 
         } catch (\Exception $e) {
             Log::error('[OPERATOR] Store Bobot Error: ' . $e->getMessage());
@@ -420,7 +421,8 @@ class OperatorController extends Controller
 
             return redirect()
                 ->route('operator.predict', ['tab' => 'manage'])
-                ->with('success', 'Bobot berhasil dihapus!');
+                ->with('success', 'Bobot berhasil dihapus!')
+                ->withFragment('section-bobot');
 
         } catch (\Exception $e) {
             Log::error('[OPERATOR] Delete Bobot Error: ' . $e->getMessage());
@@ -1095,7 +1097,8 @@ class OperatorController extends Controller
 
                 return redirect()
                     ->route('operator.predict', ['tab' => 'manage'])
-                    ->with('success', "Bulk upload berhasil! {$insertedCount} data diproses.");
+                    ->with('success', "Bulk upload berhasil! {$insertedCount} data diproses.")
+                ->withFragment('section-tambah-data');
             }
 
             $request->validate([
@@ -1122,7 +1125,8 @@ class OperatorController extends Controller
 
             return redirect()
                 ->route('operator.predict', ['tab' => 'manage', 'komoditas_id' => $request->komoditas_id])
-                ->with('success', 'Data berhasil ditambahkan!');
+                ->with('success', 'Data berhasil ditambahkan!')
+                ->withFragment('section-tambah-data');
 
         } catch (\Exception $e) {
             Log::error('[OPERATOR] Store Data Error: ' . $e->getMessage());
@@ -1157,7 +1161,8 @@ class OperatorController extends Controller
             CommodityPrice::findOrFail($id)->delete();
             return redirect()
                 ->route('operator.predict', ['tab' => 'manage'])
-                ->with('success', 'Data berhasil dihapus!');
+                ->with('success', 'Data berhasil dihapus!')
+                ->withFragment('section-riwayat');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Gagal menghapus data.');
         }
@@ -1215,7 +1220,8 @@ class OperatorController extends Controller
 
             return redirect()
                 ->route('operator.predict', ['tab' => 'manage', 'komoditas_id' => $komoditasId])
-                ->with('success', "{$affectedCount} data berhasil diproses.");
+                ->with('success', "{$affectedCount} data berhasil diproses.")
+                ->withFragment('section-riwayat');
 
         } catch (\Exception $e) {
             Log::error('[OPERATOR] Clean Data Error: ' . $e->getMessage());

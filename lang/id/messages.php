@@ -1,6 +1,7 @@
 <?php
 
 return [
+
     // ── NAVBAR ──────────────────────────────────────────────────
     'beranda'                   => 'Beranda',
     'analisis'                  => 'Analisis',
@@ -120,7 +121,6 @@ return [
     'unduh_template_csv'        => 'Unduh Template CSV',
     'unggah_dataset'            => 'Unggah Dataset',
     'pilih_seret_csv'           => 'Pilih atau seret file CSV ke sini',
-    'data_tidak_ditemukan'      => 'Data tidak ditemukan',
     'pilih_atau_tambah'         => 'Pilih komoditas atau tambah data baru',
 
     // ── PEMBERSIHAN DATA ─────────────────────────────────────────
@@ -253,13 +253,10 @@ return [
     'bulan_desember'            => 'Desember',
 
     // ── KESIMPULAN ANALISIS ──────────────────────────────────────
-    // Versi lama (ringkasan prediksi naik/turun/stabil)
     'kesimpulan_naik'   => 'Dari :total komoditas yang dianalisis, sebagian besar diprediksi mengalami kenaikan harga (:naik naik, :turun turun, :stabil stabil). Langkah pengendalian harga mungkin diperlukan.',
     'kesimpulan_turun'  => 'Dari :total komoditas yang dianalisis, sebagian besar diprediksi mengalami penurunan harga (:naik naik, :turun turun, :stabil stabil). Harga diperkirakan akan mereda.',
     'kesimpulan_stabil' => 'Dari :total komoditas yang dianalisis, sebagian besar harga diprediksi tetap stabil (:naik naik, :turun turun, :stabil stabil). Kondisi pasar relatif terkendali.',
     'kesimpulan_kosong' => 'Tidak ada data yang tersedia untuk dianalisis pada periode ini.',
-
-    // Versi baru (inflasi/deflasi MoM + proyeksi bulan depan)
     'kesimpulan_inflasi' => 'Pada :bulan_ini, sebanyak :inflasi dari :total komoditas mengalami kenaikan harga (inflasi) dibanding bulan lalu, sementara :deflasi mengalami penurunan. Proyeksi :bulan_depan: :naik komoditas diprediksi naik, :turun turun, dan :stabil stabil.',
     'kesimpulan_deflasi' => 'Pada :bulan_ini, sebanyak :deflasi dari :total komoditas mengalami penurunan harga (deflasi) dibanding bulan lalu, sementara :inflasi mengalami kenaikan. Proyeksi :bulan_depan: :naik komoditas diprediksi naik, :turun turun, dan :stabil stabil.',
 
@@ -275,7 +272,10 @@ return [
 
     // ── FLASK API STATUS ─────────────────────────────────────────
     'memeriksa'                    => 'Memeriksa...',
+    'memproses_data'               => 'Memproses Data',
+    'harap_tunggu'                 => 'Harap tunggu sebentar',
 
-    'memproses_data' => 'Memproses Data',
-    'harap_tunggu'   => 'Harap tunggu sebentar',
+    // ── PESAN UMUM ───────────────────────────────────────────────
+    'data_tidak_ditemukan'         => 'Data tidak ditemukan.',
+
 ];

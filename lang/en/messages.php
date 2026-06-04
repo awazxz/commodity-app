@@ -1,6 +1,7 @@
 <?php
 
 return [
+
     // ── NAVBAR ──────────────────────────────────────────────────
     'beranda'                   => 'Home',
     'analisis'                  => 'Analysis',
@@ -120,7 +121,6 @@ return [
     'unduh_template_csv'        => 'Download CSV Template',
     'unggah_dataset'            => 'Upload Dataset',
     'pilih_seret_csv'           => 'Select or drag CSV file here',
-    'data_tidak_ditemukan'      => 'Data not found',
     'pilih_atau_tambah'         => 'Select a commodity or add new data',
 
     // ── PEMBERSIHAN DATA ─────────────────────────────────────────
@@ -253,13 +253,10 @@ return [
     'bulan_desember'            => 'December',
 
     // ── KESIMPULAN ANALISIS ──────────────────────────────────────
-    // Versi lama (ringkasan prediksi naik/turun/stabil)
     'kesimpulan_naik'   => 'Of :total commodities analyzed, most show a predicted price increase (:naik up, :turun down, :stabil stable). Price control measures may be needed.',
     'kesimpulan_turun'  => 'Of :total commodities analyzed, most show a predicted price decrease (:naik up, :turun down, :stabil stable). Prices are expected to ease.',
     'kesimpulan_stabil' => 'Of :total commodities analyzed, most prices are predicted to remain stable (:naik up, :turun down, :stabil stable). Market conditions are relatively under control.',
     'kesimpulan_kosong' => 'No data available to analyze for this period.',
-
-    // Versi baru (inflasi/deflasi MoM + proyeksi bulan depan)
     'kesimpulan_inflasi' => 'In :bulan_ini, :inflasi out of :total commodities experienced price increases (inflation) compared to last month, while :deflasi showed price decreases. For next month (:bulan_depan), :naik commodities are forecast to rise, :turun to fall, and :stabil to remain stable.',
     'kesimpulan_deflasi' => 'In :bulan_ini, :deflasi out of :total commodities experienced price decreases (deflation) compared to last month, while :inflasi showed price increases. For next month (:bulan_depan), :naik commodities are forecast to rise, :turun to fall, and :stabil to remain stable.',
 
@@ -275,4 +272,10 @@ return [
 
     // ── FLASK API STATUS ─────────────────────────────────────────
     'memeriksa'                    => 'Checking...',
+    'memproses_data'               => 'Processing Data',
+    'harap_tunggu'                 => 'Please wait a moment',
+
+    // ── PESAN UMUM ───────────────────────────────────────────────
+    'data_tidak_ditemukan'         => 'No data found.',
+
 ];

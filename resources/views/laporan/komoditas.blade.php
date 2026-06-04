@@ -463,7 +463,7 @@ nav[aria-label="Pagination Navigation"] p {
 }
 </style>
 
-@php
+<!-- @php
     $nl = [1=>__('messages.bulan_januari'),2=>__('messages.bulan_februari'),3=>__('messages.bulan_maret'),4=>__('messages.bulan_april'),5=>__('messages.bulan_mei'),6=>__('messages.bulan_juni'),7=>__('messages.bulan_juli'),8=>__('messages.bulan_agustus'),9=>__('messages.bulan_september'),10=>__('messages.bulan_oktober'),11=>__('messages.bulan_november'),12=>__('messages.bulan_desember')];
 
     $tahunFilter         = $tahunFilter         ?? (int)date('Y');
@@ -509,6 +509,74 @@ nav[aria-label="Pagination Navigation"] p {
     $collection     = $data->getCollection();
     $topNaik        = $collection->where('status_mom','inflasi')->sortByDesc('persen_mom')->take(5);
     $topTurun       = $collection->where('status_mom','deflasi')->sortBy('persen_mom')->take(5);
+@endphp -->
+@php
+$nl = [
+    1  => __('messages.bulan_januari'),
+    2  => __('messages.bulan_februari'),
+    3  => __('messages.bulan_maret'),
+    4  => __('messages.bulan_april'),
+    5  => __('messages.bulan_mei'),
+    6  => __('messages.bulan_juni'),
+    7  => __('messages.bulan_juli'),
+    8  => __('messages.bulan_agustus'),
+    9  => __('messages.bulan_september'),
+    10 => __('messages.bulan_oktober'),
+    11 => __('messages.bulan_november'),
+    12 => __('messages.bulan_desember'),];
+$tahunFilter         = $tahunFilter         ?? (int)date('Y');
+$bulanFilter         = $bulanFilter         ?? null;
+$analisis            = $analisis            ?? ['naik'=>0,'turun'=>0,'stabil'=>0,'inflasi'=>0,'deflasi'=>0];
+$tahunTersedia       = $tahunTersedia       ?? [(int)date('Y')];
+$daftarKomoditas     = $daftarKomoditas     ?? collect();
+$data                = $data                ?? new \Illuminate\Pagination\LengthAwarePaginator(collect(),0,20);
+$inflasiMtm          = $inflasiMtm          ?? 0;
+$inflasiYoy          = $inflasiYoy          ?? 0;
+$inflasiYtd          = $inflasiYtd          ?? 0;
+$sparkDataBulanan    = $sparkDataBulanan    ?? array_fill(0,13,null);
+$sparkDataTahunan    = $sparkDataTahunan    ?? array_fill(0,12,null);
+$sparkLabelsTahunan  = $sparkLabelsTahunan  ?? ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+$yoySparkData        = $yoySparkData        ?? array_fill(0,12,null);
+$yoySparkLabels      = $yoySparkLabels      ?? ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+$ihkForecast         = $ihkForecast         ?? [];
+$kondisiForecast     = $kondisiForecast     ?? null;
+$inflasiMtomForecast = $inflasiMtomForecast ?? null;
+$trend3Bulan         = $trend3Bulan         ?? null;
+$ihkAgregatHistoris  = $ihkAgregatHistoris  ?? null;
+$lastAktualTahun     = $lastAktualTahun     ?? (int)date('Y');
+$lastAktualBulan     = $lastAktualBulan     ?? (int)date('m');
+$fcBulanDepan        = $ihkForecast['bulan_depan'] ?? null;
+$ihkKomoditasForecast = $ihkKomoditasForecast ?? [];
+
+$tglIni   = \Carbon\Carbon::create($tahunFilter, $bulanFilter ?? (int)date('m'), 1);
+$tglLalu  = $tglIni->copy()->subMonth();
+$tglDepan = $tglIni->copy()->addMonth();
+$lblLalu  = ($nl[$tglLalu->month]  ?? '') . ' ' . $tglLalu->year;
+$lblDepan = ($nl[$tglDepan->month] ?? '') . ' ' . $tglDepan->year;
+$lblIni   = $bulanFilter ? (($nl[$bulanFilter] ?? '') . ' ' . $tahunFilter) : 'Semua Bulan — ' . $tahunFilter;
+$lblLaluTahun = $tahunFilter - 1;
+$tahunNow = (int)date('Y');
+
+// Deteksi apakah periode yang dipilih adalah HISTORIS atau FORECAST
+// Historis = ada data aktual di price_data untuk tahun+bulan ini
+// Forecast = tidak ada data aktual (bulan depan / masa depan)
+$isForecastPeriod = $bulanFilter
+    ? ($tahunFilter > $lastAktualTahun || ($tahunFilter === $lastAktualTahun && $bulanFilter > $lastAktualBulan))
+    : false;
+
+$sparkLabelsBulanan = [];
+for ($i = 12; $i >= 0; $i--) {
+    $tgl = $tglIni->copy()->subMonths($i);
+    $sparkLabelsBulanan[] = substr($nl[$tgl->month] ?? 'Bln', 0, 3) . " '" . substr($tgl->year, 2, 2);
+}
+
+$inflasi        = $analisis['inflasi'] ?? 0;
+$deflasi        = $analisis['deflasi'] ?? 0;
+$totalKomoditas = $data->total();
+$dominant       = ($inflasi > $deflasi) ? 'naik' : (($deflasi > $inflasi) ? 'turun' : 'stabil');
+$collection     = $data->getCollection();
+$topNaik        = $collection->where('status_mom','inflasi')->sortByDesc('persen_mom')->take(5);
+$topTurun       = $collection->where('status_mom','deflasi')->sortBy('persen_mom')->take(5);
 @endphp
 
 <div class="kmd fade-up" style="padding: clamp(12px, 3vw, 22px) clamp(12px, 3vw, 22px) 60px; background: #f8fafc; min-height: 100vh;">
@@ -570,9 +638,8 @@ nav[aria-label="Pagination Navigation"] p {
             <div>
                 <label style="display:block;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:#6b7280;margin-bottom:4px;">Bulan</label>
                 <select name="bulan" class="f-sel">
-                    <option value="" {{ !$bulanFilter?'selected':'' }}>Semua Bulan</option>
                     @foreach($nl as $num => $nama)
-                        <option value="{{ $num }}" {{ $bulanFilter==$num?'selected':'' }}>{{ $nama }}</option>
+                        <option value="{{ $num }}" {{ $bulanFilter == $num ? 'selected' : '' }}>{{ $nama }}</option>
                     @endforeach
                 </select>
             </div>
@@ -588,7 +655,7 @@ nav[aria-label="Pagination Navigation"] p {
             </div>
             <div style="display:flex; gap:7px;">
                 <button type="submit" style="flex:1;display:flex;align-items:center;justify-content:center;gap:5px;padding:9px 12px;background:#1a56db;color:#fff;font-size:13px;font-weight:600;border:none;border-radius:6px;cursor:pointer;">
-                    <i class="fas fa-filter" style="font-size:11px;"></i> Terapkan
+                 Terapkan
                 </button>
                 <a href="{{ route('laporan.komoditas.index') }}" style="display:flex;align-items:center;justify-content:center;padding:9px 12px;background:#f1f5f9;color:#6b7280;border-radius:6px;text-decoration:none;font-size:13px;" title="Reset">
                     <i class="fas fa-rotate-left" style="font-size:13px;"></i>
@@ -721,16 +788,41 @@ nav[aria-label="Pagination Navigation"] p {
 
         {{-- Kolom 3: IHK Agregat Forecast --}}
         <div class="kvbox">
-            <div class="kvbox-l">IHK Agregat Forecast — {{ $lblDepan }}</div>
-            @if($fcBulanDepan)
+            @if($isForecastPeriod)
+                {{-- FORECAST: tampilkan IHK agregat dari Flask (bulan depan) --}}
+                <div class="kvbox-l">IHK Agregat Forecast — {{ $lblDepan }}</div>
+                @if($fcBulanDepan)
+                    <div class="ihk-v" style="font-size:26px;">
+                        {{ number_format($fcBulanDepan['nilai_ihk_forecast'], 2, ',', '.') }}
+                    </div>
+                    <div class="ihk-int">
+                        Interval 80%: {{ number_format($fcBulanDepan['ihk_lower'], 2, ',', '.') }} – {{ number_format($fcBulanDepan['ihk_upper'], 2, ',', '.') }}
+                    </div>
+                @else
+                    <div style="font-size:13px;color:#9ca3af;">Data forecast belum tersedia</div>
+                @endif
+            @elseif($bulanFilter && $ihkAgregatHistoris && isset($ihkAgregatHistoris->ihk_agregat) && $ihkAgregatHistoris->ihk_agregat)
+                {{-- HISTORIS: tampilkan IHK agregat aktual dari DB --}}
+                <div class="kvbox-l">IHK Agregat Aktual — {{ $lblIni }}</div>
                 <div class="ihk-v" style="font-size:26px;">
-                    {{ number_format($fcBulanDepan['nilai_ihk_forecast'], 2, ',', '.') }}
+                    {{ number_format($ihkAgregatHistoris->ihk_agregat, 2, ',', '.') }}
                 </div>
+                @if(isset($ihkAgregatHistoris->mtom_aktual) && $ihkAgregatHistoris->mtom_aktual !== null)
                 <div class="ihk-int">
-                    Interval 80%: {{ number_format($fcBulanDepan['ihk_lower'], 2, ',', '.') }} – {{ number_format($fcBulanDepan['ihk_upper'], 2, ',', '.') }}
+                    MtM Aktual: {{ ($ihkAgregatHistoris->mtom_aktual >= 0 ? '+' : '') . number_format($ihkAgregatHistoris->mtom_aktual, 4, ',', '.') }}%
                 </div>
+                @endif
             @else
-                <div style="font-size:13px;color:#9ca3af;">Data belum tersedia</div>
+                {{-- Tidak ada data --}}
+                <div class="kvbox-l">IHK Agregat</div>
+                <div style="font-size:13px;color:#9ca3af; margin-top: 8px;">
+                    @if($bulanFilter)
+                        Data IHK untuk periode ini belum tersedia.<br>
+                        <span style="font-size:11px;">Pastikan tabel <code>andil_inflasi_bulanan</code> terisi.</span>
+                    @else
+                        Pilih bulan tertentu untuk melihat IHK agregat.
+                    @endif
+                </div>
             @endif
         </div>
 
@@ -1280,7 +1372,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 pointRadius: 3, pointBackgroundColor: '#1a56db',
                 pointBorderColor: '#fff', pointBorderWidth: 1.5,
                 pointHoverRadius: 5,
-                tension: 0.4, fill: true, spanGaps: true,
+                tension: 0.4, fill: true,
+                spanGaps: true,  // ← skip titik null, tidak digambar sebagai 0
             }]},
             options: {
                 responsive: true, maintainAspectRatio: false,
@@ -1290,7 +1383,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     tooltip: { ...tip, callbacks: {
                         label: ctx => {
                             const v = ctx.parsed.y;
-                            if (v === null) return '  Belum ada data';
+                            if (v === null || v === undefined) return '  Belum ada data';
                             return `  MtM: ${v > 0 ? '+' : ''}${v.toFixed(2).replace('.', ',')}%`;
                         }
                     }}
@@ -1298,45 +1391,52 @@ document.addEventListener('DOMContentLoaded', function () {
                 scales: { x: scaleX, y: scaleY }
             }
         });
-    }
+    } // ← penutup if (ctxMtm) yang benar
 
     /* ── YoY Bar Chart ── */
     const ctxYoy = document.getElementById('chartYoY');
-    if (ctxYoy) {
-        const labsYoy = @json($yoySparkLabels);
-        const dataYoy = @json($yoySparkData);
+if (ctxYoy) {
+    const labsYoy = @json($yoySparkLabels);
+    const dataYoy = @json($yoySparkData); // tetap 12 bulan, null untuk yang belum ada
 
-        const barBg  = dataYoy.map(v => v === null ? 'rgba(209,213,219,.4)' : v > 0 ? 'rgba(26,79,160,.65)' : 'rgba(59,109,17,.65)');
-        const barBrd = dataYoy.map(v => v === null ? '#d1d5db' : v > 0 ? '#1a56db' : '#3b6d11');
+    const barBg  = dataYoy.map(v => v === null ? 'rgba(209,213,219,.2)' : v > 0 ? 'rgba(26,79,160,.65)' : 'rgba(59,109,17,.65)');
+    const barBrd = dataYoy.map(v => v === null ? 'rgba(209,213,219,.3)' : v > 0 ? '#1a56db' : '#3b6d11');
 
-        new Chart(ctxYoy, {
-            type: 'bar',
-            data: { labels: labsYoy, datasets: [{
-                label: '% YoY', data: dataYoy,
-                backgroundColor: barBg, borderColor: barBrd,
-                borderWidth: 0.5, borderRadius: 3, borderSkipped: false,
-            }]},
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                interaction: { mode: 'index', intersect: false },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { ...tip, callbacks: {
-                        label: ctx => {
-                            const v = ctx.parsed.y;
-                            if (v === null) return '  Belum ada data';
-                            return `  YoY: ${v >= 0 ? '+' : ''}${v.toFixed(2).replace('.', ',')}%`;
-                        }
-                    }}
+    new Chart(ctxYoy, {
+        type: 'bar',
+        data: { labels: labsYoy, datasets: [{
+            label: '% YoY', data: dataYoy,
+            backgroundColor: barBg, borderColor: barBrd,
+            borderWidth: 0.5, borderRadius: 3, borderSkipped: false,
+            maxBarThickness: 40,
+        }]},
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: { ...tip, callbacks: {
+                    label: ctx => {
+                        const v = ctx.parsed.y;
+                        if (v === null) return '  Belum ada data';
+                        return `  YoY: ${v >= 0 ? '+' : ''}${v.toFixed(2).replace('.', ',')}%`;
+                    }
+                }}
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: lblClr, font: tFont },
+                    categoryPercentage: 0.5,
+                    barPercentage: 0.6,
                 },
-                scales: {
-                    x: { grid: { display: false }, ticks: { color: lblClr, font: tFont } },
-                    y: scaleY
-                }
+                y: scaleY
             }
-        });
-    }
-});
+        }
+    });
+} // ← penutup if (ctxYoy)
+
+}); // ← penutup DOMContentLoaded
 
 /* ─────────────────────────────────────────────
    SCROLL OTOMATIS SETELAH LOAD

@@ -216,12 +216,12 @@ def run_ihk_forecast():
     Hasil disimpan ke ihk_forecast_bulanan.
 
     Body (opsional):
-        { "periods": 6 }   // default 6, max 24
+        { "periods": 12 }   // default 12, max 24
     """
     try:
         _ensure_init()
         data    = request.get_json(silent=True) or {}
-        periods = int(data.get('periods', 6))
+        periods = int(data.get('periods', 12))
         periods = max(1, min(periods, 24))
 
         print(f"\n[POST /api/ihk/forecast] periods={periods}")
@@ -238,11 +238,11 @@ def run_ihk_forecast():
 def get_ihk_forecast_result():
     """
     Query params:
-        limit : int (default 12, max 24)
+        limit : int (default 24, max 24)
     """
     try:
         _ensure_init()
-        limit  = int(request.args.get('limit', 12))
+        limit  = int(request.args.get('limit', 24))
         limit  = max(1, min(limit, 24))
         result = _forecaster.get_forecast_result(limit=limit)
         status = 200 if result.get('success') else 404
@@ -299,7 +299,7 @@ def run_ihk_forecast_komoditas():
 
     Body (opsional):
         {
-            "periods": 6,                  // default 6, max 12
+            "periods": 12,                  // default 12, max 24
             "komoditas_ids": [1, 2, 3]     // opsional, default semua komoditas
         }
 
@@ -309,7 +309,7 @@ def run_ihk_forecast_komoditas():
             "total_komoditas": 21,
             "berhasil": 20,
             "gagal": 1,
-            "periods": 6,
+            "periods": 12,
             "detail": [
                 {
                     "komoditas_id": 1,
@@ -331,8 +331,8 @@ def run_ihk_forecast_komoditas():
     try:
         _ensure_init()
         data          = request.get_json(silent=True) or {}
-        periods       = int(data.get('periods', 6))
-        periods       = max(1, min(periods, 12))
+        periods       = int(data.get('periods', 12))
+        periods       = max(1, min(periods, 24))
         komoditas_ids = data.get('komoditas_ids') or None
 
         # Validasi komoditas_ids jika dikirim

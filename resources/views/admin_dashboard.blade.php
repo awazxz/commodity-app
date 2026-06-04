@@ -271,6 +271,28 @@
     #global-tooltip {
         font-size: 13px !important;
         line-height: 1.7 !important;
+
+        /* ── Per-form flash ───────────────────────────────────────────────── */
+    .form-flash {
+        display: none; align-items: center; gap: 0.625rem;
+        padding: 0.75rem 1rem; border-radius: 0.5rem;
+        font-size: 13px; font-weight: 600; margin-bottom: 1rem;
+    }
+    .form-flash.show    { display: flex; animation: fadeIn 0.3s ease-out; }
+    .form-flash.success { background:#dcfce7; border:1px solid #86efac; color:#166534; }
+    .form-flash.error   { background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; }
+    html.dark .form-flash.success { background:#14532d; border-color:#166534; color:#86efac; }
+    html.dark .form-flash.error   { background:#7f1d1d; border-color:#991b1b; color:#fca5a5; }
+
+    /* ── Inline edit input di tabel pindai ─────────────────────────────── */
+    .issue-price-input {
+        width: 110px; padding: 3px 6px; font-size: 12px;
+        border: 1px solid #3b82f6; border-radius: 4px;
+        background: #eff6ff; color: #1e40af;
+    }
+    html.dark .issue-price-input {
+        background: #1e3a5f; border-color: #1d4ed8; color: #93c5fd;
+    }
     }
     
     
@@ -314,12 +336,12 @@
 
 {{-- Flash Messages --}}
 @if(session('success'))
-    <div class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-lg flex items-center gap-3">
+    <div id="flash-message" class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300 rounded-lg flex items-center gap-3">
         <i class="fas fa-check-circle"></i><span>{{ session('success') }}</span>
     </div>
 @endif
 @if(session('error'))
-    <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg flex items-center gap-3">
+    <div id="flash-message" class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-lg flex items-center gap-3">
         <i class="fas fa-exclamation-circle"></i><span>{{ session('error') }}</span>
     </div>
 @endif
@@ -735,575 +757,541 @@
 @endif
 
 @if($currentTab == 'manage')
-    <div class="space-y-6 animate-fade-in">
+<div class="space-y-6 animate-fade-in">
 
-        {{-- ── BARIS 1: Tambah Data Baru + Riwayat Database ── --}}
-        <div id="section-tambah-data" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-1">
-                <div class="card-standard p-6">
-                    <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">{{ __('messages.tambah_data_baru') }}</h3>
-                    <div class="flex gap-4 mb-6 border-b dark:border-gray-700 pb-2">
-                        <button onclick="switchInputMode('single')" id="btn-tab-single"
-                                class="text-blue-600 border-b-2 border-blue-600 text-xs uppercase tracking-wider pb-1 font-semibold">{{ __('messages.manual') }}</button>
-                        <button onclick="switchInputMode('bulk')" id="btn-tab-bulk"
-                                class="text-gray-400 dark:text-gray-500 text-xs uppercase tracking-wider pb-1 font-semibold">{{ __('messages.unggah_csv') }}</button>
-                    </div>
-
-                    <form id="form-single" action="{{ route('admin.storeData') }}" method="POST" class="space-y-4 tab-single">
-                        @csrf
-                        <div>
-                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">{{ __('messages.komoditas') }}</label>
-                            <select name="komoditas_id" required
-                                    class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-900 dark:text-gray-100 font-medium outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">{{ __('messages.pilih_komoditas') }}</option>
-                                @foreach($commodities ?? [] as $kom)
-                                    <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
-                                        {{ $kom->display_name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">{{ __('messages.tanggal') }}</label>
-                            <input type="date" name="date" required
-                                   class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">{{ __('messages.harga') }}</label>
-                            <input type="number" name="price" placeholder="{{ __('messages.masukkan_harga') }}" required min="1"
-                                   class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <button type="submit"
-                                class="w-full bg-emerald-500 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-emerald-600 transition-all">
-                            {{ __('messages.simpan_data') }}
-                        </button>
-                    </form>
-
-                    <form id="form-bulk" action="{{ route('admin.manajemen-data.upload-csv') }}" method="POST"
-                          enctype="multipart/form-data" class="space-y-4 tab-bulk">
-                        @csrf
-                        <div>
-                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">{{ __('messages.unggah_file_csv') }}</label>
-                            <div class="p-8 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50/50 dark:bg-gray-700/30 text-center relative hover:border-blue-300 transition-colors" id="dropzone">
-                                <input type="file" name="csv_file" accept=".csv"
-                                       class="absolute inset-0 opacity-0 cursor-pointer"
-                                       onchange="showFileName(this)">
-                                <i class="fas fa-cloud-upload-alt text-gray-300 dark:text-gray-500 text-2xl mb-2"></i>
-                                <p class="text-xs text-gray-400 dark:text-gray-500 font-medium" id="file-name-display">{{ __('messages.pilih_seret_csv') }}</p>
-                                <p class="text-[9px] text-gray-300 dark:text-gray-600 mt-1">{{ __('messages.format_csv_admin') }}</p>
-                            </div>
-                        </div>
-
-                        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                            <div class="flex items-start gap-3">
-                                <i class="fas fa-info-circle text-blue-500 dark:text-blue-400 text-sm mt-0.5"></i>
-                                <div class="flex-1">
-                                    <p class="text-xs text-blue-700 dark:text-blue-300 font-semibold uppercase tracking-tight mb-2">{{ __('messages.template_csv') }}</p>
-                                    <p class="text-[10px] text-blue-600 dark:text-blue-400 mb-3 leading-relaxed">
-                                        {{ __('messages.gunakan_template_standar') }}
-                                    </p>
-                                    <a href="{{ route('admin.downloadTemplate') }}"
-                                       class="inline-flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-colors">
-                                        <i class="fas fa-download"></i>
-                                        {{ __('messages.unduh_template_csv') }}
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-
-                        <button type="submit"
-                                class="w-full bg-blue-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all">
-                            {{ __('messages.unggah_dataset') }}
-                        </button>
-                    </form>
+    {{-- ── BARIS 1: Tambah Data Baru + Riwayat Database ── --}}
+    <div id="section-tambah-data" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1">
+            <div class="card-standard p-6">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4 uppercase tracking-tight">
+                    {{ __('messages.tambah_data_baru') }}
+                </h3>
+                <div class="flex gap-4 mb-4 border-b dark:border-gray-700 pb-2">
+                    <button onclick="switchInputMode('single')" id="btn-tab-single"
+                            class="text-blue-600 border-b-2 border-blue-600 text-xs uppercase tracking-wider pb-1 font-semibold">
+                        {{ __('messages.manual') }}
+                    </button>
+                    <button onclick="switchInputMode('bulk')" id="btn-tab-bulk"
+                            class="text-gray-400 dark:text-gray-500 text-xs uppercase tracking-wider pb-1 font-semibold">
+                        {{ __('messages.unggah_csv') }}
+                    </button>
                 </div>
-            </div>
 
-            {{-- Tabel Riwayat Database --}}
-            <div class="lg:col-span-2">
-                <div class="card-standard overflow-hidden flex flex-col" style="height: fit-content;">
-                    <div class="p-5 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
-                        <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">{{ __('messages.riwayat_database') }}</h3>
-                        <span class="text-xs text-gray-400 dark:text-gray-500">{{ $selectedCommodity }}</span>
-                    </div>
-                    <div class="overflow-x-auto custom-scrollbar" style="max-height: 450px;">
-                        <table class="w-full text-left">
-                            <thead class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 z-10">
-                                <tr class="text-xs text-gray-400 dark:text-gray-500 uppercase font-bold">
-                                    <th class="px-6 py-4">{{ __('messages.komoditas') }}</th>
-                                    <th class="px-6 py-4">{{ __('messages.tanggal') }}</th>
-                                    <th class="px-6 py-4">{{ __('messages.harga') }}</th>
-                                    <th class="px-6 py-4 text-center">{{ __('messages.aksi') }}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
-                                @forelse($latestData ?? [] as $data)
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors" id="row-{{ $data->id }}">
-                                        <td class="px-6 py-4 uppercase font-bold text-blue-600 dark:text-blue-400">
-                                            <span class="commodity-view">{{ $data->komoditas->display_name ?? '-' }}</span>
-                                            <select class="commodity-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
-                                                    data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
-                                                @foreach($commodities ?? [] as $kom)
-                                                    <option value="{{ $kom->id }}" {{ $data->komoditas_id == $kom->id ? 'selected' : '' }}>
-                                                        {{ $kom->display_name }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td class="px-6 py-4 text-gray-500 dark:text-gray-400">
-                                            <span class="date-view">{{ \Carbon\Carbon::parse($data->tanggal)->format('d/m/Y') }}</span>
-                                            <input type="date" class="date-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
-                                                   value="{{ $data->tanggal }}" data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
-                                        </td>
-                                        <td class="px-6 py-4 font-bold text-emerald-600 dark:text-emerald-400">
-                                            <span class="price-view">Rp {{ number_format($data->harga, 0, ',', '.') }}</span>
-                                            <input type="number" class="price-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
-                                                   value="{{ $data->harga }}" data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            <div class="flex items-center justify-center gap-3">
-                                                <button type="button" onclick="toggleEditMode({{ $data->id }})"
-                                                        class="edit-btn text-blue-500 hover:text-blue-700 transition-colors text-sm font-medium">
-                                                    <i class="fas fa-edit"></i> {{ __('messages.edit') }}
-                                                </button>
-                                                <button type="button" onclick="toggleEditMode({{ $data->id }})"
-                                                        class="done-btn hidden text-green-500 hover:text-green-700 transition-colors text-sm font-medium">
-                                                    <i class="fas fa-check"></i> {{ __('messages.selesai') }}
-                                                </button>
-                                                <form action="{{ route('admin.deleteData', $data->id) }}" method="POST"
-                                                      onsubmit="return confirm('{{ __('messages.hapus') }}?')" class="inline delete-form">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit" class="text-red-400 hover:text-red-600 transition-colors text-sm font-medium">
-                                                        <i class="fas fa-trash"></i> {{ __('messages.hapus') }}
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="p-12 text-center">
-                                            <div class="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
-                                                <i class="fas fa-database text-3xl opacity-30"></i>
-                                                <p class="text-sm font-medium">{{ __('messages.data_tidak_ditemukan') }}</p>
-                                                <p class="text-xs">{{ __('messages.pilih_atau_tambah') }}</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
+                {{-- Flash single --}}
+                <div id="flash-add-single" class="form-flash"></div>
 
-                    @if(isset($latestData) && method_exists($latestData, 'hasPages') && $latestData->hasPages())
-                        <div class="px-6 py-4 border-t dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30 flex items-center justify-between">
-                            <div class="text-xs text-gray-500 dark:text-gray-400">
-                                {{ __('messages.menampilkan') }}
-                                {{ $latestData->firstItem() ?? 0 }}–{{ $latestData->lastItem() ?? 0 }}
-                                {{ __('messages.dari') }} {{ $latestData->total() }} {{ __('messages.data') }}
-                            </div>
-                            <div class="flex items-center gap-1">
-                                @if($latestData->onFirstPage())
-                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
-                                @else
-                                    <a href="{{ $latestData->appends(request()->except('dataPage'))->previousPageUrl() }}" class="pg-btn">
-                                        <i class="fas fa-chevron-left"></i>
-                                    </a>
-                                @endif
-                                @php
-                                    $currentDataPage = $latestData->currentPage();
-                                    $lastDataPage    = $latestData->lastPage();
-                                    $startData       = max(1, $currentDataPage - 2);
-                                    $endData         = min($lastDataPage, $currentDataPage + 2);
-                                @endphp
-                                @if($startData > 1)
-                                    <a href="{{ $latestData->appends(request()->except('dataPage'))->url(1) }}" class="pg-btn">1</a>
-                                    @if($startData > 2)<span class="px-1 text-gray-400 text-xs">…</span>@endif
-                                @endif
-                                @for($p = $startData; $p <= $endData; $p++)
-                                    @if($p == $currentDataPage)
-                                        <span class="pg-btn pg-btn-active">{{ $p }}</span>
-                                    @else
-                                        <a href="{{ $latestData->appends(request()->except('dataPage'))->url($p) }}" class="pg-btn">{{ $p }}</a>
-                                    @endif
-                                @endfor
-                                @if($endData < $lastDataPage)
-                                    @if($endData < $lastDataPage - 1)<span class="px-1 text-gray-400 text-xs">…</span>@endif
-                                    <a href="{{ $latestData->appends(request()->except('dataPage'))->url($lastDataPage) }}" class="pg-btn">{{ $lastDataPage }}</a>
-                                @endif
-                                @if($latestData->hasMorePages())
-                                    <a href="{{ $latestData->appends(request()->except('dataPage'))->nextPageUrl() }}" class="pg-btn">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                @else
-                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-right"></i></span>
-                                @endif
+                <form id="form-single" action="{{ route('admin.storeData') }}" method="POST" class="space-y-4 tab-single">
+                    @csrf
+                    <input type="hidden" name="anchor" value="section-tambah-data">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
+                            {{ __('messages.komoditas') }}
+                        </label>
+                        <select name="komoditas_id" required
+                                class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-900 dark:text-gray-100 font-medium outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">{{ __('messages.pilih_komoditas') }}</option>
+                            @foreach($commodities ?? [] as $kom)
+                                <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
+                                    {{ $kom->display_name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
+                            {{ __('messages.tanggal') }}
+                        </label>
+                        <input type="date" name="date" required
+                               class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
+                            {{ __('messages.harga') }}
+                        </label>
+                        <input type="number" name="price" placeholder="{{ __('messages.masukkan_harga') }}" required min="1"
+                               class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button type="submit"
+                            class="w-full bg-emerald-500 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-emerald-600 transition-all">
+                        {{ __('messages.simpan_data') }}
+                    </button>
+                </form>
+
+                {{-- Flash bulk --}}
+                <div id="flash-add-bulk" class="form-flash" style="display:none;"></div>
+
+                <form id="form-bulk" action="{{ route('admin.manajemen-data.upload-csv') }}" method="POST"
+                      enctype="multipart/form-data" class="space-y-4 tab-bulk" style="display:none;">
+                    @csrf
+                    <input type="hidden" name="anchor" value="section-tambah-data">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
+                            {{ __('messages.unggah_file_csv') }}
+                        </label>
+                        <div class="p-8 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50/50 dark:bg-gray-700/30 text-center relative hover:border-blue-300 transition-colors" id="dropzone">
+                            <input type="file" name="csv_file" accept=".csv"
+                                   class="absolute inset-0 opacity-0 cursor-pointer"
+                                   onchange="showFileName(this)">
+                            <i class="fas fa-cloud-upload-alt text-gray-300 dark:text-gray-500 text-2xl mb-2"></i>
+                            <p class="text-xs text-gray-400 dark:text-gray-500 font-medium" id="file-name-display">
+                                {{ __('messages.pilih_seret_csv') }}
+                            </p>
+                            <p class="text-[9px] text-gray-300 dark:text-gray-600 mt-1">{{ __('messages.format_csv_admin') }}</p>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <i class="fas fa-info-circle text-blue-500 dark:text-blue-400 text-sm mt-0.5"></i>
+                            <div class="flex-1">
+                                <p class="text-xs text-blue-700 dark:text-blue-300 font-semibold uppercase tracking-tight mb-2">
+                                    {{ __('messages.template_csv') }}
+                                </p>
+                                <a href="{{ route('admin.downloadTemplate') }}"
+                                   class="inline-flex items-center gap-2 bg-blue-600 text-white px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-blue-700 transition-colors">
+                                    <i class="fas fa-download"></i>
+                                    {{ __('messages.unduh_template_csv') }}
+                                </a>
                             </div>
                         </div>
-                    @endif
-                </div>
+                    </div>
+                    <button type="submit"
+                            class="w-full bg-blue-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all">
+                        {{ __('messages.unggah_dataset') }}
+                    </button>
+                </form>
             </div>
         </div>
 
-        {{-- ── BARIS 2: Form Input Bobot + Tabel Riwayat Bobot ── --}}
-        <div id="section-bobot" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            {{-- Form Input Bobot --}}
-            <div class="lg:col-span-1">
-                <div class="card-standard p-6">
-                    <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 mb-6 uppercase tracking-tight">
-                        </i>Input Bobot Komoditas
+        {{-- Tabel Riwayat Database --}}
+        <div class="lg:col-span-2">
+            <div class="card-standard overflow-hidden flex flex-col">
+                <div class="p-5 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">
+                        {{ __('messages.riwayat_database') }}
                     </h3>
-
-                    <form action="{{ route('admin.storeBobot') }}" method="POST" class="space-y-4">
-                        @csrf
-
-                        <div>
-                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
-                                Komoditas
-                            </label>
-                            <select name="komoditas_id" required
-                                    class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-900 dark:text-gray-100 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
-                                <option value="">— Pilih Komoditas —</option>
-                                @foreach($commodities ?? [] as $kom)
-                                    <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
-                                        {{ $kom->display_name ?? trim($kom->nama_komoditas . ' ' . ($kom->nama_varian ?? '')) }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
-                                Tanggal
-                            </label>
-                            <input type="date" name="tanggal" required
-                                   class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-indigo-500">
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">
-                                Nilai Bobot
-                            </label>
-                            <input type="number" name="nilai_bobot"
-                                   placeholder="Contoh: 3.4116"
-                                   step="0.0001" min="0" required
-                                   class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-indigo-500">
-                            <p class="text-[9px] text-gray-400 dark:text-gray-500 mt-1">Gunakan titik (.) sebagai pemisah desimal</p>
-                        </div>
-
-                        <button type="submit"
-                                class="w-full bg-indigo-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-indigo-700 transition-all">
-                            Simpan Bobot
-                        </button>
-                    </form>
+                    <span class="text-xs text-gray-400 dark:text-gray-500">{{ $selectedCommodity }}</span>
                 </div>
-            </div>
-
-            {{-- Tabel Riwayat Bobot --}}
-            <div class="lg:col-span-2">
-                <div class="card-standard overflow-hidden flex flex-col" style="height: fit-content;">
-                    <div class="p-5 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
-                        <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">
-                            </i>Riwayat Bobot Komoditas
-                        </h3>
-                        <span class="text-xs text-gray-400 dark:text-gray-500">
-                            {{ ($bobotList instanceof \Illuminate\Pagination\LengthAwarePaginator ? $bobotList->total() : count($bobotList ?? [])) }} entri
-                        </span>
-                    </div>
-
-                    <div class="overflow-x-auto custom-scrollbar" style="max-height: 450px;">
-                        <table class="w-full text-left">
-                            <thead class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 z-10">
-                                <tr class="text-xs text-gray-400 dark:text-gray-500 uppercase font-bold">
-                                    <th class="px-5 py-4">Komoditas</th>
-                                    <th class="px-5 py-4">Tanggal</th>
-                                    <th class="px-5 py-4 text-right">Nilai Bobot</th>
-                                    <th class="px-5 py-4 text-center">Aksi</th>
+                <div class="overflow-x-auto custom-scrollbar" style="max-height: 450px;">
+                    <table class="w-full text-left">
+                        <thead class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 z-10">
+                            <tr class="text-xs text-gray-400 dark:text-gray-500 uppercase font-bold">
+                                <th class="px-6 py-4">{{ __('messages.komoditas') }}</th>
+                                <th class="px-6 py-4">{{ __('messages.tanggal') }}</th>
+                                <th class="px-6 py-4">{{ __('messages.harga') }}</th>
+                                <th class="px-6 py-4 text-center">{{ __('messages.aksi') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
+                            @forelse($latestData ?? [] as $data)
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors" id="row-{{ $data->id }}">
+                                    <td class="px-6 py-4 uppercase font-bold text-blue-600 dark:text-blue-400">
+                                        <span class="commodity-view">{{ $data->komoditas->display_name ?? '-' }}</span>
+                                        <select class="commodity-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                                                data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
+                                            @foreach($commodities ?? [] as $kom)
+                                                <option value="{{ $kom->id }}" {{ $data->komoditas_id == $kom->id ? 'selected' : '' }}>
+                                                    {{ $kom->display_name }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="px-6 py-4 text-gray-500 dark:text-gray-400">
+                                        <span class="date-view">{{ \Carbon\Carbon::parse($data->tanggal)->format('d/m/Y') }}</span>
+                                        <input type="date" class="date-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                                               value="{{ \Carbon\Carbon::parse($data->tanggal)->format('Y-m-d') }}" data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
+                                    </td>
+                                    <td class="px-6 py-4 font-bold text-emerald-600 dark:text-emerald-400">
+                                        <span class="price-view">Rp {{ number_format($data->harga, 0, ',', '.') }}</span>
+                                        <input type="number" class="price-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100"
+                                               value="{{ $data->harga }}" data-id="{{ $data->id }}" onchange="autoSaveData({{ $data->id }})">
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center justify-center gap-3">
+                                            <button type="button" onclick="toggleEditMode({{ $data->id }})"
+                                                    class="edit-btn text-blue-500 hover:text-blue-700 transition-colors text-sm font-medium">
+                                                <i class="fas fa-edit"></i> {{ __('messages.edit') }}
+                                            </button>
+                                            <button type="button" onclick="toggleEditMode({{ $data->id }})"
+                                                    class="done-btn hidden text-green-500 hover:text-green-700 transition-colors text-sm font-medium">
+                                                <i class="fas fa-check"></i> {{ __('messages.selesai') }}
+                                            </button>
+                                            <form action="{{ route('admin.deleteData', $data->id) }}" method="POST"
+                                                  class="inline delete-form">
+                                                @csrf @method('DELETE')
+                                                <button type="button"
+                                                        onclick="confirmDeleteData(this, '{{ \Carbon\Carbon::parse($data->tanggal)->format('d/m/Y') }}', 'Rp {{ number_format($data->harga, 0, ',', '.') }}')"
+                                                        class="text-red-400 hover:text-red-600 transition-colors text-sm font-medium">
+                                                    <i class="fas fa-trash"></i> {{ __('messages.hapus') }}
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
-                                @forelse($bobotList ?? [] as $bobot)
-                                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors" id="bobot-row-{{ $bobot->id }}">
-
-                                        <td class="px-5 py-4 font-bold text-indigo-600 dark:text-indigo-400">
-                                            <span class="bobot-komoditas-view">{{ $bobot->nama_komoditas }}</span>
-                                            <select class="bobot-komoditas-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
-                                                    data-id="{{ $bobot->id }}" onchange="autoSaveBobot({{ $bobot->id }})">
-                                                @foreach($commodities ?? [] as $kom)
-                                                    <option value="{{ $kom->id }}" {{ $bobot->komoditas_id == $kom->id ? 'selected' : '' }}>
-                                                        {{ $kom->display_name ?? trim($kom->nama_komoditas . ' ' . ($kom->nama_varian ?? '')) }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-
-                                        <td class="px-5 py-4 text-gray-500 dark:text-gray-400">
-                                            <span class="bobot-tanggal-view">
-                                                {{ \Carbon\Carbon::parse($bobot->tanggal)->format('d/m/Y') }}
-                                            </span>
-                                            <input type="date"
-                                                   class="bobot-tanggal-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
-                                                   value="{{ $bobot->tanggal }}"
-                                                   data-id="{{ $bobot->id }}"
-                                                   onchange="autoSaveBobot({{ $bobot->id }})">
-                                        </td>
-
-                                        <td class="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                                            <span class="bobot-nilai-view">{{ number_format($bobot->nilai_bobot, 10, '.', '') }}</span>
-                                            <input type="number" step="0.0001" min="0"
-                                                   class="bobot-nilai-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs text-right focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
-                                                   value="{{ $bobot->nilai_bobot }}"
-                                                   data-id="{{ $bobot->id }}"
-                                                   onchange="autoSaveBobot({{ $bobot->id }})">
-                                        </td>
-
-                                        <td class="px-5 py-4">
-                                            <div class="flex items-center justify-center gap-3">
-                                                <button type="button" onclick="toggleBobotEdit({{ $bobot->id }})"
-                                                        class="bobot-edit-btn text-indigo-500 hover:text-indigo-700 transition-colors text-sm font-medium">
-                                                    <i class="fas fa-edit"></i> Edit
-                                                </button>
-                                                <button type="button" onclick="toggleBobotEdit({{ $bobot->id }})"
-                                                        class="bobot-done-btn hidden text-green-500 hover:text-green-700 transition-colors text-sm font-medium">
-                                                    <i class="fas fa-check"></i> Selesai
-                                                </button>
-                                                <form action="{{ route('admin.deleteBobot', $bobot->id) }}" method="POST"
-                                                      onsubmit="return confirm('Hapus data bobot ini?')"
-                                                      class="inline bobot-delete-form">
-                                                    @csrf @method('DELETE')
-                                                    <button type="submit"
-                                                            class="text-red-400 hover:text-red-600 transition-colors text-sm font-medium">
-                                                        <i class="fas fa-trash"></i> Hapus
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="p-12 text-center">
-                                            <div class="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
-                                                <i class="fas fa-weight-hanging text-3xl opacity-30"></i>
-                                                <p class="text-sm font-medium">Belum ada data bobot</p>
-                                                <p class="text-xs">Gunakan form di kiri untuk menambahkan bobot</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-
-                    @if(isset($bobotList) && $bobotList instanceof \Illuminate\Pagination\LengthAwarePaginator && $bobotList->hasPages())
-                        <div class="px-6 py-4 border-t dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30 flex items-center justify-between">
-                            <div class="text-xs text-gray-500 dark:text-gray-400">
-                                Menampilkan {{ $bobotList->firstItem() ?? 0 }}–{{ $bobotList->lastItem() ?? 0 }}
-                                dari {{ $bobotList->total() }} data
-                            </div>
-                            <div class="flex items-center gap-1">
-                                @if($bobotList->onFirstPage())
-                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
-                                @else
-                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->previousPageUrl() }}" class="pg-btn">
-                                        <i class="fas fa-chevron-left"></i>
-                                    </a>
-                                @endif
-                                @php
-                                    $curBobot   = $bobotList->currentPage();
-                                    $lastBobot  = $bobotList->lastPage();
-                                    $startBobot = max(1, $curBobot - 2);
-                                    $endBobot   = min($lastBobot, $curBobot + 2);
-                                @endphp
-                                @if($startBobot > 1)
-                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url(1) }}" class="pg-btn">1</a>
-                                    @if($startBobot > 2)<span class="px-1 text-gray-400 text-xs">…</span>@endif
-                                @endif
-                                @for($p = $startBobot; $p <= $endBobot; $p++)
-                                    @if($p == $curBobot)
-                                        <span class="pg-btn pg-btn-active">{{ $p }}</span>
-                                    @else
-                                        <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url($p) }}" class="pg-btn">{{ $p }}</a>
-                                    @endif
-                                @endfor
-                                @if($endBobot < $lastBobot)
-                                    @if($endBobot < $lastBobot - 1)<span class="px-1 text-gray-400 text-xs">…</span>@endif
-                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url($lastBobot) }}" class="pg-btn">{{ $lastBobot }}</a>
-                                @endif
-                                @if($bobotList->hasMorePages())
-                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->nextPageUrl() }}" class="pg-btn">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                @else
-                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-right"></i></span>
-                                @endif
-                            </div>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-
-        {{-- ── BARIS 3: Data Cleaning + Hasil Pemindaian ── --}}
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div class="lg:col-span-1">
-                <div class="card-standard p-6" style="height: fit-content;">
-                    <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight mb-6">{{ __('messages.pembersihan_data') }}</h3>
-
-                    <form action="{{ route('admin.predict') }}" method="POST" class="mb-6 pb-6 border-b dark:border-gray-700">
-                        @csrf
-                        <input type="hidden" name="tab" value="manage">
-                        <label class="text-xs text-gray-700 dark:text-gray-300 font-semibold block mb-2 uppercase tracking-tight">{{ __('messages.pindai_data') }}</label>
-                        <div class="flex gap-2">
-                            <select name="komoditas_id"
-                                    class="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100">
-                                <option value="">{{ __('messages.pilih_komoditas') }}</option>
-                                @foreach($commodities ?? [] as $kom)
-                                    <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
-                                        {{ $kom->display_name }}
-                                    </option>
-                                @endforeach
-                            </select>
-                            <button type="submit" class="bg-blue-600 text-white px-4 rounded-lg text-xs font-bold uppercase hover:bg-blue-700">{{ __('messages.pindai') }}</button>
-                        </div>
-                    </form>
-
-                    <div id="section-outlier"></div>
-                    <form action="{{ route('admin.cleanData') }}" method="POST" class="space-y-6">
-                        @csrf
-                        <input type="hidden" name="komoditas_id" value="{{ $selectedKomoditasId }}">
-                        <div class="space-y-4">
-                            <div>
-                                <label class="text-xs text-gray-700 dark:text-gray-300 font-semibold block mb-2 uppercase tracking-tight">{{ __('messages.deteksi_outlier') }}</label>
-                                <div class="flex items-center gap-2">
-                                    <select name="outlier_method"
-                                            class="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-2.5 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100">
-                                        <option value="remove">{{ __('messages.hapus_outlier') }}</option>
-                                        <option value="mean">{{ __('messages.ganti_rata_rata') }}</option>
-                                        <option value="median">{{ __('messages.ganti_median') }}</option>
-                                    </select>
-                                    <button type="submit" name="action" value="outlier"
-                                            class="bg-orange-500 text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-orange-600 whitespace-nowrap">
-                                        {{ __('messages.terapkan') }}
-                                    </button>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="text-xs text-gray-700 dark:text-gray-300 font-semibold block mb-2 uppercase tracking-tight">{{ __('messages.nilai_hilang') }}</label>
-                                <div class="flex items-center gap-2">
-                                    <select name="missing_method"
-                                            class="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-2.5 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100">
-                                        <option value="mean">{{ __('messages.isi_rata_rata') }}</option>
-                                        <option value="median">{{ __('messages.isi_median') }}</option>
-                                        <option value="remove">{{ __('messages.hapus_data_kosong') }}</option>
-                                    </select>
-                                    <button type="submit" name="action" value="missing"
-                                            class="bg-blue-600 text-white px-4 py-2.5 rounded-lg text-xs font-bold hover:bg-blue-700 whitespace-nowrap">
-                                        {{ __('messages.terapkan') }}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-
-            {{-- Tabel Hasil Pemindaian --}}
-            <div class="lg:col-span-2">
-                <div class="card-standard border-orange-200 dark:border-orange-800 overflow-hidden flex flex-col" style="height: fit-content;">
-                    <div class="p-4 bg-orange-50/50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-800 flex justify-between items-center">
-                        <h3 class="text-xs text-orange-700 dark:text-orange-400 font-bold uppercase tracking-tight">{{ __('messages.hasil_pemindaian') }}: {{ $selectedCommodity }}</h3>
-                        <span class="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded text-[10px] font-bold">
-                            {{ ($dataIssues instanceof \Illuminate\Pagination\LengthAwarePaginator ? $dataIssues->total() : count($dataIssues ?? [])) }} {{ __('messages.temuan') }}
-                        </span>
-                    </div>
-                    <div class="overflow-x-auto custom-scrollbar" style="max-height: 350px;">
-                        <table class="w-full text-left">
-                            <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0 text-xs text-gray-400 dark:text-gray-500 uppercase font-bold z-10">
+                            @empty
                                 <tr>
-                                    <th class="px-6 py-3">{{ __('messages.tanggal') }}</th>
-                                    <th class="px-6 py-3">{{ __('messages.jenis_masalah') }}</th>
-                                    <th class="px-6 py-3">{{ __('messages.nilai') }}</th>
-                                    <th class="px-6 py-3">{{ __('messages.status') }}</th>
+                                    <td colspan="4" class="p-12 text-center">
+                                        <div class="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
+                                            <i class="fas fa-database text-3xl opacity-30"></i>
+                                            <p class="text-sm font-medium">{{ __('messages.data_tidak_ditemukan') }}</p>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
-                                @forelse($dataIssues ?? [] as $issue)
-                                    <tr class="bg-orange-50/20 dark:bg-orange-900/5 hover:bg-orange-50/40 dark:hover:bg-orange-900/10 transition-colors">
-                                        <td class="px-6 py-3 font-medium text-gray-700 dark:text-gray-300">{{ \Carbon\Carbon::parse($issue->date)->format('d/m/Y') }}</td>
-                                        <td class="px-6 py-3">
-                                            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $issue->issue == 'Outlier' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' }}">
-                                                {{ $issue->issue }}
-                                            </span>
-                                        </td>
-                                        <td class="px-6 py-3 font-medium text-gray-700 dark:text-gray-300">Rp {{ number_format($issue->value, 0, ',', '.') }}</td>
-                                        <td class="px-6 py-3 text-gray-500 dark:text-gray-400">{{ $issue->status }}</td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="p-8 text-center">
-                                            <div class="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
-                                                <i class="fas fa-check-circle text-2xl text-green-400 opacity-60"></i>
-                                                <p class="text-sm font-medium">{{ __('messages.tidak_ada_masalah') }}</p>
-                                                <p class="text-xs">{{ __('messages.data_sudah_bersih') }}</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-
-                    @if(isset($dataIssues) && $dataIssues instanceof \Illuminate\Pagination\LengthAwarePaginator && $dataIssues->hasPages())
-                        <div class="px-4 py-3 border-t border-orange-100 dark:border-orange-900 bg-orange-50/20 dark:bg-orange-900/5 flex items-center justify-between">
-                            <div class="text-xs text-orange-600 dark:text-orange-400">
-                                {{ $dataIssues->firstItem() }}–{{ $dataIssues->lastItem() }}
-                                {{ __('messages.dari') }} {{ $dataIssues->total() }} {{ __('messages.temuan') }}
-                            </div>
-                            <div class="flex items-center gap-1">
-                                @if($dataIssues->onFirstPage())
-                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
-                                @else
-                                    <a href="{{ $dataIssues->appends(request()->except('issuePage'))->previousPageUrl() }}" class="pg-btn">
-                                        <i class="fas fa-chevron-left"></i>
-                                    </a>
-                                @endif
-                                @php
-                                    $currentIssuePage = $dataIssues->currentPage();
-                                    $lastIssuePage    = $dataIssues->lastPage();
-                                    $startIssue       = max(1, $currentIssuePage - 2);
-                                    $endIssue         = min($lastIssuePage, $currentIssuePage + 2);
-                                @endphp
-                                @if($startIssue > 1)
-                                    <a href="{{ $dataIssues->appends(request()->except('issuePage'))->url(1) }}" class="pg-btn">1</a>
-                                    @if($startIssue > 2)<span class="px-1 text-gray-400 text-xs">…</span>@endif
-                                @endif
-                                @for($p = $startIssue; $p <= $endIssue; $p++)
-                                    @if($p == $currentIssuePage)
-                                        <span class="pg-btn pg-btn-active">{{ $p }}</span>
-                                    @else
-                                        <a href="{{ $dataIssues->appends(request()->except('issuePage'))->url($p) }}" class="pg-btn">{{ $p }}</a>
-                                    @endif
-                                @endfor
-                                @if($endIssue < $lastIssuePage)
-                                    @if($endIssue < $lastIssuePage - 1)<span class="px-1 text-gray-400 text-xs">…</span>@endif
-                                    <a href="{{ $dataIssues->appends(request()->except('issuePage'))->url($lastIssuePage) }}" class="pg-btn">{{ $lastIssuePage }}</a>
-                                @endif
-                                @if($dataIssues->hasMorePages())
-                                    <a href="{{ $dataIssues->appends(request()->except('issuePage'))->nextPageUrl() }}" class="pg-btn">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                @else
-                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-right"></i></span>
-                                @endif
-                            </div>
-                        </div>
-                    @endif
+                            @endforelse
+                        </tbody>
+                    </table>
                 </div>
+                @if(isset($latestData) && method_exists($latestData, 'hasPages') && $latestData->hasPages())
+                    <div class="px-6 py-4 border-t dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30 flex items-center justify-between">
+                        <div class="text-xs text-gray-500 dark:text-gray-400">
+                            {{ $latestData->firstItem() ?? 0 }}–{{ $latestData->lastItem() ?? 0 }}
+                            dari {{ $latestData->total() }} data
+                        </div>
+                        <div class="flex items-center gap-1">
+                            {{-- pagination links --}}
+                            {{ $latestData->appends(request()->except('dataPage'))->links('vendor.pagination.simple-mini') }}
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    {{-- ── BARIS 2: Input Bobot + Riwayat Bobot ── --}}
+    <div id="section-bobot" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-1">
+            <div class="card-standard p-6">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4 uppercase tracking-tight">
+                    Input Bobot Komoditas
+                </h3>
+
+                {{-- Flash bobot --}}
+                <div id="flash-bobot" class="form-flash"></div>
+
+                <form id="form-bobot" action="{{ route('admin.storeBobot') }}" method="POST" class="space-y-4">
+                    @csrf
+                    <input type="hidden" name="anchor" value="section-bobot">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">Komoditas</label>
+                        <select name="komoditas_id" required
+                                class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-900 dark:text-gray-100 font-medium outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="">— Pilih Komoditas —</option>
+                            @foreach($commodities ?? [] as $kom)
+                                <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
+                                    {{ $kom->display_name ?? trim($kom->nama_komoditas . ' ' . ($kom->nama_varian ?? '')) }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">Tanggal</label>
+                        <input type="date" name="tanggal" required
+                               class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-1.5 block tracking-tight">Nilai Bobot</label>
+                        <input type="number" name="nilai_bobot" placeholder="Contoh: 3.4116"
+                               step="0.0001" min="0" required
+                               class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 text-xs text-gray-600 dark:text-gray-300 font-medium focus:ring-2 focus:ring-indigo-500">
+                        <p class="text-[9px] text-gray-400 dark:text-gray-500 mt-1">Gunakan titik (.) sebagai pemisah desimal</p>
+                    </div>
+                    <button type="submit"
+                            class="w-full bg-indigo-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-indigo-700 transition-all">
+                        Simpan Bobot
+                    </button>
+                </form>
             </div>
         </div>
 
+        <div class="lg:col-span-2">
+            <div class="card-standard overflow-hidden flex flex-col">
+                <div class="p-5 border-b dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50 flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight">Riwayat Bobot Komoditas</h3>
+                    <span class="text-xs text-gray-400 dark:text-gray-500">
+                        {{ ($bobotList instanceof \Illuminate\Pagination\LengthAwarePaginator ? $bobotList->total() : count($bobotList ?? [])) }} entri
+                    </span>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar" style="max-height: 450px;">
+                    <table class="w-full text-left">
+                        <thead class="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700 z-10">
+                            <tr class="text-xs text-gray-400 dark:text-gray-500 uppercase font-bold">
+                                <th class="px-5 py-4">Komoditas</th>
+                                <th class="px-5 py-4">Tanggal</th>
+                                <th class="px-5 py-4 text-right">Nilai Bobot</th>
+                                <th class="px-5 py-4 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
+                            @forelse($bobotList ?? [] as $bobot)
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors" id="bobot-row-{{ $bobot->id }}">
+                                    <td class="px-5 py-4 font-bold text-indigo-600 dark:text-indigo-400">
+                                        <span class="bobot-komoditas-view">{{ $bobot->nama_komoditas }}</span>
+                                        <select class="bobot-komoditas-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs font-medium focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+                                                data-id="{{ $bobot->id }}" onchange="autoSaveBobot({{ $bobot->id }})">
+                                            @foreach($commodities ?? [] as $kom)
+                                                <option value="{{ $kom->id }}" {{ $bobot->komoditas_id == $kom->id ? 'selected' : '' }}>
+                                                    {{ $kom->display_name ?? trim($kom->nama_komoditas . ' ' . ($kom->nama_varian ?? '')) }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </td>
+                                    <td class="px-5 py-4 text-gray-500 dark:text-gray-400">
+                                        <span class="bobot-tanggal-view">{{ \Carbon\Carbon::parse($bobot->tanggal)->format('d/m/Y') }}</span>
+                                        <input type="date" class="bobot-tanggal-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+                                               value="{{ \Carbon\Carbon::parse($bobot->tanggal)->format('Y-m-d') }}" data-id="{{ $bobot->id }}" onchange="autoSaveBobot({{ $bobot->id }})">
+                                    </td>
+                                    <td class="px-5 py-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
+                                        <span class="bobot-nilai-view">{{ number_format($bobot->nilai_bobot, 4, '.', '') }}</span>
+                                        <input type="number" step="0.0001" min="0"
+                                               class="bobot-nilai-edit hidden w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-xs text-right focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+                                               value="{{ $bobot->nilai_bobot }}" data-id="{{ $bobot->id }}" onchange="autoSaveBobot({{ $bobot->id }})">
+                                    </td>
+                                    <td class="px-5 py-4">
+                                        <div class="flex items-center justify-center gap-3">
+                                            <button type="button" onclick="toggleBobotEdit({{ $bobot->id }})"
+                                                    class="bobot-edit-btn text-indigo-500 hover:text-indigo-700 transition-colors text-sm font-medium">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            <button type="button" onclick="toggleBobotEdit({{ $bobot->id }})"
+                                                    class="bobot-done-btn hidden text-green-500 hover:text-green-700 transition-colors text-sm font-medium">
+                                                <i class="fas fa-check"></i> Selesai
+                                            </button>
+                                            <form action="{{ route('admin.deleteBobot', $bobot->id) }}" method="POST"
+                                                  class="inline bobot-delete-form">
+                                                @csrf @method('DELETE')
+                                                <button type="button"
+                                                        onclick="confirmDeleteBobot(this, '{{ addslashes($bobot->nama_komoditas) }}', '{{ \Carbon\Carbon::parse($bobot->tanggal)->format('d/m/Y') }}', '{{ number_format($bobot->nilai_bobot, 4, '.', '') }}')"
+                                                        class="text-red-400 hover:text-red-600 transition-colors text-sm font-medium">
+                                                    <i class="fas fa-trash"></i> Hapus
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="p-12 text-center">
+                                        <div class="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
+                                            <i class="fas fa-weight-hanging text-3xl opacity-30"></i>
+                                            <p class="text-sm font-medium">Belum ada data bobot</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
+
+    {{-- ── BARIS 3: Data Cleaning + Hasil Pemindaian ── --}}
+    <div id="section-outlier" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {{-- Form Pindai & Clean -- LAYOUT DIPERBAIKI --}}
+        <div class="lg:col-span-1 space-y-4">
+
+            {{-- Form Pindai --}}
+            <div class="card-standard p-5">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight mb-4">
+                    {{ __('messages.pindai_data') }}
+                </h3>
+                <form action="{{ route('admin.predict') }}" method="POST">
+                    @csrf
+                    <input type="hidden" name="tab" value="manage">
+                    <input type="hidden" name="anchor" value="section-outlier">
+                    <div class="flex items-center gap-2 overflow-hidden">
+                        <select name="komoditas_id"
+                                class="min-w-0 flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100">
+                            <option value="">{{ __('messages.pilih_komoditas') }}</option>
+                            @foreach($commodities ?? [] as $kom)
+                                <option value="{{ $kom->id }}" {{ $selectedKomoditasId == $kom->id ? 'selected' : '' }}>
+                                    {{ $kom->display_name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <button type="submit"
+                                class="shrink-0 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold uppercase hover:bg-blue-700 transition-all flex items-center gap-1">
+                            {{ __('messages.pindai') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {{-- Form Clean --}}
+            <div class="card-standard p-5">
+                <h3 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-tight mb-4">
+                    {{ __('messages.pembersihan_data') }}
+                </h3>
+
+                {{-- Flash outlier --}}
+                <div id="flash-outlier" class="form-flash"></div>
+
+                <form id="form-clean" action="{{ route('admin.cleanData') }}" method="POST" class="space-y-4">
+                    @csrf
+                    <input type="hidden" name="komoditas_id" value="{{ $selectedKomoditasId }}">
+                    <input type="hidden" name="anchor" value="section-outlier">
+
+                    <div>
+                        <label class="text-xs text-gray-700 dark:text-gray-300 font-semibold block mb-2 uppercase tracking-tight">
+                            {{ __('messages.deteksi_outlier') }}
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <select name="outlier_method" class="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-2 text-xs font-medium outline-none focus:ring-2 focus:ring-orange-400 text-gray-900 dark:text-gray-100">
+                                <option value="remove">{{ __('messages.hapus_outlier') }}</option>
+                                <option value="mean">{{ __('messages.ganti_rata_rata') }}</option>
+                                <option value="median">{{ __('messages.ganti_median') }}</option>
+                            </select>
+                            <button type="button" onclick="confirmCleanAction('outlier', this)"
+                                    class="shrink-0 bg-orange-500 text-white px-3 py-2 rounded-lg text-xs font-bold uppercase hover:bg-orange-600 transition-all">
+                                {{ __('messages.terapkan') }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-gray-100 dark:border-gray-700">
+                        <label class="text-xs text-gray-700 dark:text-gray-300 font-semibold block mb-2 uppercase tracking-tight">
+                            {{ __('messages.nilai_hilang') }}
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <select name="missing_method" class="flex-1 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-gray-100">
+                                <option value="mean">{{ __('messages.isi_rata_rata') }}</option>
+                                <option value="median">{{ __('messages.isi_median') }}</option>
+                                <option value="remove">{{ __('messages.hapus_data_kosong') }}</option>
+                            </select>
+                            <button type="button" onclick="confirmCleanAction('missing', this)"
+                                    class="shrink-0 bg-blue-600 text-white px-3 py-2 rounded-lg text-xs font-bold uppercase hover:bg-blue-700 transition-all">
+                                {{ __('messages.terapkan') }}
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {{-- Tabel Hasil Pemindaian — sekarang dengan kolom Aksi Edit & Hapus --}}
+        <div class="lg:col-span-2">
+            <div class="card-standard border-orange-200 dark:border-orange-800 overflow-hidden flex flex-col">
+                <div class="p-4 bg-orange-50/50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-800 flex justify-between items-center">
+                    <h3 class="text-xs text-orange-700 dark:text-orange-400 font-bold uppercase tracking-tight">
+                        {{ __('messages.hasil_pemindaian') }}: {{ $selectedCommodity }}
+                    </h3>
+                    <span class="bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded text-[10px] font-bold">
+                        {{ ($dataIssues instanceof \Illuminate\Pagination\LengthAwarePaginator ? $dataIssues->total() : count($dataIssues ?? [])) }} {{ __('messages.temuan') }}
+                    </span>
+                </div>
+                <div class="overflow-x-auto custom-scrollbar" style="max-height: 420px;">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-50 dark:bg-gray-800 sticky top-0 text-xs text-gray-400 dark:text-gray-500 uppercase font-bold z-10">
+                            <tr>
+                                <th class="px-4 py-3">{{ __('messages.tanggal') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.jenis_masalah') }}</th>
+                                <th class="px-4 py-3 text-right">{{ __('messages.nilai') }}</th>
+                                <th class="px-4 py-3">{{ __('messages.status') }}</th>
+                                <th class="px-4 py-3 text-center" style="min-width:120px;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100 dark:divide-gray-700 text-xs">
+                            @forelse($dataIssues ?? [] as $issue)
+                                <tr class="bg-orange-50/20 dark:bg-orange-900/5 hover:bg-orange-50/40 dark:hover:bg-orange-900/10 transition-colors"
+                                    id="issue-row-{{ $issue->id }}">
+                                    <td class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">
+                                        {{ \Carbon\Carbon::parse($issue->date)->format('d/m/Y') }}
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold
+                                            {{ $issue->issue == 'Outlier'
+                                                ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                                                : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400' }}">
+                                            {{ $issue->issue }}
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">
+                                        {{-- View mode --}}
+                                        <span class="issue-val-view" id="issue-val-{{ $issue->id }}">
+                                            Rp {{ number_format($issue->value, 0, ',', '.') }}
+                                        </span>
+                                        {{-- Edit mode: input harga --}}
+                                        <input type="number"
+                                               id="issue-price-input-{{ $issue->id }}"
+                                               class="issue-price-input hidden"
+                                               value="{{ $issue->value }}"
+                                               min="1" step="1"
+                                               style="width:110px; padding:3px 6px; font-size:12px; border:1px solid #3b82f6; border-radius:4px;">
+                                    </td>
+                                    <td class="px-4 py-3 text-gray-500 dark:text-gray-400">
+                                        {{ $issue->status }}
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center justify-center gap-2">
+                                            {{-- Tombol Edit --}}
+                                            <button type="button"
+                                                    id="issue-edit-btn-{{ $issue->id }}"
+                                                    onclick="toggleIssueEdit({{ $issue->id }})"
+                                                    class="text-blue-500 hover:text-blue-700 text-xs font-bold flex items-center gap-1 transition-colors">
+                                                <i class="fas fa-edit"></i> Edit
+                                            </button>
+                                            {{-- Tombol Simpan (tersembunyi) --}}
+                                            <button type="button"
+                                                    id="issue-save-btn-{{ $issue->id }}"
+                                                    onclick="saveIssuePrice({{ $issue->id }})"
+                                                    class="hidden text-green-500 hover:text-green-700 text-xs font-bold flex items-center gap-1 transition-colors">
+                                                <i class="fas fa-check"></i> Simpan
+                                            </button>
+                                            {{-- Tombol Batal (tersembunyi) --}}
+                                            <button type="button"
+                                                    id="issue-cancel-btn-{{ $issue->id }}"
+                                                    onclick="cancelIssueEdit({{ $issue->id }})"
+                                                    class="hidden text-gray-400 hover:text-gray-600 text-xs font-bold transition-colors">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                            {{-- Tombol Hapus --}}
+                                            <form action="{{ route('admin.deleteData', $issue->id) }}" method="POST"
+                                                  class="inline" id="issue-delete-form-{{ $issue->id }}">
+                                                @csrf @method('DELETE')
+                                                <button type="button"
+                                                        onclick="confirmDeleteIssue({{ $issue->id }}, '{{ \Carbon\Carbon::parse($issue->date)->format('d/m/Y') }}', '{{ $issue->issue }}')"
+                                                        class="text-red-400 hover:text-red-600 transition-colors text-xs font-bold flex items-center gap-1">
+                                                    <i class="fas fa-trash"></i> Hapus
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="5" class="p-8 text-center">
+                                        <div class="flex flex-col items-center gap-2 text-gray-400 dark:text-gray-500">
+                                            <i class="fas fa-check-circle text-2xl text-green-400 opacity-60"></i>
+                                            <p class="text-sm font-medium">{{ __('messages.tidak_ada_masalah') }}</p>
+                                            <p class="text-xs">{{ __('messages.data_sudah_bersih') }}</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                @if(isset($dataIssues) && $dataIssues instanceof \Illuminate\Pagination\LengthAwarePaginator && $dataIssues->hasPages())
+                    <div class="px-4 py-3 border-t border-orange-100 dark:border-orange-900 bg-orange-50/20 dark:bg-orange-900/5 flex items-center justify-between">
+                        <div class="text-xs text-orange-600 dark:text-orange-400">
+                            {{ $dataIssues->firstItem() }}–{{ $dataIssues->lastItem() }} dari {{ $dataIssues->total() }} temuan
+                        </div>
+                        <div class="flex gap-1">
+                            @if(!$dataIssues->onFirstPage())
+                                <a href="{{ $dataIssues->previousPageUrl() }}" class="pg-btn"><i class="fas fa-chevron-left"></i></a>
+                            @endif
+                            @if($dataIssues->hasMorePages())
+                                <a href="{{ $dataIssues->nextPageUrl() }}" class="pg-btn"><i class="fas fa-chevron-right"></i></a>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+
+</div>
 @endif
 
 @if($currentTab == 'users')
@@ -2021,6 +2009,19 @@ function showNotification(message, type = 'success') {
     setTimeout(() => { notification.style.opacity = '0'; notification.style.transform = 'translateX(100%)'; notification.style.transition = 'all 0.3s ease'; setTimeout(() => notification.remove(), 300); }, 3000);
 }
 
+// ── Auto-scroll ke flash message setelah redirect ──
+document.addEventListener('DOMContentLoaded', function () {
+    const flash = document.getElementById('flash-message');
+    if (flash) {
+        setTimeout(function () {
+            flash.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            // highlight sebentar
+            flash.style.transition = 'box-shadow 0.3s';
+            flash.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.3)';
+            setTimeout(() => { flash.style.boxShadow = ''; }, 1500);
+        }, 200);
+    }
+});
 @if(request()->isMethod('post') && ($currentTab ?? 'insight') === 'insight')
 // Scroll ke hasil setelah POST submit parameter
 document.addEventListener('DOMContentLoaded', function () {
@@ -2093,6 +2094,369 @@ document.addEventListener('DOMContentLoaded', function () {
     const observer = new MutationObserver(bind);
     observer.observe(document.body, { childList: true, subtree: true });
 })();
-</script>
 
+// ── SweetAlert: Hapus record dari tabel Outlier/Missing ─────
+function confirmDeleteIssue(id, tanggal, jenis) {
+    Swal.fire({
+        icon: 'warning',
+        title: 'Hapus Data ' + jenis + '?',
+        html: `<div class="text-center">
+            <p class="text-gray-600">Tanggal: <strong>${tanggal}</strong></p>
+            <p class="text-red-500 text-xs mt-2">Data akan dihapus permanen dari database!</p>
+        </div>`,
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#9ca3af',
+        confirmButtonText: '<i class="fas fa-trash mr-1"></i> Ya, Hapus!',
+        cancelButtonText: 'Batal',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('issue-delete-form-' + id).submit();
+        }
+    });
+}
+
+// ── Override semua tombol Hapus data harga ───────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    // Hapus data harga
+    document.querySelectorAll('.delete-form button[type="submit"]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form = btn.closest('.delete-form');
+            const row  = btn.closest('tr');
+            const tanggal = row ? (row.querySelector('.date-view')?.textContent?.trim() || '—') : '—';
+            const harga   = row ? (row.querySelector('.price-view')?.textContent?.trim() || '—') : '—';
+            Swal.fire({
+                icon: 'warning',
+                title: 'Hapus Data Harga?',
+                html: `<div class="text-left text-sm space-y-1 mt-2">
+                    <div class="flex gap-2"><span class="text-gray-400 w-20">Tanggal</span><span class="font-semibold">: ${tanggal}</span></div>
+                    <div class="flex gap-2"><span class="text-gray-400 w-20">Harga</span><span class="font-semibold text-red-500">: ${harga}</span></div>
+                    <p class="text-red-500 text-xs mt-2">Tindakan ini tidak dapat dibatalkan!</p>
+                </div>`,
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#9ca3af',
+                confirmButtonText: '<i class="fas fa-trash mr-1"></i> Ya, Hapus!',
+                cancelButtonText: 'Batal',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) form.submit();
+            });
+        });
+    });
+
+    // Hapus data bobot
+    document.querySelectorAll('.bobot-delete-form button[type="submit"]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const form     = btn.closest('.bobot-delete-form');
+            const row      = btn.closest('tr');
+            const komoditas = row ? (row.querySelector('.bobot-komoditas-view')?.textContent?.trim() || '—') : '—';
+            const tanggal   = row ? (row.querySelector('.bobot-tanggal-view')?.textContent?.trim() || '—') : '—';
+            const nilai     = row ? (row.querySelector('.bobot-nilai-view')?.textContent?.trim() || '—') : '—';
+            Swal.fire({
+                icon: 'warning',
+                title: 'Hapus Data Bobot?',
+                html: `<div class="text-left text-sm space-y-1 mt-2">
+                    <div class="flex gap-2"><span class="text-gray-400 w-28">Komoditas</span><span class="font-semibold">: ${komoditas}</span></div>
+                    <div class="flex gap-2"><span class="text-gray-400 w-28">Tanggal</span><span class="font-semibold">: ${tanggal}</span></div>
+                    <div class="flex gap-2"><span class="text-gray-400 w-28">Nilai Bobot</span><span class="font-semibold text-indigo-600">: ${nilai}</span></div>
+                    <p class="text-red-500 text-xs mt-2">Tindakan ini tidak dapat dibatalkan!</p>
+                </div>`,
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#9ca3af',
+                confirmButtonText: '<i class="fas fa-trash mr-1"></i> Ya, Hapus!',
+                cancelButtonText: 'Batal',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) form.submit();
+            });
+        });
+    });
+});
+// ═══════════════════════════════════════════════════════════════
+//  MANAGE TAB UX — Per-form flash, SweetAlert, Issue edit/hapus
+// ═══════════════════════════════════════════════════════════════
+
+// ── Config URLs (ganti 'admin' → 'operator' untuk view operator) ─
+var _CSRF      = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+var _UPDATA    = '{{ url("/admin/update-data") }}';
+var _UPBOBOT   = '{{ url("/admin/update-bobot") }}';
+
+// ── Per-form flash ───────────────────────────────────────────────
+function showFormFlash(id, msg, type) {
+    type = type || 'success';
+    var el = document.getElementById(id);
+    if (!el) { showNotification(msg, type); return; }
+    el.className = 'form-flash show ' + type;
+    el.innerHTML = '<i class="fas fa-' + (type === 'success' ? 'check-circle' : 'exclamation-circle') + '"></i><span>' + msg + '</span>';
+    clearTimeout(el._tmr);
+    el._tmr = setTimeout(function () {
+        el.style.transition = 'opacity 0.4s';
+        el.style.opacity = '0';
+        setTimeout(function () { el.className = 'form-flash'; el.style.opacity = ''; }, 400);
+    }, 5000);
+}
+
+// ── Restore flash dari session + scroll ke anchor ────────────────
+(function () {
+    var params  = new URLSearchParams(window.location.search);
+    var anchor  = params.get('anchor') || '';
+    var success = @json(session('success'));
+    var error   = @json(session('error'));
+
+    // Map anchor → flash ID
+    var map = {
+        'section-tambah-data': ['flash-add-single', 'flash-add-bulk'],
+        'section-bobot':       ['flash-bobot'],
+        'section-outlier':     ['flash-outlier'],
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+        if (anchor && (success || error)) {
+            var ids = map[anchor] || [];
+            ids.forEach(function (id) {
+                showFormFlash(id, success || error, success ? 'success' : 'error');
+            });
+        }
+        // Scroll ke anchor
+        if (anchor) {
+            var el = document.getElementById(anchor);
+            if (el) setTimeout(function () {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 300);
+        }
+    });
+})();
+
+// ── SweetAlert: Form Tambah Data Single ─────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+    var fSingle = document.getElementById('form-single');
+    if (fSingle) {
+        fSingle.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var kEl = fSingle.querySelector('[name="komoditas_id"]');
+            var dEl = fSingle.querySelector('[name="date"]');
+            var pEl = fSingle.querySelector('[name="price"]');
+            if (!kEl.value) { showFormFlash('flash-add-single', 'Pilih komoditas terlebih dahulu!', 'error'); return; }
+            if (!dEl.value) { showFormFlash('flash-add-single', 'Tanggal wajib diisi!', 'error'); return; }
+            if (!pEl.value || parseFloat(pEl.value) <= 0) { showFormFlash('flash-add-single', 'Harga harus lebih dari 0!', 'error'); return; }
+            var kText = kEl.options[kEl.selectedIndex]?.text || '—';
+            var dp    = dEl.value.split('-');
+            Swal.fire({
+                icon: 'question', title: 'Simpan Data Harga?',
+                html: '<div class="text-left text-sm space-y-1.5 mt-2">' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-24">Komoditas</span><strong>: ' + kText + '</strong></div>' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-24">Tanggal</span><strong>: ' + dp[2]+'/'+dp[1]+'/'+dp[0] + '</strong></div>' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-24">Harga</span><strong class="text-emerald-600">: Rp ' + parseInt(pEl.value).toLocaleString('id-ID') + '</strong></div></div>',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981', cancelButtonColor: '#9ca3af',
+                confirmButtonText: '<i class="fas fa-save mr-1"></i> Ya, Simpan!',
+                cancelButtonText: 'Batal', reverseButtons: true
+            }).then(function (r) { if (r.isConfirmed) fSingle.submit(); });
+        });
+    }
+
+    // ── SweetAlert: Upload CSV ───────────────────────────────────
+    var fBulk = document.getElementById('form-bulk');
+    if (fBulk) {
+        fBulk.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var fi = fBulk.querySelector('[name="csv_file"]');
+            if (!fi || !fi.files[0]) { showFormFlash('flash-add-bulk', 'Pilih file CSV terlebih dahulu!', 'error'); return; }
+            var fname = fi.files[0].name;
+            var fsize = (fi.files[0].size / 1024).toFixed(1) + ' KB';
+            Swal.fire({
+                icon: 'question', title: 'Unggah Dataset CSV?',
+                html: '<div class="text-center"><p class="font-semibold text-gray-700">' + fname + '</p>' +
+                    '<p class="text-xs text-gray-400 mt-1">Ukuran: ' + fsize + '</p>' +
+                    '<p class="text-xs text-blue-500 mt-2">Data akan ditambahkan ke database</p></div>',
+                showCancelButton: true,
+                confirmButtonColor: '#2563eb', cancelButtonColor: '#9ca3af',
+                confirmButtonText: '<i class="fas fa-upload mr-1"></i> Ya, Unggah!',
+                cancelButtonText: 'Batal', reverseButtons: true
+            }).then(function (r) { if (r.isConfirmed) fBulk.submit(); });
+        });
+    }
+
+    // ── SweetAlert: Form Bobot ───────────────────────────────────
+    var fBobot = document.getElementById('form-bobot');
+    if (fBobot) {
+        fBobot.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var kEl = fBobot.querySelector('[name="komoditas_id"]');
+            var tEl = fBobot.querySelector('[name="tanggal"]');
+            var nEl = fBobot.querySelector('[name="nilai_bobot"]');
+            if (!kEl.value) { showFormFlash('flash-bobot', 'Pilih komoditas!', 'error'); return; }
+            if (!tEl.value) { showFormFlash('flash-bobot', 'Tanggal wajib diisi!', 'error'); return; }
+            if (nEl.value === '' || parseFloat(nEl.value) < 0) { showFormFlash('flash-bobot', 'Nilai bobot tidak valid!', 'error'); return; }
+            var kText = kEl.options[kEl.selectedIndex]?.text || '—';
+            var dp    = tEl.value.split('-');
+            Swal.fire({
+                icon: 'question', title: 'Simpan Bobot?',
+                html: '<div class="text-left text-sm space-y-1.5 mt-2">' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-28">Komoditas</span><strong>: ' + kText + '</strong></div>' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-28">Tanggal</span><strong>: ' + dp[2]+'/'+dp[1]+'/'+dp[0] + '</strong></div>' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-28">Nilai Bobot</span><strong class="text-indigo-600">: ' + parseFloat(nEl.value).toFixed(4) + '</strong></div></div>',
+                showCancelButton: true,
+                confirmButtonColor: '#6366f1', cancelButtonColor: '#9ca3af',
+                confirmButtonText: '<i class="fas fa-save mr-1"></i> Ya, Simpan!',
+                cancelButtonText: 'Batal', reverseButtons: true
+            }).then(function (r) { if (r.isConfirmed) fBobot.submit(); });
+        });
+    }
+});
+
+// ── SweetAlert: Clean Data ───────────────────────────────────────
+function confirmCleanAction(action, btn) {
+    var fClean = document.getElementById('form-clean');
+    var isOut  = (action === 'outlier');
+    var selEl  = fClean.querySelector('[name="' + (isOut ? 'outlier_method' : 'missing_method') + '"]');
+    var mText  = selEl ? selEl.options[selEl.selectedIndex].text : '—';
+    Swal.fire({
+        icon: 'warning',
+        title: isOut ? 'Terapkan Deteksi Outlier?' : 'Tangani Nilai Hilang?',
+        html: '<div class="text-center">' +
+            '<p class="text-gray-600">Metode: <strong>' + mText + '</strong></p>' +
+            '<p class="text-orange-500 text-xs mt-2"><i class="fas fa-exclamation-triangle mr-1"></i>Tindakan ini mengubah data di database!</p></div>',
+        showCancelButton: true,
+        confirmButtonColor: isOut ? '#f97316' : '#2563eb',
+        cancelButtonColor: '#9ca3af',
+        confirmButtonText: '<i class="fas fa-check mr-1"></i> Ya, Terapkan!',
+        cancelButtonText: 'Batal', reverseButtons: true
+    }).then(function (r) {
+        if (r.isConfirmed) {
+            // inject action value
+            var inp = fClean.querySelector('[name="action"]');
+            if (!inp) { inp = document.createElement('input'); inp.type = 'hidden'; inp.name = 'action'; fClean.appendChild(inp); }
+            inp.value = action;
+            fClean.submit();
+        }
+    });
+}
+
+// ── SweetAlert: Hapus Data Harga ────────────────────────────────
+function confirmDeleteData(btn, tanggal, harga) {
+    var form = btn.closest('.delete-form');
+    Swal.fire({
+        icon: 'warning', title: 'Hapus Data Harga?',
+        html: '<div class="text-left text-sm space-y-1 mt-2">' +
+            '<div class="flex gap-2"><span class="text-gray-400 w-20">Tanggal</span><strong>: ' + tanggal + '</strong></div>' +
+            '<div class="flex gap-2"><span class="text-gray-400 w-20">Harga</span><strong class="text-red-500">: ' + harga + '</strong></div>' +
+            '<p class="text-red-500 text-xs mt-2">Tindakan ini tidak dapat dibatalkan!</p></div>',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444', cancelButtonColor: '#9ca3af',
+        confirmButtonText: '<i class="fas fa-trash mr-1"></i> Ya, Hapus!',
+        cancelButtonText: 'Batal', reverseButtons: true
+    }).then(function (r) { if (r.isConfirmed) form.submit(); });
+}
+
+// ── SweetAlert: Hapus Bobot ──────────────────────────────────────
+function confirmDeleteBobot(btn, komoditas, tanggal, nilai) {
+    var form = btn.closest('.bobot-delete-form');
+    Swal.fire({
+        icon: 'warning', title: 'Hapus Data Bobot?',
+        html: '<div class="text-left text-sm space-y-1 mt-2">' +
+            '<div class="flex gap-2"><span class="text-gray-400 w-28">Komoditas</span><strong>: ' + komoditas + '</strong></div>' +
+            '<div class="flex gap-2"><span class="text-gray-400 w-28">Tanggal</span><strong>: ' + tanggal + '</strong></div>' +
+            '<div class="flex gap-2"><span class="text-gray-400 w-28">Nilai Bobot</span><strong class="text-indigo-600">: ' + nilai + '</strong></div>' +
+            '<p class="text-red-500 text-xs mt-2">Tindakan ini tidak dapat dibatalkan!</p></div>',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444', cancelButtonColor: '#9ca3af',
+        confirmButtonText: '<i class="fas fa-trash mr-1"></i> Ya, Hapus!',
+        cancelButtonText: 'Batal', reverseButtons: true
+    }).then(function (r) { if (r.isConfirmed) form.submit(); });
+}
+
+// ── Edit Inline Tabel Pindai ─────────────────────────────────────
+function toggleIssueEdit(id) {
+    var valEl    = document.getElementById('issue-val-' + id);
+    var inputEl  = document.getElementById('issue-price-input-' + id);
+    var editBtn  = document.getElementById('issue-edit-btn-' + id);
+    var saveBtn  = document.getElementById('issue-save-btn-' + id);
+    var cancelBtn= document.getElementById('issue-cancel-btn-' + id);
+    if (!inputEl) return;
+    if (valEl)    valEl.classList.add('hidden');
+    inputEl.classList.remove('hidden');
+    if (editBtn)   editBtn.classList.add('hidden');
+    if (saveBtn)   saveBtn.classList.remove('hidden');
+    if (cancelBtn) cancelBtn.classList.remove('hidden');
+    setTimeout(function () { inputEl.focus(); inputEl.select(); }, 50);
+}
+
+function cancelIssueEdit(id) {
+    var valEl    = document.getElementById('issue-val-' + id);
+    var inputEl  = document.getElementById('issue-price-input-' + id);
+    var editBtn  = document.getElementById('issue-edit-btn-' + id);
+    var saveBtn  = document.getElementById('issue-save-btn-' + id);
+    var cancelBtn= document.getElementById('issue-cancel-btn-' + id);
+    if (valEl)    valEl.classList.remove('hidden');
+    if (inputEl)  inputEl.classList.add('hidden');
+    if (editBtn)  editBtn.classList.remove('hidden');
+    if (saveBtn)  saveBtn.classList.add('hidden');
+    if (cancelBtn)cancelBtn.classList.add('hidden');
+}
+
+function saveIssuePrice(id) {
+    var inputEl = document.getElementById('issue-price-input-' + id);
+    if (!inputEl) return;
+    var newPrice = inputEl.value;
+    if (!newPrice || parseFloat(newPrice) <= 0) {
+        Swal.fire({ icon: 'error', title: 'Harga Tidak Valid', text: 'Masukkan harga lebih dari 0', confirmButtonColor: '#ef4444' });
+        return;
+    }
+    Swal.fire({
+        icon: 'question', title: 'Simpan Perubahan Harga?',
+        html: '<p class="text-gray-600">Harga baru: <strong class="text-emerald-600">Rp ' +
+            parseInt(newPrice).toLocaleString('id-ID') + '</strong></p>',
+        showCancelButton: true,
+        confirmButtonColor: '#10b981', cancelButtonColor: '#9ca3af',
+        confirmButtonText: '<i class="fas fa-save mr-1"></i> Simpan',
+        cancelButtonText: 'Batal'
+    }).then(function (r) {
+        if (!r.isConfirmed) return;
+        fetch(_UPDATA + '/' + id, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': _CSRF },
+            body: JSON.stringify({ price: newPrice })
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            if (data.success) {
+                var valEl = document.getElementById('issue-val-' + id);
+                if (valEl) valEl.textContent = 'Rp ' + parseInt(newPrice).toLocaleString('id-ID');
+                cancelIssueEdit(id);
+                var row = document.getElementById('issue-row-' + id);
+                if (row) {
+                    row.style.backgroundColor = '#d1fae5';
+                    setTimeout(function () { row.style.backgroundColor = ''; }, 1000);
+                }
+                showFormFlash('flash-outlier', 'Harga berhasil diperbarui!', 'success');
+            } else {
+                showFormFlash('flash-outlier', 'Gagal: ' + (data.message || 'Terjadi kesalahan'), 'error');
+            }
+        })
+        .catch(function () { showFormFlash('flash-outlier', 'Kesalahan jaringan!', 'error'); });
+    });
+}
+
+// ── SweetAlert: Hapus Issue ──────────────────────────────────────
+function confirmDeleteIssue(id, tanggal, jenis) {
+    Swal.fire({
+        icon: 'warning', title: 'Hapus Data ' + jenis + '?',
+        html: '<div class="text-center">' +
+            '<p class="text-gray-600">Tanggal: <strong>' + tanggal + '</strong></p>' +
+            '<p class="text-red-500 text-xs mt-2">Data akan dihapus permanen dari database!</p></div>',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444', cancelButtonColor: '#9ca3af',
+        confirmButtonText: '<i class="fas fa-trash mr-1"></i> Ya, Hapus!',
+        cancelButtonText: 'Batal', reverseButtons: true
+    }).then(function (r) {
+        if (r.isConfirmed) document.getElementById('issue-delete-form-' + id).submit();
+    });
+}
+</script>
 @endsection

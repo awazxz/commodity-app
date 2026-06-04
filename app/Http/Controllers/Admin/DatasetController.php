@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
-class ManajemenDataController extends Controller
+class DatasetController extends Controller
 {
     public function index()
     {
