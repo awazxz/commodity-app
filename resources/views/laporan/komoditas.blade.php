@@ -588,7 +588,7 @@ $topTurun       = $collection->where('status_mom','deflasi')->sortBy('persen_mom
             <i class="fas fa-chart-line" style="font-size:16px;"></i>
         </div>
         <div>
-            <h1 style="font-size:18px; font-weight:700; color:#0f172a; margin:0; line-height:1.2;">Monitoring Harga &amp; Proyeksi Komoditas</h1>
+            <h1 style="font-size:18px; font-weight:700; color:#0f172a; margin:0; line-height:1.2;">Monitoring Hargaa &amp; Proyeksi Komoditas</h1>
             <p style="font-size:12px; color:#9ca3af; margin:2px 0 0; line-height:1.4;">Sumber: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-size:11px;color:#4b5563;">price_data · price_forecasts · IHK/RH</code> — diperbarui otomatis setiap minggu</p>
         </div>
     </div>
