@@ -846,6 +846,16 @@ class CommodityForecastModel:
         return float(np.mean(np.abs((actual[mask] - predicted[mask]) / actual[mask])) * 100)
 
     @staticmethod
+    def _r_squared(actual, predicted):
+        actual    = np.array(actual,    dtype=float)
+        predicted = np.array(predicted, dtype=float)
+        ss_res = np.sum((actual - predicted) ** 2)
+        ss_tot = np.sum((actual - np.mean(actual)) ** 2)
+        if ss_tot == 0:
+            return 0.0
+        return float(max(0.0, min(1.0, 1 - (ss_res / ss_tot))))
+
+    @staticmethod
     def _smape(actual, predicted):
         actual    = np.array(actual,    dtype=float)
         predicted = np.array(predicted, dtype=float)
@@ -975,6 +985,7 @@ class CommodityForecastModel:
                 'pinball_upper':      round(self._pinball_loss(actual, upper, 0.975),        4),
                 'interval_sharpness': round(self._interval_sharpness(lower, upper),          2),
                 'coverage':           round(coverage,                                         4),
+                'r_squared':          round(self._r_squared(actual, predicted),             4),
             }
         except Exception as e:
             print(f"   [Metrics] CV error: {e}")
@@ -1124,6 +1135,7 @@ class CommodityForecastModel:
                 'smape':              round(self._smape(actual, predicted),                  4),
                 'directional_acc':    round(self._directional_accuracy(actual, predicted),   2),
                 'interval_sharpness': round(self._interval_sharpness(lower, upper),          2),
+                'r_squared':          round(self._r_squared(actual, predicted),             4),
             }
         except Exception as e:
             print(f"   [Metrics] In-sample error: {e}")
@@ -1231,6 +1243,7 @@ class CommodityForecastModel:
             },
             'best_params_from_grid_search': self.best_params,
             'user_override': self.user_override,
+            'r_squared':    cv_metrics.get('r_squared', insample_metrics.get('r_squared', 0.0)),
         }
 
         extended_metrics = {

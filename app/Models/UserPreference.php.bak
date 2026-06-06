@@ -11,10 +11,9 @@ class UserPreference extends Model
 
     protected $fillable = [
         'user_id',
-        'komoditas_id',
         'start_date',
         'end_date',
-        'forecast_months',
+        'forecast_weeks',
         'changepoint_prior_scale',
         'seasonality_prior_scale',
         'seasonality_mode',
@@ -25,7 +24,7 @@ class UserPreference extends Model
     protected $casts = [
         'start_date'              => 'date',
         'end_date'                => 'date',
-        'forecast_months'          => 'integer',
+        'forecast_weeks'          => 'integer',
         'changepoint_prior_scale' => 'float',
         'seasonality_prior_scale' => 'float',
         'weekly_seasonality'      => 'boolean',
@@ -39,7 +38,7 @@ class UserPreference extends Model
     private const DEFAULTS = [
         'start_date'              => null,
         'end_date'                => null,
-        'forecast_months'          => 12,
+        'forecast_weeks'          => 12,
         'changepoint_prior_scale' => 0.05,
         'seasonality_prior_scale' => 1.0,
         'seasonality_mode'        => 'multiplicative',
@@ -64,10 +63,10 @@ class UserPreference extends Model
      * Jika belum ada, buat baru dengan nilai default.
      * Tidak pernah return null — selalu return instance yang valid.
      */
-    public static function getOrDefault(int $userId, int $komoditasId = 0): self
+    public static function getOrDefault(int $userId): self
     {
         return self::firstOrCreate(
-            ['user_id' => $userId, 'komoditas_id' => $komoditasId],
+            ['user_id' => $userId],
             self::DEFAULTS
         );
     }
@@ -76,7 +75,7 @@ class UserPreference extends Model
      * Simpan preferensi dari array input request.
      * Hanya field yang tidak null yang di-update (tidak menimpa field lain).
      */
-    public static function saveFromRequest(int $userId, array $data, int $komoditasId = 0): self
+    public static function saveFromRequest(int $userId, array $data): self
     {
         $filtered = array_filter($data, fn($v) => $v !== null);
 
@@ -87,9 +86,9 @@ class UserPreference extends Model
             $filtered['seasonality_mode'] = self::DEFAULTS['seasonality_mode'];
         }
 
-        // Clamp forecast_months agar tidak di luar batas wajar
-        if (isset($filtered['forecast_months'])) {
-            $filtered['forecast_months'] = max(1, min(52, (int) $filtered['forecast_months']));
+        // Clamp forecast_weeks agar tidak di luar batas wajar
+        if (isset($filtered['forecast_weeks'])) {
+            $filtered['forecast_weeks'] = max(1, min(52, (int) $filtered['forecast_weeks']));
         }
 
         // Clamp changepoint_prior_scale
@@ -103,7 +102,7 @@ class UserPreference extends Model
         }
 
         return self::updateOrCreate(
-            ['user_id' => $userId, 'komoditas_id' => $komoditasId],
+            ['user_id' => $userId],
             $filtered
         );
     }
@@ -140,7 +139,7 @@ class UserPreference extends Model
     public function toParamArray(): array
     {
         return [
-            'forecastWeeks' => $this->forecast_months              ?? self::DEFAULTS['forecast_months'],
+            'forecastWeeks' => $this->forecast_weeks              ?? self::DEFAULTS['forecast_weeks'],
             'cpScale'       => $this->changepoint_prior_scale     ?? self::DEFAULTS['changepoint_prior_scale'],
             'seasonScale'   => $this->seasonality_prior_scale     ?? self::DEFAULTS['seasonality_prior_scale'],
             'seasonMode'    => $this->seasonality_mode            ?? self::DEFAULTS['seasonality_mode'],
@@ -158,7 +157,7 @@ class UserPreference extends Model
     public static function defaultParamArray(): array
     {
         return [
-            'forecastWeeks' => self::DEFAULTS['forecast_months'],
+            'forecastWeeks' => self::DEFAULTS['forecast_weeks'],
             'cpScale'       => self::DEFAULTS['changepoint_prior_scale'],
             'seasonScale'   => self::DEFAULTS['seasonality_prior_scale'],
             'seasonMode'    => self::DEFAULTS['seasonality_mode'],

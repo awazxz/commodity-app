@@ -78,6 +78,7 @@ class LaporanKomoditasController extends Controller
         // ──────────────────────────────────────────────────────────────────────────
 
         try {
+            // Kirim bulan yang dipilih ke Flask — Flask akan return bulan_depan = bulan berikutnya
             $bulanParam  = $bulanFilter
                 ? ($tahunFilter . '-' . str_pad($bulanFilter, 2, '0', STR_PAD_LEFT))
                 : null;

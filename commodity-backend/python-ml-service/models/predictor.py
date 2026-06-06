@@ -600,6 +600,7 @@ class CommodityPredictor:
             'rmse':                  float(metrics.get('rmse', 0)),
             'mae':                   float(metrics.get('mae',  0)),
             'coverage':              float(metrics.get('coverage', 0.95)),
+            'r_squared':             float(metrics.get('r_squared', 0.0)),
             'in_sample_mape':        float(metrics.get('in_sample_mape', 0)),
             'in_sample_rmse':        float(metrics.get('in_sample_rmse', 0)),
             'in_sample_mae':         float(metrics.get('in_sample_mae',  0)),

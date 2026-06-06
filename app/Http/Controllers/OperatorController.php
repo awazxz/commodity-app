@@ -18,10 +18,6 @@ class OperatorController extends Controller
 
     private string $flaskUrl;
 
-    // =========================================================
-    // DEFAULT HYPERPARAMETER VALUES
-    // FIX: Hapus DEFAULT_WEEKLY — selalu false untuk data bulanan
-    // =========================================================
     private const DEFAULT_CP_SCALE        = 0.05;
     private const DEFAULT_SEASON_SCALE    = 1.0;
     private const DEFAULT_SEASON_MODE     = 'multiplicative';
@@ -91,14 +87,32 @@ class OperatorController extends Controller
             $dbMaxDate = Carbon::now()->format('Y-m-d');
         }
 
-        $prefs  = $this->loadUserPreferences($userId);
+        $prefs  = $this->loadUserPreferences($userId, $selectedKomoditasId);
         $params = $this->resolveParameters($request, $prefs);
 
-        if ($request->isMethod('POST') && $currentTab === 'insight') {
-            $this->persistUserPreferences($userId, $request->all());
+        // ── Preview only & confirm save ───────────────────────
+        $isPreviewOnly = $this->parseBoolFromString($request->input('preview_only', 'false'));
+        $isConfirmSave = $this->parseBoolFromString($request->input('confirm_save', 'false'));
+
+        if ($request->isMethod('POST') && $currentTab === 'insight' && $isConfirmSave) {
+            $this->persistUserPreferences($userId, $request->all(), $selectedKomoditasId);
         }
 
-        // FIX: Hapus $forecastDays = months * 30 — langsung pakai forecastMonths
+        // ── MAPE sebelum override (dari forecast_results terakhir) ──
+        $mapeBefore = 0.0;
+        try {
+            $lastRun = \DB::table('forecast_results')
+                ->where('komoditas_id', $selectedKomoditasId)
+                ->orderBy('run_at', 'desc')
+                ->first();
+            $mapeBefore = $lastRun ? round((float) $lastRun->mape, 2) : 0.0;
+        } catch (\Exception $e) {
+            Log::warning('[OPERATOR] Gagal ambil mape_before: ' . $e->getMessage());
+        }
+
+        $showSavePopup = false;
+        $mapeAfter     = 0.0;
+
         $forecastMonths = max(1, min(24, (int) (
             $request->input('forecast_months')
             ?? $params['forecastMonths']
@@ -107,14 +121,13 @@ class OperatorController extends Controller
         $cpScale        = $params['cpScale'];
         $seasonScale    = $params['seasonScale'];
         $seasonMode     = $params['seasonMode'];
-        $weeklySeason   = false;   // FIX: hardcode false — tidak relevan data bulanan
+        $weeklySeason   = false;
         $yearlySeason   = $params['yearlySeason'];
 
         $forceRetrain = $this->parseBoolFromString(
             $request->input('force_retrain', 'false')
         );
 
-        // FIX: Hapus weekly dari override check
         $isUserOverride = (
             (float) $cpScale     !== (float) self::DEFAULT_CP_SCALE    ||
             (float) $seasonScale !== (float) self::DEFAULT_SEASON_SCALE ||
@@ -176,7 +189,6 @@ class OperatorController extends Controller
                 Log::error('[OPERATOR] scanDataQuality error: ' . $e->getMessage());
             }
 
-            // ── Ambil data bobot semua komoditas (paginate) ────
             try {
                 $bobotList = DB::table('bobot_komoditas')
                     ->join('master_komoditas', 'bobot_komoditas.komoditas_id', '=', 'master_komoditas.id')
@@ -234,7 +246,6 @@ class OperatorController extends Controller
 
             $flaskResult = null;
             if ($countData >= 10) {
-                // FIX: Kirim $forecastMonths langsung (bukan $forecastDays)
                 $flaskResult = $this->callFlaskProphet(
                     $selectedKomoditasId,
                     $forecastMonths,
@@ -259,6 +270,12 @@ class OperatorController extends Controller
                     default      => 'Stabil',
                 };
 
+                // ── Trigger popup jika ini preview (parameter diubah, belum disimpan) ──
+                if ($isPreviewOnly && !$isConfirmSave) {
+                    $showSavePopup = true;
+                }
+                $mapeAfter = $mape;
+
                 $this->buildChartFromProphet(
                     $dates, $prices,
                     $flaskResult['predictions'],
@@ -271,7 +288,6 @@ class OperatorController extends Controller
             } else {
                 Log::warning("[OPERATOR FALLBACK] Flask tidak tersedia, menggunakan kalkulasi PHP");
 
-                // FIX: Konversi ke hari hanya untuk fallback PHP (Prophet tidak dipakai)
                 $forecastDaysForFallback = $forecastMonths * 30;
 
                 [$forecastDatesArr, $forecastPrices, $forecastLowers, $forecastUppers] =
@@ -292,7 +308,6 @@ class OperatorController extends Controller
                     $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
                 );
 
-                // Fallback: fitted = actual
                 $weeklyFitted  = $weeklyActual;
                 $monthlyFitted = $monthlyActual;
                 $yearlyFitted  = $yearlyActual;
@@ -311,9 +326,9 @@ class OperatorController extends Controller
             $maxPrice  = $avgPrice;
         }
 
-        $rSquared = round($rSquared, 3);
+        $rSquared  = round($rSquared, 3);
+        $mapeAfter = $mapeAfter ?? $mape;
 
-        // FIX: Kirim 'forecastMonths' ke view (bukan 'forecastWeeks')
         return view('operator_dashboard', compact(
             'role', 'username', 'email',
             'currentTab',
@@ -326,6 +341,7 @@ class OperatorController extends Controller
             'weeklySeason', 'yearlySeason',
             'forecastMonths',
             'mape', 'rSquared',
+            'showSavePopup', 'mapeBefore', 'mapeAfter',
             'weeklyLabels',  'weeklyActual',  'weeklyForecast',  'weeklyFitted',  'weeklyLower',  'weeklyUpper',
             'monthlyLabels', 'monthlyActual', 'monthlyForecast', 'monthlyFitted', 'monthlyLower', 'monthlyUpper',
             'yearlyLabels',  'yearlyActual',  'yearlyForecast',  'yearlyFitted',  'yearlyLower',  'yearlyUpper',
@@ -336,10 +352,6 @@ class OperatorController extends Controller
     // =========================================================
     // BOBOT KOMODITAS — CRUD
     // =========================================================
-
-    /**
-     * Simpan bobot baru ke tabel bobot_komoditas
-     */
     public function storeBobot(Request $request)
     {
         $request->validate([
@@ -349,7 +361,6 @@ class OperatorController extends Controller
         ]);
 
         try {
-            // Cek apakah sudah ada bobot untuk komoditas + tanggal yang sama
             $exists = DB::table('bobot_komoditas')
                 ->where('komoditas_id', $request->komoditas_id)
                 ->where('tanggal', $request->tanggal)
@@ -379,9 +390,6 @@ class OperatorController extends Controller
         }
     }
 
-    /**
-     * Update bobot via AJAX (inline edit)
-     */
     public function updateBobot(Request $request, $id)
     {
         $request->validate([
@@ -411,9 +419,6 @@ class OperatorController extends Controller
         }
     }
 
-    /**
-     * Hapus bobot
-     */
     public function deleteBobot($id)
     {
         try {
@@ -432,15 +437,14 @@ class OperatorController extends Controller
 
     // =========================================================
     // PANGGIL FLASK PROPHET API
-    // FIX: Signature forecastDays → forecastMonths, payload frequency='MS'
     // =========================================================
     private function callFlaskProphet(
         int    $komoditasId,
-        int    $forecastMonths,    // ← ganti dari forecastDays
+        int    $forecastMonths,
         float  $cpScale,
         float  $seasonScale,
         string $seasonMode,
-        bool   $weeklySeason,      // diterima tapi diabaikan, selalu false
+        bool   $weeklySeason,
         bool   $yearlySeason,
         string $startDate      = '',
         string $endDate        = '',
@@ -450,12 +454,12 @@ class OperatorController extends Controller
         try {
             $payload = [
                 'commodity_id'            => $komoditasId,
-                'periods'                 => $forecastMonths,  // ← bulan langsung (bukan forecastDays)
-                'frequency'               => 'MS',             // ← Month Start (bukan 'W')
+                'periods'                 => $forecastMonths,
+                'frequency'               => 'MS',
                 'changepoint_prior_scale' => $cpScale,
                 'seasonality_prior_scale' => $seasonScale,
                 'seasonality_mode'        => $seasonMode,
-                'weekly_seasonality'      => false,            // ← hardcode false
+                'weekly_seasonality'      => false,
                 'yearly_seasonality'      => $yearlySeason,
                 'force_retrain'           => $forceRetrain,
                 'user_override'           => $isUserOverride,
@@ -509,7 +513,7 @@ class OperatorController extends Controller
                 'predictions'     => $predictions,
                 'fitted_values'   => $fittedValues,
                 'mape'            => round((float) $mape, 2),
-                'r_squared'       => round(min(1.0, max(0.0, (float) $coverage)), 4),
+                'r_squared'       => round(min(1.0, max(0.0, (float) ($modelMetrics['r_squared'] ?? $coverage))), 4),
                 'trend_direction' => $modelMetrics['trend_direction'] ?? 'stable',
                 'metrics'         => $modelMetrics,
             ];
@@ -583,7 +587,7 @@ class OperatorController extends Controller
     }
 
     // =========================================================
-    // AGGREGATE FITTED VALUES KE LABEL — sinkron AdminController
+    // AGGREGATE FITTED VALUES KE LABEL
     // =========================================================
     private function aggregateFittedToLabels(
         array $fittedDates,
@@ -1033,6 +1037,7 @@ class OperatorController extends Controller
         foreach ($data as $item) {
             if (is_null($item->harga) || $item->harga <= 0) {
                 $issues[] = (object)[
+                    'id'     => $item->id,
                     'date'   => $item->tanggal,
                     'issue'  => 'Missing Value',
                     'value'  => 0,
@@ -1040,6 +1045,7 @@ class OperatorController extends Controller
                 ];
             } elseif ($item->harga < ($q1 - 1.5 * $iqr) || $item->harga > ($q3 + 1.5 * $iqr)) {
                 $issues[] = (object)[
+                    'id'     => $item->id,
                     'date'   => $item->tanggal,
                     'issue'  => 'Outlier',
                     'value'  => $item->harga,
@@ -1098,7 +1104,7 @@ class OperatorController extends Controller
                 return redirect()
                     ->route('operator.predict', ['tab' => 'manage'])
                     ->with('success', "Bulk upload berhasil! {$insertedCount} data diproses.")
-                ->withFragment('section-tambah-data');
+                    ->withFragment('section-tambah-data');
             }
 
             $request->validate([

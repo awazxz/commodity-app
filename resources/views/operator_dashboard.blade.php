@@ -105,7 +105,6 @@
         text-transform: uppercase; letter-spacing: 0.04em;
     }
 
-    /* Pagination button styles */
     .pg-btn {
         display: inline-flex; align-items: center; justify-content: center;
         min-width: 2rem; height: 2rem; padding: 0 0.5rem;
@@ -142,7 +141,6 @@
         border-left: 2px solid #bfdbfe;
     }
 
-    /* ── Per-form flash ── */
     .form-flash {
         display: none; align-items: center; gap: 0.625rem;
         padding: 0.75rem 1rem; border-radius: 0.5rem;
@@ -152,7 +150,6 @@
     .form-flash.success { background:#dcfce7; border:1px solid #86efac; color:#166534; }
     .form-flash.error   { background:#fee2e2; border:1px solid #fca5a5; color:#991b1b; }
 
-    /* ── Inline edit input di tabel pindai ── */
     .issue-price-input {
         width: 110px; padding: 3px 6px; font-size: 12px;
         border: 1px solid #3b82f6; border-radius: 4px;
@@ -174,23 +171,7 @@
 
 <div class="dashboard-container space-y-6 animate-fade-in">
 
-{{-- TAB NAVIGATION --}}
-<!-- <div class="card-standard p-1.5 flex gap-1">
-    <a href="{{ route('operator.predict', ['tab' => 'insight']) }}"
-       class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-xs font-bold uppercase tracking-wider transition-all
-              {{ ($currentTab ?? 'insight') === 'insight' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100' }}">
-        <i class="fas fa-chart-line"></i>
-        <span>{{ __('messages.tab_insight') }}</span>
-    </a>
-    <a href="{{ route('operator.predict', ['tab' => 'manage']) }}"
-       class="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-md text-xs font-bold uppercase tracking-wider transition-all
-              {{ ($currentTab ?? '') === 'manage' ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100' }}">
-        <i class="fas fa-database"></i>
-        <span>{{ __('messages.tab_manajemen_data') }}</span>
-    </a>
-</div> -->
-
-{{-- Flash Messages (global, di luar section) --}}
+{{-- Flash Messages --}}
 @if(session('success'))
     <div id="flash-message" class="alert-success flex items-center gap-3">
         <i class="fas fa-check-circle"></i>
@@ -277,6 +258,8 @@
             <input type="hidden" name="yearly_seasonality"      id="hidden_yearly"          value="{{ ($yearlySeason ?? false) ? 'true' : 'false' }}">
             <input type="hidden" name="forecast_months"         id="hidden_forecast_months" value="{{ $forecastMonths ?? 12 }}">
             <input type="hidden" name="force_retrain"           id="hidden_force_retrain"   value="false">
+            <input type="hidden" name="preview_only"            id="hidden_preview_only"    value="false">
+            <input type="hidden" name="confirm_save"            id="hidden_confirm_save"    value="false">
             <input type="hidden" name="tab" value="insight">
         </form>
     </div>
@@ -381,7 +364,7 @@
                         <p class="text-[9px] text-gray-400 mt-1">{{ __('messages.metode_musiman') }}</p>
                     </div>
 
-                    {{-- Horizon Prediksi (Bulanan, maks 12) --}}
+                    {{-- Horizon Prediksi --}}
                     <div class="pt-2 border-t border-gray-100">
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-xs text-gray-500 font-semibold uppercase">{{ __('messages.periode_prediksi') }}</span>
@@ -403,7 +386,7 @@
                         <p class="text-[9px] text-gray-400 mt-1">{{ __('messages.periode_prediksi') }} (1 – 12)</p>
                     </div>
 
-                    {{-- Toggle Seasonality --}}
+                    {{-- Toggle Yearly Seasonality --}}
                     <div class="space-y-2 pt-2 border-t border-gray-100">
                         <label class="text-xs text-gray-500 font-semibold uppercase block mb-2">{{ __('messages.komponen_musiman') }}</label>
 
@@ -507,7 +490,7 @@
         </div>
 
         {{-- Chart --}}
-        <div class="col-span-12 lg:col-span-8 card-standard overflow-hidden flex flex-col">
+        <div class="col-span-12 lg:col-span-8 card-standard overflow-hidden flex flex-col" id="hasil-prediksi">
             <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex flex-col lg:flex-row justify-between items-center gap-4 flex-shrink-0">
                 <div>
                     <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">{{ __('messages.visualisasi_tren') }}</h3>
@@ -520,7 +503,7 @@
                     </p>
                 </div>
                 <div class="flex bg-white border border-gray-300 p-1 rounded-md shadow-sm">
-                    <button onclick="changeChartPeriod('monthly')" class="filter-btn border-none" id="btn-monthly">{{ __('messages.bulanan') }}</button>
+                    <button onclick="changeChartPeriod('monthly')" class="filter-btn active" id="btn-monthly">{{ __('messages.bulanan') }}</button>
                     <button onclick="changeChartPeriod('yearly')"  class="filter-btn border-none" id="btn-yearly">{{ __('messages.tahunan') }}</button>
                 </div>
             </div>
@@ -532,12 +515,12 @@
 
     {{-- Insight Table --}}
     <div class="card-standard overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+        <div class="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center flex-wrap gap-2">
             <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight">
                 {{ __('messages.ringkasan_analisis') }}
                 <span id="selectedPeriodText" class="text-blue-600">{{ __('messages.bulanan') }}</span>
             </h3>
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 flex-wrap">
                 <span class="text-xs text-gray-400">{{ $selectedCommodity }}</span>
                 <span class="text-[9px] bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded-full">
                     MAPE: {{ number_format($mape ?? 0, 2) }}%
@@ -559,7 +542,6 @@
                     </tr>
                 </thead>
                 <tbody class="text-sm text-gray-700 divide-y divide-gray-100" id="insightTableBody">
-                    {{-- Diisi oleh JavaScript --}}
                 </tbody>
             </table>
         </div>
@@ -617,7 +599,6 @@
                                 class="text-gray-400 text-xs uppercase tracking-wider pb-1 font-semibold">{{ __('messages.unggah_csv') }}</button>
                     </div>
 
-                    {{-- Flash single --}}
                     <div id="flash-add-single" class="form-flash"></div>
 
                     <form id="form-single" action="{{ route('operator.storeData') }}" method="POST" class="space-y-4 tab-single">
@@ -651,7 +632,6 @@
                         </button>
                     </form>
 
-                    {{-- Flash bulk --}}
                     <div id="flash-add-bulk" class="form-flash" style="display:none;"></div>
 
                     <form id="form-bulk" action="{{ route('operator.manajemen-data.upload-csv') }}" method="POST"
@@ -669,7 +649,6 @@
                                 <p class="text-[9px] text-gray-300 mt-1">{{ __('messages.format_csv_operator') }}</p>
                             </div>
                         </div>
-
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <div class="flex items-start gap-3">
                                 <i class="fas fa-info-circle text-blue-500 text-sm mt-0.5"></i>
@@ -683,7 +662,6 @@
                                 </div>
                             </div>
                         </div>
-
                         <button type="submit"
                                 class="w-full bg-blue-600 text-white py-3 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-blue-700 transition-all">
                             {{ __('messages.unggah_dataset') }}
@@ -823,13 +801,8 @@
         <div id="section-bobot" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-1">
                 <div class="card-standard p-6">
-                    <h3 class="text-sm font-bold text-gray-900 mb-4 uppercase tracking-tight">
-                        Input Bobot Komoditas
-                    </h3>
-
-                    {{-- Flash bobot --}}
+                    <h3 class="text-sm font-bold text-gray-900 mb-4 uppercase tracking-tight">Input Bobot Komoditas</h3>
                     <div id="flash-bobot" class="form-flash"></div>
-
                     <form id="form-bobot" action="{{ route('operator.storeBobot') }}" method="POST" class="space-y-4">
                         @csrf
                         <input type="hidden" name="anchor" value="section-bobot">
@@ -943,67 +916,15 @@
                             </tbody>
                         </table>
                     </div>
-
-                    @if(isset($bobotList) && $bobotList instanceof \Illuminate\Pagination\LengthAwarePaginator && $bobotList->hasPages())
-                        <div class="px-6 py-4 border-t bg-gray-50/30 flex items-center justify-between">
-                            <div class="text-xs text-gray-500">
-                                Menampilkan {{ $bobotList->firstItem() ?? 0 }}–{{ $bobotList->lastItem() ?? 0 }}
-                                dari {{ $bobotList->total() }} data
-                            </div>
-                            <div class="flex items-center gap-1">
-                                @if($bobotList->onFirstPage())
-                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-left"></i></span>
-                                @else
-                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->previousPageUrl() }}" class="pg-btn">
-                                        <i class="fas fa-chevron-left"></i>
-                                    </a>
-                                @endif
-                                @php
-                                    $curBobot   = $bobotList->currentPage();
-                                    $lastBobot  = $bobotList->lastPage();
-                                    $startBobot = max(1, $curBobot - 2);
-                                    $endBobot   = min($lastBobot, $curBobot + 2);
-                                @endphp
-                                @if($startBobot > 1)
-                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url(1) }}" class="pg-btn">1</a>
-                                    @if($startBobot > 2)<span class="px-1 text-gray-400 text-xs">…</span>@endif
-                                @endif
-                                @for($p = $startBobot; $p <= $endBobot; $p++)
-                                    @if($p == $curBobot)
-                                        <span class="pg-btn pg-btn-active">{{ $p }}</span>
-                                    @else
-                                        <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url($p) }}" class="pg-btn">{{ $p }}</a>
-                                    @endif
-                                @endfor
-                                @if($endBobot < $lastBobot)
-                                    @if($endBobot < $lastBobot - 1)<span class="px-1 text-gray-400 text-xs">…</span>@endif
-                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->url($lastBobot) }}" class="pg-btn">{{ $lastBobot }}</a>
-                                @endif
-                                @if($bobotList->hasMorePages())
-                                    <a href="{{ $bobotList->appends(request()->except('bobotPage'))->nextPageUrl() }}" class="pg-btn">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </a>
-                                @else
-                                    <span class="pg-btn pg-btn-disabled"><i class="fas fa-chevron-right"></i></span>
-                                @endif
-                            </div>
-                        </div>
-                    @endif
                 </div>
             </div>
         </div>
 
         {{-- ── BARIS 3: Data Cleaning + Hasil Pemindaian ── --}}
         <div id="section-outlier" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            {{-- Form Pindai & Clean --}}
             <div class="lg:col-span-1 space-y-4">
-
-                {{-- Form Pindai --}}
                 <div class="card-standard p-5">
-                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight mb-4">
-                        {{ __('messages.pindai_data') }}
-                    </h3>
+                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight mb-4">{{ __('messages.pindai_data') }}</h3>
                     <form action="{{ route('operator.predict') }}" method="POST">
                         @csrf
                         <input type="hidden" name="tab" value="manage">
@@ -1026,24 +947,15 @@
                     </form>
                 </div>
 
-                {{-- Form Clean --}}
                 <div class="card-standard p-5">
-                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight mb-4">
-                        {{ __('messages.pembersihan_data') }}
-                    </h3>
-
-                    {{-- Flash outlier --}}
+                    <h3 class="text-sm font-bold text-gray-900 uppercase tracking-tight mb-4">{{ __('messages.pembersihan_data') }}</h3>
                     <div id="flash-outlier" class="form-flash"></div>
-
                     <form id="form-clean" action="{{ route('operator.cleanData') }}" method="POST" class="space-y-4">
                         @csrf
                         <input type="hidden" name="komoditas_id" value="{{ $selectedKomoditasId }}">
                         <input type="hidden" name="anchor" value="section-outlier">
-
                         <div>
-                            <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">
-                                {{ __('messages.deteksi_outlier') }}
-                            </label>
+                            <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">{{ __('messages.deteksi_outlier') }}</label>
                             <div class="flex items-center gap-2">
                                 <select name="outlier_method" class="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs font-medium outline-none focus:ring-2 focus:ring-orange-400">
                                     <option value="remove">{{ __('messages.hapus_outlier') }}</option>
@@ -1056,11 +968,8 @@
                                 </button>
                             </div>
                         </div>
-
                         <div class="pt-3 border-t border-gray-100">
-                            <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">
-                                {{ __('messages.nilai_hilang') }}
-                            </label>
+                            <label class="text-xs text-gray-700 font-semibold block mb-2 uppercase tracking-tight">{{ __('messages.nilai_hilang') }}</label>
                             <div class="flex items-center gap-2">
                                 <select name="missing_method" class="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-2 text-xs font-medium outline-none focus:ring-2 focus:ring-blue-500">
                                     <option value="mean">{{ __('messages.isi_rata_rata') }}</option>
@@ -1077,7 +986,6 @@
                 </div>
             </div>
 
-            {{-- Tabel Hasil Pemindaian --}}
             <div class="lg:col-span-2">
                 <div class="card-standard border-orange-200 overflow-hidden flex flex-col">
                     <div class="p-4 bg-orange-50/50 border-b border-orange-100 flex justify-between items-center">
@@ -1101,8 +1009,7 @@
                             </thead>
                             <tbody class="divide-y divide-gray-100 text-xs">
                                 @forelse($dataIssues ?? [] as $issue)
-                                    <tr class="bg-orange-50/20 hover:bg-orange-50/40 transition-colors"
-                                        id="issue-row-{{ $issue->id }}">
+                                    <tr class="bg-orange-50/20 hover:bg-orange-50/40 transition-colors" id="issue-row-{{ $issue->id }}">
                                         <td class="px-4 py-3 font-medium text-gray-700">
                                             {{ \Carbon\Carbon::parse($issue->date)->format('d/m/Y') }}
                                         </td>
@@ -1113,42 +1020,31 @@
                                             </span>
                                         </td>
                                         <td class="px-4 py-3 text-right font-medium text-gray-700">
-                                            {{-- View mode --}}
                                             <span class="issue-val-view" id="issue-val-{{ $issue->id }}">
                                                 Rp {{ number_format($issue->value, 0, ',', '.') }}
                                             </span>
-                                            {{-- Edit mode --}}
-                                            <input type="number"
-                                                   id="issue-price-input-{{ $issue->id }}"
+                                            <input type="number" id="issue-price-input-{{ $issue->id }}"
                                                    class="issue-price-input hidden"
-                                                   value="{{ $issue->value }}"
-                                                   min="1" step="1">
+                                                   value="{{ $issue->value }}" min="1" step="1">
                                         </td>
                                         <td class="px-4 py-3 text-gray-500">{{ $issue->status }}</td>
                                         <td class="px-4 py-3">
                                             <div class="flex items-center justify-center gap-2">
-                                                {{-- Tombol Edit --}}
-                                                <button type="button"
-                                                        id="issue-edit-btn-{{ $issue->id }}"
+                                                <button type="button" id="issue-edit-btn-{{ $issue->id }}"
                                                         onclick="toggleIssueEdit({{ $issue->id }})"
                                                         class="text-blue-500 hover:text-blue-700 text-xs font-bold flex items-center gap-1 transition-colors">
                                                     <i class="fas fa-edit"></i> Edit
                                                 </button>
-                                                {{-- Tombol Simpan (tersembunyi) --}}
-                                                <button type="button"
-                                                        id="issue-save-btn-{{ $issue->id }}"
+                                                <button type="button" id="issue-save-btn-{{ $issue->id }}"
                                                         onclick="saveIssuePrice({{ $issue->id }})"
                                                         class="hidden text-green-500 hover:text-green-700 text-xs font-bold flex items-center gap-1 transition-colors">
                                                     <i class="fas fa-check"></i> Simpan
                                                 </button>
-                                                {{-- Tombol Batal (tersembunyi) --}}
-                                                <button type="button"
-                                                        id="issue-cancel-btn-{{ $issue->id }}"
+                                                <button type="button" id="issue-cancel-btn-{{ $issue->id }}"
                                                         onclick="cancelIssueEdit({{ $issue->id }})"
                                                         class="hidden text-gray-400 hover:text-gray-600 text-xs font-bold transition-colors">
                                                     <i class="fas fa-times"></i>
                                                 </button>
-                                                {{-- Tombol Hapus --}}
                                                 <form action="{{ route('operator.deleteData', $issue->id) }}" method="POST"
                                                       class="inline" id="issue-delete-form-{{ $issue->id }}">
                                                     @csrf @method('DELETE')
@@ -1247,7 +1143,6 @@ let mainChart          = null;
 let insightCurrentPage = 1;
 const INSIGHT_PER_PAGE = 10;
 
-// URL helpers — sesuaikan prefix route operator
 var _CSRF    = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
 var _UPDATA  = '{{ url("/operator/update-data") }}';
 var _UPBOBOT = '{{ url("/operator/update-bobot") }}';
@@ -1316,9 +1211,11 @@ function triggerSubmit() {
     if (yearly && yearly.value !== 'true' && yearly.value !== 'false') yearly.value = 'false';
     if (fm     && (!fm.value || isNaN(parseInt(fm.value)) || parseInt(fm.value) < 1 || parseInt(fm.value) > 12)) fm.value = '12';
     if (parametersDirty) {
-        const forceRetrain = document.getElementById('hidden_force_retrain');
-        if (forceRetrain) forceRetrain.value = 'true';
+        document.getElementById('hidden_force_retrain').value = 'true';
     }
+    // Set preview_only=true jika parameter diubah (akan trigger popup MAPE)
+    document.getElementById('hidden_preview_only').value = parametersDirty ? 'true' : 'false';
+    document.getElementById('hidden_confirm_save').value = 'false';
     const icon = document.getElementById('btn-refresh-icon');
     if (icon) icon.classList.add('fa-spin');
     const realContent = document.getElementById('real-content');
@@ -1348,8 +1245,9 @@ function triggerReset() {
     document.getElementById('hidden_forecast_months').value = defaults.fm;
     document.getElementById('fm_display_text').textContent = defaults.fm + ' ' + trans.bulan;
     document.getElementById('preview_fm').textContent = defaults.fm;
-    const forceRetrain = document.getElementById('hidden_force_retrain');
-    if (forceRetrain) forceRetrain.value = 'true';
+    document.getElementById('hidden_force_retrain').value = 'true';
+    document.getElementById('hidden_preview_only').value  = 'false';
+    document.getElementById('hidden_confirm_save').value  = 'false';
     const icon = document.getElementById('btn-refresh-icon');
     if (icon) icon.classList.add('fa-spin');
     const realContent = document.getElementById('real-content');
@@ -1511,22 +1409,21 @@ function updateInsightTable(page) {
             if (displayLower === null || displayLower === undefined) displayLower = Math.round(displayForecast * (1 - MAPE_RATE));
             if (displayUpper === null || displayUpper === undefined) displayUpper = Math.round(displayForecast * (1 + MAPE_RATE));
         }
-        var diff = null;
-        if (!isForecastOnly && row.actual !== null && displayForecast !== null) diff = displayForecast - row.actual;
-        else if (isForecastOnly && lastActual !== null && lastActual.actual !== null) diff = row.forecast - lastActual.actual;
-        var insight = trans.stabil, insightClass = 'insight-stabil';
-        if (!isForecastOnly && diff !== null) {
-            var threshold = (row.actual || 1) * 0.01;
-            if (diff > threshold) { insight = trans.naik; insightClass = 'insight-naik'; }
-            else if (diff < -threshold) { insight = trans.turun; insightClass = 'insight-turun'; }
-        } else if (isForecastOnly && lastActual !== null) {
-            var diffFromLast = row.forecast - lastActual.actual, threshLast = (lastActual.actual || 1) * 0.01;
-            if (diffFromLast > threshLast) { insight = trans.naik; insightClass = 'insight-naik'; }
-            else if (diffFromLast < -threshLast) { insight = trans.turun; insightClass = 'insight-turun'; }
-            else { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
+        var prevRow = globalIdx > 0 ? allRows[globalIdx - 1] : null;
+        var hargaSekarang = isForecastOnly ? row.forecast : (row.actual !== null ? row.actual : null);
+        var hargaSebelumnya = null;
+        if (prevRow) { hargaSebelumnya = (prevRow.actual !== null) ? prevRow.actual : (prevRow.forecast !== null ? prevRow.forecast : null); }
+        var mtmPct = null;
+        if (hargaSekarang !== null && hargaSebelumnya !== null && hargaSebelumnya !== 0) {
+            mtmPct = ((hargaSekarang - hargaSebelumnya) / hargaSebelumnya) * 100;
+        }
+        var insight = '—', insightClass = 'insight-stabil', mtmText = '—';
+        if (mtmPct !== null) {
+            var mtmAbs = Math.abs(mtmPct).toFixed(1);
+            if (mtmPct > 0)      { insight = 'INFLASI +' + mtmAbs + '%'; insightClass = 'insight-naik';   mtmText = '+' + mtmAbs + '%'; }
+            else if (mtmPct < 0) { insight = 'DEFLASI -' + mtmAbs + '%'; insightClass = 'insight-turun';  mtmText = '-' + mtmAbs + '%'; }
+            else                 { insight = 'STABIL 0.0%';               insightClass = 'insight-stabil'; mtmText = '0.0%'; }
         } else if (isForecastOnly) { insight = trans.proyeksi; insightClass = 'insight-stabil'; }
-        var diffColor = diff !== null ? (diff > 0 ? 'text-red-600' : diff < 0 ? 'text-emerald-600' : 'text-gray-500') : 'text-gray-300';
-        var diffText = diff !== null ? (diff > 0 ? '+' : '') + Math.round(diff).toLocaleString('id-ID') : '—';
         var rowBg = isForecastOnly ? 'bg-orange-50/30' : (displayForecast !== null ? 'row-has-fitted' : '');
         var borderTop = (globalIdx === actualCount && forecastRows.length > 0) ? 'border-t-2 border-orange-200' : '';
         var periodBadge = '';
@@ -1536,7 +1433,7 @@ function updateInsightTable(page) {
         var forecastCell = displayForecast !== null ? 'Rp ' + Math.round(displayForecast).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>';
         var lowerCell    = displayLower !== null ? 'Rp ' + Math.round(displayLower).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>';
         var upperCell    = displayUpper !== null ? 'Rp ' + Math.round(displayUpper).toLocaleString('id-ID') : '<span class="text-gray-300">—</span>';
-        html += `<tr class="${rowBg} ${borderTop} border-b border-gray-50 hover:bg-orange-50/50 animate-fade-in"><td class="px-6 py-4 text-gray-500 font-medium text-xs">${row.label}${periodBadge}</td><td class="px-6 py-4 text-right text-xs font-medium">${actualCell}</td><td class="px-6 py-4 text-right text-blue-600 font-bold text-xs">${forecastCell}</td><td class="px-6 py-4 text-right text-xs text-gray-400">${lowerCell}</td><td class="px-6 py-4 text-right text-xs text-gray-400">${upperCell}</td><td class="px-6 py-4 text-right text-xs ${diffColor} font-medium">${diffText}</td><td class="px-6 py-4 text-center"><span class="insight-badge ${insightClass}">${insight}</span></td></tr>`;
+        html += `<tr class="${rowBg} ${borderTop} border-b border-gray-50 hover:bg-gray-50/80 animate-fade-in"><td class="px-6 py-4 text-gray-500 font-medium text-xs">${row.label}${periodBadge}</td><td class="px-6 py-4 text-right text-xs font-medium">${actualCell}</td><td class="px-6 py-4 text-right text-blue-600 font-bold text-xs">${forecastCell}</td><td class="px-6 py-4 text-right text-xs text-gray-400">${lowerCell}</td><td class="px-6 py-4 text-right text-xs text-gray-400">${upperCell}</td><td class="px-6 py-4 text-right text-xs font-medium ${mtmPct !== null ? (mtmPct > 0 ? 'text-red-600' : mtmPct < 0 ? 'text-emerald-600' : 'text-gray-500') : 'text-gray-300'}">${mtmText}</td><td class="px-6 py-4 text-center"><span class="insight-badge ${insightClass}">${insight}</span></td></tr>`;
     }
     tbody.innerHTML = html;
     renderInsightPagination(safePage, totalPages, totalRows, startIdx + 1, endIdx);
@@ -1558,7 +1455,85 @@ function renderInsightPagination(currentPage, totalPages, totalRows, fromRow, to
 document.addEventListener('DOMContentLoaded', function () {
     const currentTab = '{{ $currentTab ?? "insight" }}';
     if (currentTab === 'insight') { changeChartPeriod('monthly'); checkFlaskStatus(); setInterval(checkFlaskStatus, 30000); }
+
+    // Auto-scroll ke flash message global
+    var flash = document.getElementById('flash-message');
+    if (flash) {
+        setTimeout(function () {
+            flash.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            flash.style.transition = 'box-shadow 0.3s';
+            flash.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.3)';
+            setTimeout(function () { flash.style.boxShadow = ''; }, 1500);
+        }, 200);
+    }
+
+    // Form single — konfirmasi sebelum submit
+    var fSingle = document.getElementById('form-single');
+    if (fSingle) {
+        fSingle.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var kEl = fSingle.querySelector('[name="komoditas_id"]');
+            var dEl = fSingle.querySelector('[name="date"]');
+            var pEl = fSingle.querySelector('[name="price"]');
+            if (!kEl.value) { showFormFlash('flash-add-single', 'Pilih komoditas terlebih dahulu!', 'error'); return; }
+            if (!dEl.value) { showFormFlash('flash-add-single', 'Tanggal wajib diisi!', 'error'); return; }
+            if (!pEl.value || parseFloat(pEl.value) <= 0) { showFormFlash('flash-add-single', 'Harga harus lebih dari 0!', 'error'); return; }
+            var kText = kEl.options[kEl.selectedIndex]?.text || '—';
+            var dp = dEl.value.split('-');
+            Swal.fire({
+                icon: 'question', title: 'Simpan Data Harga?',
+                html: '<div class="text-left text-sm space-y-1.5 mt-2">' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-24">Komoditas</span><strong>: ' + kText + '</strong></div>' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-24">Tanggal</span><strong>: ' + dp[2]+'/'+dp[1]+'/'+dp[0] + '</strong></div>' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-24">Harga</span><strong class="text-emerald-600">: Rp ' + parseInt(pEl.value).toLocaleString('id-ID') + '</strong></div></div>',
+                showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonColor: '#9ca3af',
+                confirmButtonText: '<i class="fas fa-save mr-1"></i> Ya, Simpan!', cancelButtonText: 'Batal', reverseButtons: true
+            }).then(function (r) { if (r.isConfirmed) fSingle.submit(); });
+        });
+    }
+
+    var fBulk = document.getElementById('form-bulk');
+    if (fBulk) {
+        fBulk.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var fi = fBulk.querySelector('[name="csv_file"]');
+            if (!fi || !fi.files[0]) { showFormFlash('flash-add-bulk', 'Pilih file CSV terlebih dahulu!', 'error'); return; }
+            var fname = fi.files[0].name;
+            var fsize = (fi.files[0].size / 1024).toFixed(1) + ' KB';
+            Swal.fire({
+                icon: 'question', title: 'Unggah Dataset CSV?',
+                html: '<div class="text-center"><p class="font-semibold text-gray-700">' + fname + '</p><p class="text-xs text-gray-400 mt-1">Ukuran: ' + fsize + '</p><p class="text-xs text-blue-500 mt-2">Data akan ditambahkan ke database</p></div>',
+                showCancelButton: true, confirmButtonColor: '#2563eb', cancelButtonColor: '#9ca3af',
+                confirmButtonText: '<i class="fas fa-upload mr-1"></i> Ya, Unggah!', cancelButtonText: 'Batal', reverseButtons: true
+            }).then(function (r) { if (r.isConfirmed) fBulk.submit(); });
+        });
+    }
+
+    var fBobot = document.getElementById('form-bobot');
+    if (fBobot) {
+        fBobot.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var kEl = fBobot.querySelector('[name="komoditas_id"]');
+            var tEl = fBobot.querySelector('[name="tanggal"]');
+            var nEl = fBobot.querySelector('[name="nilai_bobot"]');
+            if (!kEl.value) { showFormFlash('flash-bobot', 'Pilih komoditas!', 'error'); return; }
+            if (!tEl.value) { showFormFlash('flash-bobot', 'Tanggal wajib diisi!', 'error'); return; }
+            if (nEl.value === '' || parseFloat(nEl.value) < 0) { showFormFlash('flash-bobot', 'Nilai bobot tidak valid!', 'error'); return; }
+            var kText = kEl.options[kEl.selectedIndex]?.text || '—';
+            var dp = tEl.value.split('-');
+            Swal.fire({
+                icon: 'question', title: 'Simpan Bobot?',
+                html: '<div class="text-left text-sm space-y-1.5 mt-2">' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-28">Komoditas</span><strong>: ' + kText + '</strong></div>' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-28">Tanggal</span><strong>: ' + dp[2]+'/'+dp[1]+'/'+dp[0] + '</strong></div>' +
+                    '<div class="flex gap-2"><span class="text-gray-400 w-28">Nilai Bobot</span><strong class="text-indigo-600">: ' + parseFloat(nEl.value).toFixed(4) + '</strong></div></div>',
+                showCancelButton: true, confirmButtonColor: '#6366f1', cancelButtonColor: '#9ca3af',
+                confirmButtonText: '<i class="fas fa-save mr-1"></i> Ya, Simpan!', cancelButtonText: 'Batal', reverseButtons: true
+            }).then(function (r) { if (r.isConfirmed) fBobot.submit(); });
+        });
+    }
 });
+
 const _obs = new MutationObserver(() => { if (mainChart) initializeChart(); });
 _obs.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
@@ -1711,92 +1686,6 @@ function showFormFlash(id, msg, type) {
 })();
 
 // ─────────────────────────────────────────────
-// SWEETALERT: FORM TAMBAH DATA SINGLE
-// ─────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', function () {
-    // Auto-scroll ke flash message global
-    var flash = document.getElementById('flash-message');
-    if (flash) {
-        setTimeout(function () {
-            flash.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            flash.style.transition = 'box-shadow 0.3s';
-            flash.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.3)';
-            setTimeout(function () { flash.style.boxShadow = ''; }, 1500);
-        }, 200);
-    }
-
-    // Form single — konfirmasi sebelum submit
-    var fSingle = document.getElementById('form-single');
-    if (fSingle) {
-        fSingle.addEventListener('submit', function (e) {
-            e.preventDefault();
-            var kEl = fSingle.querySelector('[name="komoditas_id"]');
-            var dEl = fSingle.querySelector('[name="date"]');
-            var pEl = fSingle.querySelector('[name="price"]');
-            if (!kEl.value) { showFormFlash('flash-add-single', 'Pilih komoditas terlebih dahulu!', 'error'); return; }
-            if (!dEl.value) { showFormFlash('flash-add-single', 'Tanggal wajib diisi!', 'error'); return; }
-            if (!pEl.value || parseFloat(pEl.value) <= 0) { showFormFlash('flash-add-single', 'Harga harus lebih dari 0!', 'error'); return; }
-            var kText = kEl.options[kEl.selectedIndex]?.text || '—';
-            var dp = dEl.value.split('-');
-            Swal.fire({
-                icon: 'question', title: 'Simpan Data Harga?',
-                html: '<div class="text-left text-sm space-y-1.5 mt-2">' +
-                    '<div class="flex gap-2"><span class="text-gray-400 w-24">Komoditas</span><strong>: ' + kText + '</strong></div>' +
-                    '<div class="flex gap-2"><span class="text-gray-400 w-24">Tanggal</span><strong>: ' + dp[2]+'/'+dp[1]+'/'+dp[0] + '</strong></div>' +
-                    '<div class="flex gap-2"><span class="text-gray-400 w-24">Harga</span><strong class="text-emerald-600">: Rp ' + parseInt(pEl.value).toLocaleString('id-ID') + '</strong></div></div>',
-                showCancelButton: true, confirmButtonColor: '#10b981', cancelButtonColor: '#9ca3af',
-                confirmButtonText: '<i class="fas fa-save mr-1"></i> Ya, Simpan!', cancelButtonText: 'Batal', reverseButtons: true
-            }).then(function (r) { if (r.isConfirmed) fSingle.submit(); });
-        });
-    }
-
-    // Form bulk — konfirmasi sebelum upload
-    var fBulk = document.getElementById('form-bulk');
-    if (fBulk) {
-        fBulk.addEventListener('submit', function (e) {
-            e.preventDefault();
-            var fi = fBulk.querySelector('[name="csv_file"]');
-            if (!fi || !fi.files[0]) { showFormFlash('flash-add-bulk', 'Pilih file CSV terlebih dahulu!', 'error'); return; }
-            var fname = fi.files[0].name;
-            var fsize = (fi.files[0].size / 1024).toFixed(1) + ' KB';
-            Swal.fire({
-                icon: 'question', title: 'Unggah Dataset CSV?',
-                html: '<div class="text-center"><p class="font-semibold text-gray-700">' + fname + '</p>' +
-                    '<p class="text-xs text-gray-400 mt-1">Ukuran: ' + fsize + '</p>' +
-                    '<p class="text-xs text-blue-500 mt-2">Data akan ditambahkan ke database</p></div>',
-                showCancelButton: true, confirmButtonColor: '#2563eb', cancelButtonColor: '#9ca3af',
-                confirmButtonText: '<i class="fas fa-upload mr-1"></i> Ya, Unggah!', cancelButtonText: 'Batal', reverseButtons: true
-            }).then(function (r) { if (r.isConfirmed) fBulk.submit(); });
-        });
-    }
-
-    // Form bobot — konfirmasi sebelum submit
-    var fBobot = document.getElementById('form-bobot');
-    if (fBobot) {
-        fBobot.addEventListener('submit', function (e) {
-            e.preventDefault();
-            var kEl = fBobot.querySelector('[name="komoditas_id"]');
-            var tEl = fBobot.querySelector('[name="tanggal"]');
-            var nEl = fBobot.querySelector('[name="nilai_bobot"]');
-            if (!kEl.value) { showFormFlash('flash-bobot', 'Pilih komoditas!', 'error'); return; }
-            if (!tEl.value) { showFormFlash('flash-bobot', 'Tanggal wajib diisi!', 'error'); return; }
-            if (nEl.value === '' || parseFloat(nEl.value) < 0) { showFormFlash('flash-bobot', 'Nilai bobot tidak valid!', 'error'); return; }
-            var kText = kEl.options[kEl.selectedIndex]?.text || '—';
-            var dp = tEl.value.split('-');
-            Swal.fire({
-                icon: 'question', title: 'Simpan Bobot?',
-                html: '<div class="text-left text-sm space-y-1.5 mt-2">' +
-                    '<div class="flex gap-2"><span class="text-gray-400 w-28">Komoditas</span><strong>: ' + kText + '</strong></div>' +
-                    '<div class="flex gap-2"><span class="text-gray-400 w-28">Tanggal</span><strong>: ' + dp[2]+'/'+dp[1]+'/'+dp[0] + '</strong></div>' +
-                    '<div class="flex gap-2"><span class="text-gray-400 w-28">Nilai Bobot</span><strong class="text-indigo-600">: ' + parseFloat(nEl.value).toFixed(4) + '</strong></div></div>',
-                showCancelButton: true, confirmButtonColor: '#6366f1', cancelButtonColor: '#9ca3af',
-                confirmButtonText: '<i class="fas fa-save mr-1"></i> Ya, Simpan!', cancelButtonText: 'Batal', reverseButtons: true
-            }).then(function (r) { if (r.isConfirmed) fBobot.submit(); });
-        });
-    }
-});
-
-// ─────────────────────────────────────────────
 // SWEETALERT: HAPUS DATA HARGA
 // ─────────────────────────────────────────────
 function confirmDeleteData(btn, tanggal, harga) {
@@ -1830,7 +1719,7 @@ function confirmDeleteBobot(btn, komoditas, tanggal, nilai) {
 }
 
 // ─────────────────────────────────────────────
-// SWEETALERT: CLEAN DATA (OUTLIER / MISSING)
+// SWEETALERT: CLEAN DATA
 // ─────────────────────────────────────────────
 function confirmCleanAction(action, btn) {
     var fClean = document.getElementById('form-clean');
@@ -1840,11 +1729,9 @@ function confirmCleanAction(action, btn) {
     Swal.fire({
         icon: 'warning',
         title: isOut ? 'Terapkan Deteksi Outlier?' : 'Tangani Nilai Hilang?',
-        html: '<div class="text-center"><p class="text-gray-600">Metode: <strong>' + mText + '</strong></p>' +
-            '<p class="text-orange-500 text-xs mt-2"><i class="fas fa-exclamation-triangle mr-1"></i>Tindakan ini mengubah data di database!</p></div>',
+        html: '<div class="text-center"><p class="text-gray-600">Metode: <strong>' + mText + '</strong></p><p class="text-orange-500 text-xs mt-2"><i class="fas fa-exclamation-triangle mr-1"></i>Tindakan ini mengubah data di database!</p></div>',
         showCancelButton: true,
-        confirmButtonColor: isOut ? '#f97316' : '#2563eb',
-        cancelButtonColor: '#9ca3af',
+        confirmButtonColor: isOut ? '#f97316' : '#2563eb', cancelButtonColor: '#9ca3af',
         confirmButtonText: '<i class="fas fa-check mr-1"></i> Ya, Terapkan!',
         cancelButtonText: 'Batal', reverseButtons: true
     }).then(function (r) {
@@ -1934,5 +1821,110 @@ function confirmDeleteIssue(id, tanggal, jenis) {
         if (r.isConfirmed) document.getElementById('issue-delete-form-' + id).submit();
     });
 }
+
+// ─────────────────────────────────────────────
+// POPUP PERBANDINGAN MAPE — identik dengan admin
+// ─────────────────────────────────────────────
+(function() {
+    const showPopup  = {{ $showSavePopup ?? false ? 'true' : 'false' }};
+    const mapeBefore = {{ $mapeBefore ?? 0 }};
+    const mapeAfter  = {{ $mapeAfter  ?? 0 }};
+    const improved   = mapeAfter < mapeBefore;
+    const noBefore   = mapeBefore === 0;
+
+    if (!showPopup) return;
+
+    const diffAbs = Math.abs(mapeBefore - mapeAfter).toFixed(2);
+    const arrow   = improved ? '↓' : '↑';
+    const icon    = improved ? 'success' : 'warning';
+
+    let titleText, bodyHtml, confirmText, denyText, cancelText;
+
+    if (noBefore) {
+        titleText   = 'Parameter Baru Diterapkan';
+        bodyHtml    = `<div class="text-center">
+            <p class="text-gray-500 text-sm mb-3">Belum ada data MAPE sebelumnya untuk komoditas ini.</p>
+            <div class="bg-blue-50 rounded-lg p-3 inline-block">
+                <p class="text-xs text-gray-500">MAPE Sekarang</p>
+                <p class="text-2xl font-bold text-blue-600">${mapeAfter.toFixed(2)}%</p>
+            </div>
+            <p class="text-xs text-gray-400 mt-3">Simpan parameter ini sebagai preferensi komoditas?</p>
+        </div>`;
+        confirmText = 'Simpan';
+        denyText    = null;
+        cancelText  = 'Tidak';
+    } else if (improved) {
+        titleText   = 'Akurasi Meningkat!';
+        bodyHtml    = `<div class="text-center">
+            <div class="flex justify-center gap-6 mb-4">
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">MAPE Sebelumnya</p>
+                    <p class="text-xl font-bold text-gray-600">${mapeBefore.toFixed(2)}%</p>
+                </div>
+                <div class="flex items-center text-green-500 text-2xl font-bold">${arrow}</div>
+                <div class="bg-green-50 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">MAPE Sekarang</p>
+                    <p class="text-xl font-bold text-green-600">${mapeAfter.toFixed(2)}%</p>
+                </div>
+            </div>
+            <p class="text-sm text-green-600 font-semibold">Model lebih akurat sebesar ${diffAbs}%</p>
+            <p class="text-xs text-gray-400 mt-2">Mau simpan parameter ini?</p>
+        </div>`;
+        confirmText = 'Simpan';
+        denyText    = null;
+        cancelText  = 'Tidak';
+    } else {
+        titleText   = 'Akurasi Menurun';
+        bodyHtml    = `<div class="text-center">
+            <div class="flex justify-center gap-6 mb-4">
+                <div class="bg-gray-50 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">MAPE Sebelumnya</p>
+                    <p class="text-xl font-bold text-gray-600">${mapeBefore.toFixed(2)}%</p>
+                </div>
+                <div class="flex items-center text-red-500 text-2xl font-bold">${arrow}</div>
+                <div class="bg-red-50 rounded-lg p-3">
+                    <p class="text-xs text-gray-500">MAPE Sekarang</p>
+                    <p class="text-xl font-bold text-red-600">${mapeAfter.toFixed(2)}%</p>
+                </div>
+            </div>
+            <p class="text-sm text-red-600 font-semibold">Model kurang akurat sebesar ${diffAbs}%</p>
+            <p class="text-xs text-gray-400 mt-2">Parameter tetap disimpan atau kembali ke sebelumnya?</p>
+        </div>`;
+        confirmText = 'Simpan Tetap';
+        denyText    = 'Kembali ke Default';
+        cancelText  = 'Atur Ulang';
+    }
+
+    Swal.fire({
+        icon:              icon,
+        title:             titleText,
+        html:              bodyHtml,
+        showConfirmButton: true,
+        showDenyButton:    denyText !== null,
+        showCancelButton:  true,
+        confirmButtonText: confirmText,
+        denyButtonText:    denyText,
+        cancelButtonText:  cancelText,
+        confirmButtonColor: '#2563eb',
+        denyButtonColor:    '#6b7280',
+        cancelButtonColor:  '#9ca3af',
+        reverseButtons:    false,
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            // Simpan permanen ke DB
+            document.getElementById('hidden_preview_only').value  = 'false';
+            document.getElementById('hidden_confirm_save').value  = 'true';
+            document.getElementById('hidden_force_retrain').value = 'true';
+            const icon2 = document.getElementById('btn-refresh-icon');
+            if (icon2) icon2.classList.add('fa-spin');
+            document.getElementById('real-content').classList.add('opacity-30');
+            document.getElementById('mainForm').submit();
+        } else if (result.isDenied) {
+            // Kembali ke default — reset slider lalu submit
+            triggerReset();
+        }
+        // Atur Ulang / Tidak — tidak submit, biarkan user ubah slider lagi
+    });
+})();
 </script>
 @endsection

@@ -18,9 +18,9 @@ trait SavesUserPreferences
      * Jika belum ada, buat baru dengan nilai default.
      * Tidak pernah return null.
      */
-    protected function loadUserPreferences(int $userId, int $komoditasId = 0): UserPreference
+    protected function loadUserPreferences(int $userId): UserPreference
     {
-        return UserPreference::getOrDefault($userId, $komoditasId);
+        return UserPreference::getOrDefault($userId);
     }
 
     // =========================================================
@@ -32,13 +32,13 @@ trait SavesUserPreferences
      * Simpan preferensi saat admin submit form prediksi (POST).
      * Hanya dipanggil jika request adalah POST dan tab = insight.
      */
-    protected function persistUserPreferences(int $userId, array $data, int $komoditasId = 0): void
+    protected function persistUserPreferences(int $userId, array $data): void
     {
         UserPreference::saveFromRequest($userId, [
             'start_date'              => $data['start_date']               ?? null,
             'end_date'                => $data['end_date']                 ?? null,
-            'forecast_months'          => isset($data['forecast_months'])
-                                            ? (int)   $data['forecast_months']   : null,
+            'forecast_weeks'          => isset($data['forecast_weeks'])
+                                            ? (int)   $data['forecast_weeks']   : null,
             'changepoint_prior_scale' => isset($data['changepoint_prior_scale'])
                                             ? (float) $data['changepoint_prior_scale'] : null,
             'seasonality_prior_scale' => isset($data['seasonality_prior_scale'])
@@ -50,12 +50,12 @@ trait SavesUserPreferences
             'yearly_seasonality'      => isset($data['yearly_seasonality'])
                                             ? filter_var($data['yearly_seasonality'], FILTER_VALIDATE_BOOLEAN)
                                             : null,
-        ], $komoditasId);
+        ]);
 
         Log::info('[TRAIT persistUserPreferences] Preferensi disimpan untuk user_id=' . $userId, [
             'start_date'              => $data['start_date']               ?? null,
             'end_date'                => $data['end_date']                 ?? null,
-            'forecast_months'          => $data['forecast_months']           ?? null,
+            'forecast_weeks'          => $data['forecast_weeks']           ?? null,
             'changepoint_prior_scale' => $data['changepoint_prior_scale']  ?? null,
             'seasonality_prior_scale' => $data['seasonality_prior_scale']  ?? null,
             'seasonality_mode'        => $data['seasonality_mode']         ?? null,
@@ -84,8 +84,8 @@ trait SavesUserPreferences
         Log::info('[TRAIT resolveParameters]', [
             'isPost'                  => $isPost,
             'method'                  => $request->method(),
-            'has_forecast_months'      => $request->has('forecast_months'),
-            'forecast_months_raw'      => $request->input('forecast_months',          'NOT_IN_REQUEST'),
+            'has_forecast_weeks'      => $request->has('forecast_weeks'),
+            'forecast_weeks_raw'      => $request->input('forecast_weeks',          'NOT_IN_REQUEST'),
             'cp_raw'                  => $request->input('changepoint_prior_scale', 'NOT_IN_REQUEST'),
             'ss_raw'                  => $request->input('seasonality_prior_scale', 'NOT_IN_REQUEST'),
             'mode_raw'                => $request->input('seasonality_mode',        'NOT_IN_REQUEST'),
@@ -121,21 +121,21 @@ trait SavesUserPreferences
         }
 
         // ── Forecast weeks ─────────────────────────────────────
-        $forecastWeeks = (int) $get('forecast_months', $prefs->forecast_months, 12);
+        $forecastWeeks = (int) $get('forecast_weeks', $prefs->forecast_weeks, 12);
         $forecastWeeks = max(1, min(52, $forecastWeeks));
 
         // ── Changepoint prior scale ────────────────────────────
-        $cpScale = (float) $get('changepoint_prior_scale', $prefs->changepoint_prior_scale, 0.1);
+        $cpScale = (float) $get('changepoint_prior_scale', $prefs->changepoint_prior_scale, 0.05);
         $cpScale = max(0.001, min(0.5, $cpScale));
 
         // ── Seasonality prior scale ────────────────────────────
-        $seasonScale = (float) $get('seasonality_prior_scale', $prefs->seasonality_prior_scale, 10.0);
+        $seasonScale = (float) $get('seasonality_prior_scale', $prefs->seasonality_prior_scale, 1.0);
         $seasonScale = max(0.01, min(50.0, $seasonScale));
 
         // ── Seasonality mode ───────────────────────────────────
-        $seasonMode = $get('seasonality_mode', $prefs->seasonality_mode, 'additive');
+        $seasonMode = $get('seasonality_mode', $prefs->seasonality_mode, 'multiplicative');
         if (!in_array($seasonMode, ['additive', 'multiplicative'], true)) {
-            $seasonMode = 'additive';
+            $seasonMode = 'multiplicative';
         }
 
         // ── Weekly seasonality ─────────────────────────────────

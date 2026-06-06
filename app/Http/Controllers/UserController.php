@@ -72,7 +72,7 @@ class UserController extends Controller
     // override parameter apapun via URL atau form.
     // =========================================================
 
-    private function resolveAdminParams(): array
+    private function resolveAdminParams(int $komoditasId = 0): array
     {
         $adminId = $this->getAdminUserId();
 
@@ -81,10 +81,16 @@ class UserController extends Controller
             return UserPreference::defaultParamArray();
         }
 
-        $params = $this->loadUserPreferences($adminId)->toParamArray();
-
-        Log::info('[USER] Preferensi admin berhasil dimuat untuk admin_id=' . $adminId, $params);
-
+        // Coba ambil preferensi admin per komoditas
+        $pref = \App\Models\UserPreference::where('user_id', $adminId)
+            ->where('komoditas_id', $komoditasId)
+            ->first();
+        if (!$pref) {
+            Log::info('[USER] Preferensi admin belum ada untuk komoditas_id=' . $komoditasId . ', pakai default.');
+            return UserPreference::defaultParamArray();
+        }
+        $params = $pref->toParamArray();
+        Log::info('[USER] Preferensi admin dimuat untuk admin_id=' . $adminId . ' komoditas_id=' . $komoditasId, $params);
         return $params;
     }
 
@@ -139,7 +145,7 @@ class UserController extends Controller
         }
 
         // ── STEP 4: Ambil parameter dari prefs admin ──────────
-        $params = $this->resolveAdminParams();
+        $params = $this->resolveAdminParams($selectedKomoditasId);
 
         // ── STEP 5: Destructure parameter ─────────────────────
         $forecastWeeks   = $params['forecastWeeks'];
@@ -199,9 +205,9 @@ class UserController extends Controller
         $minPrice  = 0;
         $countData = 0;
 
-        $weeklyLabels  = []; $weeklyActual  = []; $weeklyForecast  = []; $weeklyLower  = []; $weeklyUpper  = [];
-        $monthlyLabels = []; $monthlyActual = []; $monthlyForecast = []; $monthlyLower = []; $monthlyUpper = [];
-        $yearlyLabels  = []; $yearlyActual  = []; $yearlyForecast  = []; $yearlyLower  = []; $yearlyUpper  = [];
+        $weeklyLabels  = []; $weeklyActual  = []; $weeklyForecast  = []; $weeklyLower  = []; $weeklyUpper  = []; $weeklyFitted  = [];
+        $monthlyLabels = []; $monthlyActual = []; $monthlyForecast = []; $monthlyLower = []; $monthlyUpper = []; $monthlyFitted = [];
+        $yearlyLabels  = []; $yearlyActual  = []; $yearlyForecast  = []; $yearlyLower  = []; $yearlyUpper  = []; $yearlyFitted  = [];
 
         // ── STEP 8: Ambil data historis ───────────────────────
         $prices = [];
@@ -278,9 +284,10 @@ class UserController extends Controller
                 $this->buildChartFromProphet(
                     $dates, $prices,
                     $flaskResult['predictions'],
-                    $weeklyLabels,  $weeklyActual,  $weeklyForecast,  $weeklyLower,  $weeklyUpper,
-                    $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper,
-                    $yearlyLabels,  $yearlyActual,  $yearlyForecast,  $yearlyLower,  $yearlyUpper
+                    $flaskResult['fitted_values'] ?? [],
+                    $weeklyLabels,  $weeklyActual,  $weeklyForecast,  $weeklyLower,  $weeklyUpper,  $weeklyFitted,
+                    $monthlyLabels, $monthlyActual, $monthlyForecast, $monthlyLower, $monthlyUpper, $monthlyFitted,
+                    $yearlyLabels,  $yearlyActual,  $yearlyForecast,  $yearlyLower,  $yearlyUpper,  $yearlyFitted
                 );
 
             } else {
@@ -340,9 +347,9 @@ class UserController extends Controller
             'mape', 'rSquared',
             'cpScale', 'seasonScale', 'seasonalityMode',
             'weeklyActive', 'yearlyActive', 'forecastWeeks',
-            'weeklyLabels',  'weeklyActual',  'weeklyForecast',  'weeklyLower',  'weeklyUpper',
-            'monthlyLabels', 'monthlyActual', 'monthlyForecast', 'monthlyLower', 'monthlyUpper',
-            'yearlyLabels',  'yearlyActual',  'yearlyForecast',  'yearlyLower',  'yearlyUpper'
+            'weeklyLabels',  'weeklyActual',  'weeklyForecast',  'weeklyLower',  'weeklyUpper',  'weeklyFitted',
+            'monthlyLabels', 'monthlyActual', 'monthlyForecast', 'monthlyLower', 'monthlyUpper', 'monthlyFitted',
+            'yearlyLabels',  'yearlyActual',  'yearlyForecast',  'yearlyLower',  'yearlyUpper',  'yearlyFitted'
         ));
     }
 
@@ -434,8 +441,9 @@ class UserController extends Controller
             return [
                 'predictions'     => $predictions,
                 'mape'            => round((float) $mape, 2),
-                'r_squared'       => round(min(1.0, max(0.0, (float) $coverage)), 4),
+                'r_squared'       => round(min(1.0, max(0.0, (float) ($modelMetrics['r_squared'] ?? $coverage))), 4),
                 'trend_direction' => $modelMetrics['trend_direction'] ?? 'stable',
+                'fitted_values'   => $data['data']['fitted_values'] ?? [],
                 'metrics'         => $modelMetrics,
             ];
 
@@ -459,9 +467,10 @@ class UserController extends Controller
         array $actualDates,
         array $actualPrices,
         array $predictions,
-        &$weeklyLabels,  &$weeklyActual,  &$weeklyForecast,  &$weeklyLower,  &$weeklyUpper,
-        &$monthlyLabels, &$monthlyActual, &$monthlyForecast, &$monthlyLower, &$monthlyUpper,
-        &$yearlyLabels,  &$yearlyActual,  &$yearlyForecast,  &$yearlyLower,  &$yearlyUpper
+        array $fittedValues,
+        &$weeklyLabels,  &$weeklyActual,  &$weeklyForecast,  &$weeklyLower,  &$weeklyUpper,  &$weeklyFitted,
+        &$monthlyLabels, &$monthlyActual, &$monthlyForecast, &$monthlyLower, &$monthlyUpper, &$monthlyFitted,
+        &$yearlyLabels,  &$yearlyActual,  &$yearlyForecast,  &$yearlyLower,  &$yearlyUpper,  &$yearlyFitted
     ): void {
         $forecastDates  = [];
         $forecastPrices = [];
@@ -490,6 +499,16 @@ class UserController extends Controller
             $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
             $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
         );
+
+        $fittedDates  = [];
+        $fittedPrices = [];
+        foreach ($fittedValues as $f) {
+            $fittedDates[]  = Carbon::parse($f['date']);
+            $fittedPrices[] = (int) round($f['fitted_price']);
+        }
+        $weeklyFitted  = $this->aggregateFittedToLabels($fittedDates, $fittedPrices, $weeklyLabels,  $weeklyActual,  'week');
+        $monthlyFitted = $this->aggregateFittedToLabels($fittedDates, $fittedPrices, $monthlyLabels, $monthlyActual, 'month');
+        $yearlyFitted  = $this->aggregateFittedToLabels($fittedDates, $fittedPrices, $yearlyLabels,  $yearlyActual,  'year');
     }
 
     // =========================================================
@@ -573,6 +592,73 @@ class UserController extends Controller
     // AGGREGATION — Monthly
     // FIX: Hapus "continue" agar prediksi in-sample ikut tersimpan
     // =========================================================
+
+    private function aggregateFittedToLabels(
+        array $fittedDates,
+        array $fittedPrices,
+        array $labels,
+        array $actualAgg,
+        string $granularity
+    ): array {
+        if (empty($fittedDates) || empty($labels)) {
+            return array_fill(0, count($labels), null);
+        }
+        $grouped = [];
+        foreach ($fittedDates as $i => $date) {
+            $d = $date instanceof Carbon ? $date : Carbon::parse($date);
+            switch ($granularity) {
+                case 'week':
+                    $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
+                    break;
+                case 'month':
+                    $key = $d->format('Y-m');
+                    break;
+                case 'year':
+                    $key = (string) $d->year;
+                    break;
+                default:
+                    $key = $d->format('Y-m');
+            }
+            $grouped[$key][] = $fittedPrices[$i] ?? null;
+        }
+        $result = [];
+        foreach ($labels as $li => $label) {
+            $actualVal = $actualAgg[$li] ?? null;
+            if ($actualVal === null) {
+                $result[] = null;
+                continue;
+            }
+            $key = null;
+            switch ($granularity) {
+                case 'week':
+                    if (preg_match('/(\d{2})\/(\d{2})\/(\d{4})$/', $label, $m)) {
+                        $d   = Carbon::createFromDate($m[3], $m[2], $m[1]);
+                        $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
+                    }
+                    break;
+                case 'month':
+                    try {
+                        $d   = Carbon::createFromFormat('M Y', $label);
+                        $key = $d->format('Y-m');
+                    } catch (\Exception $e) {
+                        $key = null;
+                    }
+                    break;
+                case 'year':
+                    if (preg_match('/(\d{4})/', $label, $m)) {
+                        $key = $m[1];
+                    }
+                    break;
+            }
+            if ($key && isset($grouped[$key])) {
+                $vals     = array_filter($grouped[$key], fn($v) => $v !== null);
+                $result[] = count($vals) ? (int) round(array_sum($vals) / count($vals)) : null;
+            } else {
+                $result[] = null;
+            }
+        }
+        return $result;
+    }
 
     private function aggregateMonthlyData(
         $actualDates, $actualPrices,

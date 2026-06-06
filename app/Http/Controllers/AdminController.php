@@ -280,12 +280,28 @@ private function processUsersTab(Request $request)
             $dbMaxDate = Carbon::now()->format('Y-m-d');
         }
 
-        $prefs  = $this->loadUserPreferences($userId);
+        $prefs  = $this->loadUserPreferences($userId, $selectedKomoditasId);
         $params = $this->resolveParameters($request, $prefs);
 
-        if ($request->isMethod('POST') && $currentTab === 'insight') {
-            $this->persistUserPreferences($userId, $request->all());
+        $isPreviewOnly = $this->parseBoolFromString($request->input('preview_only', 'false'));
+        $isConfirmSave = $this->parseBoolFromString($request->input('confirm_save', 'false'));
+
+        if ($request->isMethod('POST') && $currentTab === 'insight' && $isConfirmSave) {
+            $this->persistUserPreferences($userId, $request->all(), $selectedKomoditasId);
         }
+
+        $mapeBefore = 0.0;
+        try {
+            $lastRun = \DB::table('forecast_results')
+                ->where('komoditas_id', $selectedKomoditasId)
+                ->orderBy('run_at', 'desc')
+                ->first();
+            $mapeBefore = $lastRun ? round((float) $lastRun->mape, 2) : 0.0;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('[ADMIN] Gagal ambil mape_before: ' . $e->getMessage());
+        }
+
+        $showSavePopup = false;
 
         $forecastMonths = max(1, min(24, (int) (
             $request->input('forecast_months')
@@ -462,6 +478,11 @@ private function processUsersTab(Request $request)
                     default      => 'Stabil',
                 };
 
+                if ($isPreviewOnly && !$isConfirmSave) {
+                    $showSavePopup = true;
+                }
+                $mapeAfter = $mape;
+
                 $inSampleMape        = round((float) ($flaskMetrics['in_sample_mape']        ?? 0), 2);
                 $intervalWidth       = round((float) ($flaskMetrics['future_interval_width']
                                                    ?? $flaskMetrics['avg_interval_width']     ?? 0), 0);
@@ -521,6 +542,7 @@ private function processUsersTab(Request $request)
         }
 
         $rSquared = round($rSquared, 3);
+        $mapeAfter = $mapeAfter ?? $mape;
 
         return view('admin_dashboard', compact(
             'role', 'username', 'email',
@@ -536,6 +558,7 @@ private function processUsersTab(Request $request)
             'mape', 'rSquared',
             'inSampleMape', 'intervalWidth', 'changepointCount',
             'seasonalityStrength', 'trendFlexibility',
+            'showSavePopup', 'mapeBefore', 'mapeAfter',
             'weeklyLabels',  'weeklyActual',  'weeklyForecast',  'weeklyFitted',  'weeklyLower',  'weeklyUpper',
             'monthlyLabels', 'monthlyActual', 'monthlyForecast', 'monthlyFitted', 'monthlyLower', 'monthlyUpper',
             'yearlyLabels',  'yearlyActual',  'yearlyForecast',  'yearlyFitted',  'yearlyLower',  'yearlyUpper',
@@ -716,9 +739,10 @@ private function processUsersTab(Request $request)
                 'predictions'     => $predictions,
                 'fitted_values'   => $fittedValues,
                 'mape'            => round((float) $mape, 2),
-                'r_squared'       => round(min(1.0, max(0.0, (float) $coverage)), 4),
+                'r_squared'       => round(min(1.0, max(0.0, (float) ($modelMetrics['r_squared'] ?? $coverage))), 4),
                 'trend_direction' => $modelMetrics['trend_direction'] ?? 'stable',
                 'metrics'         => $modelMetrics,
+                'hyperparameters' => $data['data']['hyperparameters'] ?? [],
             ];
 
         } catch (\Illuminate\Http\Client\RequestException $e) {
