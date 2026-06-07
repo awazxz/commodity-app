@@ -84,6 +84,45 @@
 
     @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
     .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+
+    /* ── Font size override — keterbacaan untuk user 30+ ── */
+    .dashboard-container { font-size: 15px; color: #1a202c; }
+    .dashboard-container .text-\[8px\]  { font-size: 12px !important; }
+    .dashboard-container .text-\[9px\]  { font-size: 13px !important; }
+    .dashboard-container .text-\[10px\] { font-size: 13px !important; }
+    .dashboard-container .text-\[11px\] { font-size: 13px !important; }
+    .dashboard-container .text-xs       { font-size: 14px !important; }
+    .dashboard-container .text-sm       { font-size: 15px !important; }
+    .dashboard-container .text-base     { font-size: 16px !important; }
+    .dashboard-container .text-lg       { font-size: 18px !important; }
+    .dashboard-container .text-xl       { font-size: 20px !important; }
+    .dashboard-container input,
+    .dashboard-container select,
+    .dashboard-container textarea       { font-size: 15px !important; }
+    .dashboard-container button         { font-size: 14px !important; }
+    .dashboard-container th             { font-size: 13px !important; }
+    .dashboard-container td             { font-size: 15px !important; }
+
+    /* Badge & pill kecil — minimal tetap 12px */
+    .dashboard-container .rounded-full  { font-size: 12px !important; }
+    .dashboard-container .insight-badge { font-size: 12px !important; }
+    .dashboard-container .horizon-pill  { font-size: 12px !important; }
+    .dashboard-container .fitted-badge  { font-size: 11px !important; }
+
+    /* ── Perbaikan kontras warna teks ── */
+    .dashboard-container .text-gray-400 { color: #4b5563 !important; }
+    .dashboard-container .text-gray-500 { color: #374151 !important; }
+    .dashboard-container .text-gray-300 { color: #6b7280 !important; }
+
+    html.dark .dashboard-container .text-gray-400 { color: #d1d5db !important; }
+    html.dark .dashboard-container .text-gray-500 { color: #e5e7eb !important; }
+    html.dark .dashboard-container .text-gray-300 { color: #9ca3af !important; }
+    .dashboard-container .grid.grid-cols-1.sm\:grid-cols-2.md\:grid-cols-4 > div {
+        text-align: center !important;
+    }
+    .dashboard-container .grid.grid-cols-1.sm\:grid-cols-2.md\:grid-cols-4 > div .flex.items-center.gap-2 {
+        justify-content: center !important;
+    }
 </style>
 
 <div class="dashboard-container space-y-6 animate-fade-in">

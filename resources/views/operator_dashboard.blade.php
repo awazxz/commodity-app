@@ -155,6 +155,65 @@
         border: 1px solid #3b82f6; border-radius: 4px;
         background: #eff6ff; color: #1e40af;
     }
+
+    /* ── Font size override — keterbacaan untuk user 30+ ── */
+    .dashboard-container { font-size: 15px; color: #1a202c; }
+    .dashboard-container .text-\[8px\]  { font-size: 12px !important; }
+    .dashboard-container .text-\[9px\]  { font-size: 13px !important; }
+    .dashboard-container .text-\[10px\] { font-size: 13px !important; }
+    .dashboard-container .text-\[11px\] { font-size: 13px !important; }
+    .dashboard-container .text-xs       { font-size: 14px !important; }
+    .dashboard-container .text-sm       { font-size: 15px !important; }
+    .dashboard-container .text-base     { font-size: 16px !important; }
+    .dashboard-container .text-lg       { font-size: 18px !important; }
+    .dashboard-container .text-xl       { font-size: 20px !important; }
+    .dashboard-container input,
+    .dashboard-container select,
+    .dashboard-container textarea       { font-size: 15px !important; }
+    .dashboard-container button         { font-size: 14px !important; }
+    .dashboard-container th             { font-size: 13px !important; }
+    .dashboard-container td             { font-size: 15px !important; }
+
+    /* Label & deskripsi hyperparameter panel */
+    .dashboard-container .space-y-5 span,
+    .dashboard-container .space-y-5 p,
+    .dashboard-container .space-y-5 label { font-size: 13px !important; }
+
+    /* Badge & pill kecil — minimal tetap 12px */
+    .dashboard-container .rounded-full  { font-size: 12px !important; }
+    .dashboard-container .insight-badge { font-size: 12px !important; }
+
+    /* Preview parameter aktif */
+    #param-preview-box span { font-size: 13px !important; }
+    #param-preview-box p    { font-size: 12px !important; }
+
+    /* ── Perbaikan kontras warna teks ── */
+    .dashboard-container .text-gray-400 { color: #4b5563 !important; }
+    .dashboard-container .text-gray-500 { color: #374151 !important; }
+    .dashboard-container .text-gray-300 { color: #6b7280 !important; }
+
+    /* Deskripsi sub-label di hyperparameter panel */
+    .dashboard-container .space-y-5 p {
+        color: #4b5563 !important;
+    }
+
+    /* Preview parameter aktif */
+    #param-preview-box .text-gray-400,
+    #param-preview-box .text-gray-500 {
+        color: #374151 !important;
+    }
+
+    /* Teks hint di bawah slider */
+    .dashboard-container .text-gray-300 {
+        color: #6b7280 !important;
+    }
+    /* ── Center teks Stats Cards ── */
+    .dashboard-container .grid.grid-cols-1.sm\:grid-cols-2.md\:grid-cols-4 > div {
+        text-align: center !important;
+    }
+    .dashboard-container .grid.grid-cols-1.sm\:grid-cols-2.md\:grid-cols-4 > div .flex.items-center.gap-2 {
+        justify-content: center !important;
+    }
 </style>
 </div>
 
