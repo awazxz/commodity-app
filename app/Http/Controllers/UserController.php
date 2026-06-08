@@ -293,7 +293,7 @@ class UserController extends Controller
             } else {
                 Log::warning('[USER FALLBACK] Flask tidak tersedia, menggunakan kalkulasi PHP.');
 
-                $forecastDays = $forecastWeeks * 7;
+                $forecastDays = $forecastWeeks * 30;
 
                 [$forecastDates, $forecastPrices, $forecastLowers, $forecastUppers] =
                     $this->simpleForecast($dates, $prices, $forecastDays);
@@ -315,6 +315,11 @@ class UserController extends Controller
                     $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
                     $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
                 );
+
+                // Fallback: fitted = actual (tidak ada Prophet fitted values)
+                $weeklyFitted  = $weeklyActual;
+                $monthlyFitted = $monthlyActual;
+                $yearlyFitted  = $yearlyActual;
 
                 $lastActual   = collect($monthlyActual)->filter()->last();
                 $lastForecast = collect($monthlyForecast)->filter()->last();
@@ -355,6 +360,8 @@ class UserController extends Controller
 
     // =========================================================
     // PANGGIL FLASK PROPHET API
+    // FIX: frequency 'MS' (bulanan) dan periods langsung forecastWeeks
+    //      — identik dengan AdminController
     // =========================================================
 
     private function callFlaskProphet(
@@ -373,12 +380,12 @@ class UserController extends Controller
         try {
             $payload = [
                 'commodity_id'            => $komoditasId,
-                'periods'                 => $forecastWeeks * 7,
-                'frequency'               => 'W',
+                'periods'                 => $forecastWeeks,   // langsung bulan, bukan * 7
+                'frequency'               => 'MS',             // bulanan, sama dengan admin
                 'changepoint_prior_scale' => $cpScale,
                 'seasonality_prior_scale' => $seasonScale,
                 'seasonality_mode'        => $seasonMode,
-                'weekly_seasonality'      => $weeklySeason,
+                'weekly_seasonality'      => false,            // selalu false, sama dengan admin
                 'yearly_seasonality'      => $yearlySeason,
                 'force_retrain'           => $forceRetrain,
                 'user_override'           => $isUserOverride,
@@ -484,6 +491,13 @@ class UserController extends Controller
             $forecastUppers[] = (int) round($p['upper_bound']);
         }
 
+        $fittedDates  = [];
+        $fittedPrices = [];
+        foreach ($fittedValues as $f) {
+            $fittedDates[]  = Carbon::parse($f['date']);
+            $fittedPrices[] = (int) round($f['fitted_price']);
+        }
+
         $this->aggregateWeeklyData(
             $actualDates, $actualPrices,
             $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
@@ -500,97 +514,13 @@ class UserController extends Controller
             $yearlyLabels, $yearlyActual, $yearlyForecast, $yearlyLower, $yearlyUpper
         );
 
-        $fittedDates  = [];
-        $fittedPrices = [];
-        foreach ($fittedValues as $f) {
-            $fittedDates[]  = Carbon::parse($f['date']);
-            $fittedPrices[] = (int) round($f['fitted_price']);
-        }
         $weeklyFitted  = $this->aggregateFittedToLabels($fittedDates, $fittedPrices, $weeklyLabels,  $weeklyActual,  'week');
         $monthlyFitted = $this->aggregateFittedToLabels($fittedDates, $fittedPrices, $monthlyLabels, $monthlyActual, 'month');
         $yearlyFitted  = $this->aggregateFittedToLabels($fittedDates, $fittedPrices, $yearlyLabels,  $yearlyActual,  'year');
     }
 
     // =========================================================
-    // AGGREGATION — Weekly
-    // FIX: Hapus "continue" agar prediksi in-sample ikut tersimpan
-    // =========================================================
-
-    private function aggregateWeeklyData(
-        $actualDates, $actualPrices,
-        $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
-        &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper
-    ): void {
-        $weekGroups = [];
-
-        foreach ($actualDates as $i => $date) {
-            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
-            $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
-
-            if (!isset($weekGroups[$key])) {
-                $weekGroups[$key] = [
-                    'label'          => $d->copy()->startOfWeek()->format('d/m')
-                                      . ' - '
-                                      . $d->copy()->endOfWeek()->format('d/m/Y'),
-                    'actualPrices'   => [],
-                    'forecastPrices' => [],
-                    'lowerPrices'    => [],
-                    'upperPrices'    => [],
-                    'sortKey'        => $d->timestamp,
-                ];
-            }
-            if (isset($actualPrices[$i])) {
-                $weekGroups[$key]['actualPrices'][] = $actualPrices[$i];
-            }
-        }
-
-        // FIX: Tidak ada lagi "continue" — prediksi historis tetap disimpan
-        foreach ($forecastDates as $i => $date) {
-            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
-            $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
-
-            if (!isset($weekGroups[$key])) {
-                $weekGroups[$key] = [
-                    'label'          => $d->copy()->startOfWeek()->format('d/m')
-                                      . ' - '
-                                      . $d->copy()->endOfWeek()->format('d/m/Y'),
-                    'actualPrices'   => [],
-                    'forecastPrices' => [],
-                    'lowerPrices'    => [],
-                    'upperPrices'    => [],
-                    'sortKey'        => $d->timestamp,
-                ];
-            }
-            if (isset($forecastPrices[$i])) {
-                $weekGroups[$key]['forecastPrices'][] = $forecastPrices[$i];
-                $weekGroups[$key]['lowerPrices'][]    = $forecastLowers[$i] ?? $forecastPrices[$i];
-                $weekGroups[$key]['upperPrices'][]    = $forecastUppers[$i] ?? $forecastPrices[$i];
-            }
-        }
-
-        ksort($weekGroups);
-
-        foreach ($weekGroups as $week) {
-            $labels[]    = $week['label'];
-            $actualAgg[] = !empty($week['actualPrices'])
-                ? round(array_sum($week['actualPrices']) / count($week['actualPrices']))
-                : null;
-
-            if (!empty($week['forecastPrices'])) {
-                $forecastAgg[] = round(array_sum($week['forecastPrices']) / count($week['forecastPrices']));
-                $lower[]       = round(array_sum($week['lowerPrices'])    / count($week['lowerPrices']));
-                $upper[]       = round(array_sum($week['upperPrices'])    / count($week['upperPrices']));
-            } else {
-                $forecastAgg[] = null;
-                $lower[]       = null;
-                $upper[]       = null;
-            }
-        }
-    }
-
-    // =========================================================
-    // AGGREGATION — Monthly
-    // FIX: Hapus "continue" agar prediksi in-sample ikut tersimpan
+    // AGGREGATE FITTED VALUES KE LABEL YANG SUDAH ADA
     // =========================================================
 
     private function aggregateFittedToLabels(
@@ -660,6 +590,102 @@ class UserController extends Controller
         return $result;
     }
 
+    // =========================================================
+    // AGGREGATION — Weekly
+    // FIX: tambah $actualWeekKeys + continue agar forecast hanya
+    //      mengisi periode yang TIDAK punya data aktual
+    //      (identik dengan AdminController)
+    // =========================================================
+
+    private function aggregateWeeklyData(
+        $actualDates, $actualPrices,
+        $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
+        &$labels, &$actualAgg, &$forecastAgg, &$lower, &$upper
+    ): void {
+        $weekGroups = [];
+
+        foreach ($actualDates as $i => $date) {
+            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
+            $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
+
+            if (!isset($weekGroups[$key])) {
+                $weekGroups[$key] = [
+                    'label'          => $d->copy()->startOfWeek()->format('d/m')
+                                      . ' - '
+                                      . $d->copy()->endOfWeek()->format('d/m/Y'),
+                    'actualPrices'   => [],
+                    'forecastPrices' => [],
+                    'lowerPrices'    => [],
+                    'upperPrices'    => [],
+                    'sortKey'        => $d->timestamp,
+                ];
+            }
+            if (isset($actualPrices[$i])) {
+                $weekGroups[$key]['actualPrices'][] = $actualPrices[$i];
+            }
+        }
+
+        // Kumpulkan key minggu yang punya data aktual
+        $actualWeekKeys = [];
+        foreach ($weekGroups as $key => $g) {
+            if (!empty($g['actualPrices'])) {
+                $actualWeekKeys[$key] = true;
+            }
+        }
+
+        foreach ($forecastDates as $i => $date) {
+            $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
+            $key = $d->year . '-W' . str_pad($d->weekOfYear, 2, '0', STR_PAD_LEFT);
+
+            // Skip minggu yang sudah punya data aktual — forecast hanya untuk periode baru
+            if (isset($actualWeekKeys[$key])) continue;
+
+            if (!isset($weekGroups[$key])) {
+                $weekGroups[$key] = [
+                    'label'          => $d->copy()->startOfWeek()->format('d/m')
+                                      . ' - '
+                                      . $d->copy()->endOfWeek()->format('d/m/Y'),
+                    'actualPrices'   => [],
+                    'forecastPrices' => [],
+                    'lowerPrices'    => [],
+                    'upperPrices'    => [],
+                    'sortKey'        => $d->timestamp,
+                ];
+            }
+            if (isset($forecastPrices[$i])) {
+                $weekGroups[$key]['forecastPrices'][] = $forecastPrices[$i];
+                $weekGroups[$key]['lowerPrices'][]    = $forecastLowers[$i] ?? $forecastPrices[$i];
+                $weekGroups[$key]['upperPrices'][]    = $forecastUppers[$i] ?? $forecastPrices[$i];
+            }
+        }
+
+        ksort($weekGroups);
+
+        foreach ($weekGroups as $week) {
+            $labels[]    = $week['label'];
+            $actualAgg[] = !empty($week['actualPrices'])
+                ? round(array_sum($week['actualPrices']) / count($week['actualPrices']))
+                : null;
+
+            if (!empty($week['forecastPrices'])) {
+                $forecastAgg[] = round(array_sum($week['forecastPrices']) / count($week['forecastPrices']));
+                $lower[]       = round(array_sum($week['lowerPrices'])    / count($week['lowerPrices']));
+                $upper[]       = round(array_sum($week['upperPrices'])    / count($week['upperPrices']));
+            } else {
+                $forecastAgg[] = null;
+                $lower[]       = null;
+                $upper[]       = null;
+            }
+        }
+    }
+
+    // =========================================================
+    // AGGREGATION — Monthly
+    // FIX: tambah $actualMonthKeys + continue agar forecast hanya
+    //      mengisi periode yang TIDAK punya data aktual
+    //      (identik dengan AdminController)
+    // =========================================================
+
     private function aggregateMonthlyData(
         $actualDates, $actualPrices,
         $forecastDates, $forecastPrices, $forecastLowers, $forecastUppers,
@@ -685,10 +711,20 @@ class UserController extends Controller
             }
         }
 
-        // FIX: Tidak ada lagi "continue" — prediksi historis tetap disimpan
+        // Kumpulkan key bulan yang punya data aktual
+        $actualMonthKeys = [];
+        foreach ($monthGroups as $key => $g) {
+            if (!empty($g['actualPrices'])) {
+                $actualMonthKeys[$key] = true;
+            }
+        }
+
         foreach ($forecastDates as $i => $date) {
             $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
             $key = $d->format('Y-m');
+
+            // Skip bulan yang sudah punya data aktual — forecast hanya untuk periode baru
+            if (isset($actualMonthKeys[$key])) continue;
 
             if (!isset($monthGroups[$key])) {
                 $monthGroups[$key] = [
@@ -728,7 +764,9 @@ class UserController extends Controller
 
     // =========================================================
     // AGGREGATION — Yearly
-    // FIX: Hapus "continue" agar prediksi in-sample ikut tersimpan
+    // FIX: tambah $actualYearKeys + continue agar forecast hanya
+    //      mengisi periode yang TIDAK punya data aktual
+    //      (identik dengan AdminController)
     // =========================================================
 
     private function aggregateYearlyData(
@@ -756,10 +794,20 @@ class UserController extends Controller
             }
         }
 
-        // FIX: Tidak ada lagi "continue" — prediksi historis tetap disimpan
+        // Kumpulkan key tahun yang punya data aktual
+        $actualYearKeys = [];
+        foreach ($yearGroups as $key => $g) {
+            if (!empty($g['actualPrices'])) {
+                $actualYearKeys[$key] = true;
+            }
+        }
+
         foreach ($forecastDates as $i => $date) {
             $d   = $date instanceof Carbon ? $date : Carbon::parse($date);
             $key = (string) $d->year;
+
+            // Skip tahun yang sudah punya data aktual — forecast hanya untuk periode baru
+            if (isset($actualYearKeys[$key])) continue;
 
             if (!isset($yearGroups[$key])) {
                 $yearGroups[$key] = [

@@ -117,6 +117,37 @@
     html.dark .dashboard-container .text-gray-400 { color: #d1d5db !important; }
     html.dark .dashboard-container .text-gray-500 { color: #e5e7eb !important; }
     html.dark .dashboard-container .text-gray-300 { color: #9ca3af !important; }
+
+    /* ── Zebra striping insight table — sama persis dengan admin ── */
+    .dashboard-container table tbody tr:nth-child(odd)  { background: #ffffff; }
+    .dashboard-container table tbody tr:nth-child(even) { background: #edf2f7; }
+    html.dark .dashboard-container table tbody tr:nth-child(odd)  { background: #1e2433; }
+    html.dark .dashboard-container table tbody tr:nth-child(even) { background: #161c2a; }
+    .dashboard-container table tbody tr { border-bottom: none !important; transition: background .1s; }
+    .dashboard-container table tbody td:first-child { min-width: 130px; }
+    .dashboard-container table tbody tr:hover { background: #dbeafe !important; }
+    html.dark .dashboard-container table tbody tr:hover { background: rgba(59,130,246,.10) !important; }
+    .dashboard-container table tbody tr.border-b  { border-bottom: none !important; }
+    .dashboard-container .divide-y > tr           { border-top: none !important; }
+    .row-has-fitted { border-left: 2px solid #bfdbfe; }
+    html.dark .row-has-fitted { border-left: 2px solid #1e40af; }
+
+    .pg-btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 2rem; height: 2rem; padding: 0 0.5rem;
+        font-size: 13px; font-weight: 500;
+        border-radius: 0.375rem; border: 1px solid #e5e7eb;
+        background: white; color: #374151;
+        cursor: pointer; transition: all 0.15s;
+        text-decoration: none;
+    }
+    html.dark .pg-btn { background: #1e2433; color: #d1d5db; border-color: #374151; }
+    .pg-btn:hover:not(.pg-btn-active):not(.pg-btn-disabled) { background: #f9fafb; border-color: #d1d5db; }
+    html.dark .pg-btn:hover:not(.pg-btn-active):not(.pg-btn-disabled) { background: #2d3748; border-color: #4a5568; }
+    .pg-btn-active { background: #2563eb; color: white; border-color: #2563eb; font-weight: 700; cursor: default; }
+    .pg-btn-disabled { background: #f3f4f6; color: #9ca3af; border-color: #f3f4f6; cursor: not-allowed; }
+    html.dark .pg-btn-disabled { background: #1a202c; color: #4b5563; border-color: #1a202c; }
+
     .dashboard-container .grid.grid-cols-1.sm\:grid-cols-2.md\:grid-cols-4 > div {
         text-align: center !important;
     }
@@ -165,7 +196,7 @@
                     <label class="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase mb-2 block tracking-tight">
                         {{ __('messages.komoditas_terpilih') }}
                     </label>
-                    <select name="commodity" onchange="this.form.submit()"
+                    <select name="komoditas_id" onchange="this.form.submit()"
                             class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md py-2 px-3 text-sm font-medium text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 transition-all">
                         @foreach($allCommodities as $item)
                             <option value="{{ $item->id }}"
@@ -204,7 +235,7 @@
             <p id="avg-price-value" class="text-xl font-bold text-gray-900 dark:text-gray-100">
                 Rp {{ number_format($avgPrice, 0, ',', '.') }}
             </p>
-            <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{{ $countData ?? 0 }} data poin</p>
+            <p class="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{{ $countData ?? 0 }} {{ __('messages.data_poin') }}</p>
         </div>
         <div class="card-standard hover-card p-5">
             <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold tracking-wider mb-2">{{ __('messages.harga_tertinggi') }}</p>
@@ -214,16 +245,18 @@
         </div>
         <div class="card-standard hover-card p-5">
             <p class="text-[10px] uppercase text-gray-500 dark:text-gray-400 font-bold tracking-wider mb-2">{{ __('messages.periode_data') }}</p>
-            <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
-                <span class="text-gray-400 mx-1">→</span>
-                {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
-            </p>
+            <div class="flex items-center gap-2">
+                <p class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
+                    <span class="text-gray-400 mx-1">→</span>
+                    {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}
+                </p>
+            </div>
         </div>
         <div class="bg-blue-600 dark:bg-blue-700 rounded-lg p-5 text-white shadow-lg hover-card">
             <p class="text-[10px] uppercase text-blue-100 font-bold tracking-wider mb-2">{{ __('messages.arah_tren') }}</p>
             <p class="text-sm font-bold uppercase flex items-center gap-2">
-                @php $trendLower = strtolower($trendDir); @endphp
+                @php $trendLower = strtolower($trendDir ?? 'stabil'); @endphp
                 <i class="fas {{ str_contains($trendLower, 'naik') ? 'fa-arrow-trend-up' : (str_contains($trendLower, 'turun') ? 'fa-arrow-trend-down' : 'fa-minus') }}"></i>
                 {{ $trendDir }}
             </p>
@@ -266,20 +299,27 @@
                 {{ __('messages.ringkasan_analisis') }}
                 <span id="selectedPeriodText" class="text-blue-600 dark:text-blue-400">{{ __('messages.bulanan') }}</span>
             </h3>
-            <div class="flex items-center gap-3">
-                <div class="flex items-center gap-4 text-[10px] text-gray-400 dark:text-gray-500 font-semibold">
-                    <span class="flex items-center gap-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span> Historis
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                        <span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span> Prediksi
-                    </span>
-                </div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <span class="text-xs text-gray-400 dark:text-gray-500">{{ $selectedCommodity }}</span>
                 @if(isset($mape))
                     <span class="text-[9px] bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-bold px-2 py-0.5 rounded-full">
                         MAPE: {{ number_format($mape, 2) }}%
                     </span>
                 @endif
+                <span class="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500 cursor-help"
+                    data-tooltip-title="In-sample fit"
+                    data-tooltip-color="blue"
+                    data-tooltip-body="Nilai yang diprediksi model Prophet untuk periode yang sudah ada data aktualnya — digunakan untuk mengukur seberapa baik model mencocokkan data historis.">
+                    <span class="inline-block w-2 h-2 rounded-sm bg-blue-200 dark:bg-blue-900 border border-blue-400"></span>
+                    <span class="border-b border-dashed border-gray-400">In-sample fit</span>
+                </span>
+                <span class="flex items-center gap-1 text-[9px] text-gray-400 dark:text-gray-500 cursor-help"
+                    data-tooltip-title="Proyeksi"
+                    data-tooltip-color="orange"
+                    data-tooltip-body="Prediksi harga untuk periode yang belum ada data aktualnya — hasil forecast model ke depan beserta rentang batas bawah/atas kepercayaan 80%.">
+                    <span class="inline-block w-2 h-2 rounded-sm bg-orange-100 dark:bg-orange-900/30 border border-orange-300"></span>
+                    <span class="border-b border-dashed border-gray-400">Proyeksi</span>
+                </span>
                 @if(isset($forecastWeeks))
                     <span class="horizon-pill">{{ $forecastWeeks }} {{ __('messages.bulanan') }}</span>
                 @endif
@@ -293,14 +333,13 @@
                         <th class="px-6 py-4">{{ __('messages.periode') }}</th>
                         <th class="px-6 py-4 text-right">{{ __('messages.harga_aktual') }}</th>
                         <th class="px-6 py-4 text-right">{{ __('messages.harga_prediksi') }}</th>
-                        <th class="px-6 py-4 text-right">Interval Bawah</th>
-                        <th class="px-6 py-4 text-right">Interval Atas</th>
+                        <th class="px-6 py-4 text-right">{{ __('messages.rentang_bawah') }}</th>
+                        <th class="px-6 py-4 text-right">{{ __('messages.rentang_atas') }}</th>
                         <th class="px-6 py-4 text-right">{{ __('messages.selisih') }}</th>
                         <th class="px-6 py-4 text-center">{{ __('messages.indikator') }}</th>
                     </tr>
                 </thead>
-                <tbody id="insightTableBody"
-                       class="text-sm text-gray-700 dark:text-gray-300 divide-y divide-gray-100 dark:divide-gray-700">
+                <tbody class="text-sm text-gray-700 dark:text-gray-300 divide-y divide-gray-100 dark:divide-gray-700" id="insightTableBody">
                     <tr>
                         <td colspan="7" class="px-6 py-8 text-center text-gray-400 text-sm">
                             <i class="fas fa-spinner fa-spin mr-2"></i> Memuat data...
@@ -310,6 +349,7 @@
             </table>
             <div id="insightPaginationWrap" class="px-6 py-3 border-t border-gray-100 dark:border-gray-700"></div>
         </div>
+        <div id="insightPagination"></div>
     </div>
 
     {{-- INTERPRETASI --}}
@@ -318,64 +358,85 @@
             <h4 class="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase">{{ __('messages.interpretasi_tren') }}</h4>
         </div>
         <p id="analysis-text" class="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
-            Berdasarkan analisis data historis untuk komoditas <strong>{{ $selectedCommodity }}</strong>,
-            model mendeteksi tren harga <strong>{{ strtolower($trendDir ?? 'stabil') }}</strong>
-            dengan rata-rata harga <strong>Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</strong>
-            dan total <strong>{{ $countData ?? 0 }} data poin</strong> pada periode
+            {{ __('messages.berdasarkan_analisis') }} <strong>{{ $selectedCommodity }}</strong>,
+            {{ __('messages.model_deteksi') }} <strong>{{ strtolower($trendDir ?? 'stabil') }}</strong>
+            {{ __('messages.rata_rata_harga_label') }} <strong>Rp {{ number_format($avgPrice ?? 0, 0, ',', '.') }}</strong>
+            {{ __('messages.total_label') }} <strong>{{ $countData ?? 0 }} {{ __('messages.data_poin') }}</strong> {{ __('messages.pada_periode') }}
             {{ \Carbon\Carbon::parse($startDate)->format('d/m/Y') }}
-            s/d {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.
-            Model prediksi menggunakan parameter terbaik yang telah dikonfigurasi.
-            Nilai MAPE sebesar <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
-            menunjukkan {{ ($mape ?? 0) < 10 ? 'akurasi baik' : (($mape ?? 0) < 20 ? 'akurasi cukup baik' : (($mape ?? 0) < 50 ? 'akurasi cukup' : 'akurasi rendah')) }}.
+            {{ __('messages.s_d') }} {{ \Carbon\Carbon::parse($endDate)->format('d/m/Y') }}.
+            {{ __('messages.nilai_mape_label') }} <strong>{{ number_format($mape ?? 0, 2) }}%</strong>
+            {{ __('messages.menunjukkan') }}
+            <strong>
+                @if(($mape ?? 0) < 10) Sangat Akurat
+                @elseif(($mape ?? 0) < 20) Baik
+                @elseif(($mape ?? 0) < 50) Cukup
+                @else Tidak Akurat
+                @endif
+            </strong> (Kriteria Lewis, 1982).
         </p>
     </div>
 
+</div>{{-- end dashboard-container --}}
+
+{{-- Global Floating Tooltip --}}
+<div id="global-tooltip"
+     class="fixed z-[9999] hidden bg-gray-900 dark:bg-gray-700 text-white rounded-xl shadow-2xl pointer-events-none max-w-xs"
+     style="padding: 12px 16px; font-size: 13px; line-height: 1.7;">
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const SELECTED_COMMODITY = '{{ addslashes($selectedCommodity ?? "") }}';
 
-// ── Data chart: monthly & yearly ──────────────────────────────────────
+// ── FIX 1: MAPE_RATE wajib ada — dipakai untuk fallback interval bawah/atas ──
+const MAPE_RATE = Math.min(0.50, Math.max(0.01, {{ ($mape ?? 5) / 100 }}));
+
+const trans = {
+    monthly:      "{{ __('messages.bulanan') }}",
+    yearly:       "{{ __('messages.tahunan') }}",
+    actual:       "{{ __('messages.harga_aktual') }}",
+    forecast:     "{{ __('messages.harga_proyeksi') }}",
+    lower:        "{{ __('messages.rentang_bawah') }}",
+    upper:        "{{ __('messages.rentang_atas') }}",
+    naik:         "{{ __('messages.naik') }}",
+    turun:        "{{ __('messages.turun') }}",
+    stabil:       "{{ __('messages.stabil') }}",
+    proyeksi:     "{{ __('messages.proyeksi') }}",
+    bulanan:      "{{ __('messages.bulanan') }}",
+    tahunan:      "{{ __('messages.tahunan') }}",
+    hargaAktual:  "{{ __('messages.harga_aktual') }}",
+    hargaProyeksi:"{{ __('messages.harga_proyeksi') }}",
+    rentangBawah: "{{ __('messages.rentang_bawah') }}",
+    rentangAtas:  "{{ __('messages.rentang_atas') }}",
+    tidakAdaData: "{{ __('messages.tidak_ada_data') }}",
+    bulan:        "{{ __('messages.bulanan') }}",
+    noData:       "{{ __('messages.tidak_ada_data') }}",
+};
+
+// ── FIX 2: fitted sekarang disertakan di chartData ──
 const chartData = {
     monthly: {
         labels:   @json($monthlyLabels   ?? []),
         actual:   @json($monthlyActual   ?? []),
         forecast: @json($monthlyForecast ?? []),
+        fitted:   @json($monthlyFitted   ?? []),
         lower:    @json($monthlyLower    ?? []),
-        upper:    @json($monthlyUpper    ?? []),
-        fitted:   @json($monthlyFitted  ?? [])
+        upper:    @json($monthlyUpper    ?? [])
     },
     yearly: {
         labels:   @json($yearlyLabels   ?? []),
         actual:   @json($yearlyActual   ?? []),
         forecast: @json($yearlyForecast ?? []),
+        fitted:   @json($yearlyFitted   ?? []),
         lower:    @json($yearlyLower    ?? []),
-        upper:    @json($yearlyUpper    ?? []),
-        fitted:   @json($yearlyFitted  ?? [])
+        upper:    @json($yearlyUpper    ?? [])
     }
 };
 
-// Cek apakah ada data forecast sama sekali
-const forecastSuccess =
-    (chartData.monthly.forecast && chartData.monthly.forecast.some(v => v !== null)) ||
-    (chartData.yearly.forecast  && chartData.yearly.forecast.some(v  => v !== null));
-
-const trans = {
-    monthly:  "{{ __('messages.bulanan') }}",
-    yearly:   "{{ __('messages.tahunan') }}",
-    actual:   "{{ __('messages.harga_aktual') }}",
-    forecast: "{{ __('messages.harga_proyeksi') }}",
-    lower:    "{{ __('messages.rentang_bawah') }}",
-    upper:    "{{ __('messages.rentang_atas') }}",
-    naik:     "{{ __('messages.naik') }}",
-    turun:    "{{ __('messages.turun') }}",
-    stabil:   "{{ __('messages.stabil') }}",
-    noData:   "{{ __('messages.tidak_ada_data') }}",
-};
-
-let currentPeriod = 'monthly';
-let mainChart     = null;
+let currentPeriod      = 'monthly';
+let mainChart          = null;
+let insightCurrentPage = 1;
+const INSIGHT_PER_PAGE = 10;
 
 const isDark    = () => document.documentElement.classList.contains('dark');
 const fmtRupiah = v  => (v !== null && v !== undefined)
@@ -389,161 +450,126 @@ function checkFlaskStatus() {
     const badge = document.getElementById('flask-status-badge');
     const dot   = document.getElementById('flask-status-dot');
     const text  = document.getElementById('flask-status-text');
-
+    if (!badge) return;
     badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-gray-100 text-gray-500';
     dot.className   = 'w-2 h-2 rounded-full bg-gray-400 animate-pulse';
     text.textContent = 'Memeriksa...';
-
     fetch('/api/flask-health')
         .then(res => {
             if (res.ok) {
                 badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-green-100 text-green-700';
                 dot.className   = 'w-2 h-2 rounded-full bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.8)]';
-                text.textContent = 'Online';
+                text.textContent = '{{ __("messages.API_aktif") }}';
             } else { throw new Error(); }
         })
         .catch(() => {
             badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-red-100 text-red-700';
             dot.className   = 'w-2 h-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)]';
-            text.textContent = 'Offline';
+            text.textContent = '{{ __("messages.api_offline") }}';
         });
 }
 
 /* ═══════════════════════════════════════════
-   CHART
-   FIX: Tidak ada bridge manual lagi.
-   Garis forecast sudah ada dari awal (in-sample).
-   Segmen putus-putus otomatis hanya di bagian
-   di mana actual = null (masa depan).
+   CHART — identik dengan admin (doc 1)
+   dataset fitted + forecast terpisah
 ═══════════════════════════════════════════ */
 function initializeChart() {
     const canvas = document.getElementById('mainChart');
     if (!canvas) return;
-
     const ctx  = canvas.getContext('2d');
     const data = chartData[currentPeriod];
     const dark = isDark();
 
     if (!data.labels || data.labels.length === 0) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#9ca3af';
-        ctx.font      = '14px Inter, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Tidak ada data untuk periode ini', canvas.width / 2, canvas.height / 2);
+        ctx.fillStyle = '#9ca3af'; ctx.font = '14px Inter, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(trans.tidakAdaData, canvas.width / 2, canvas.height / 2);
         return;
     }
 
-    const gradActual = ctx.createLinearGradient(0, 0, 0, 400);
-    gradActual.addColorStop(0, dark ? 'rgba(96,165,250,0.3)' : 'rgba(4,50,119,0.15)');
-    gradActual.addColorStop(1, 'rgba(4,50,119,0)');
-
-    const gradForecast = ctx.createLinearGradient(0, 0, 0, 400);
-    gradForecast.addColorStop(0, 'rgba(249,115,22,0.18)');
-    gradForecast.addColorStop(1, 'rgba(249,115,22,0)');
+    const gradientActual = ctx.createLinearGradient(0, 0, 0, 400);
+    gradientActual.addColorStop(0, dark ? 'rgba(96,165,250,0.20)' : 'rgba(4,50,119,0.10)');
+    gradientActual.addColorStop(1, 'rgba(4,50,119,0)');
 
     if (mainChart) mainChart.destroy();
 
-    // ── Datasets ─────────────────────────────────────
-    const datasets = [
-        // Interval bawah (fill ke atas = upper)
-        {
-            label: trans.lower,
-            data: data.lower,
-            backgroundColor: 'rgba(34,197,94,0.08)',
-            borderColor: 'transparent',
-            fill: '+1',
-            pointRadius: 0,
-            tension: 0.4,
-            order: 4,
-            spanGaps: true
-        },
-        // Interval atas
-        {
-            label: trans.upper,
-            data: data.upper,
-            borderColor: 'transparent',
-            fill: false,
-            pointRadius: 0,
-            tension: 0.4,
-            order: 4,
-            spanGaps: true
-        },
-        // Garis aktual (historis)
-        {
-            label: trans.actual,
-            data: data.actual,
-            borderColor: dark ? '#60a5fa' : '#043277',
-            backgroundColor: gradActual,
-            borderWidth: 2.5,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0,
-            pointHoverRadius: 6,
-            pointHoverBackgroundColor: dark ? '#60a5fa' : '#043277',
-            pointHoverBorderColor: '#fff',
-            pointHoverBorderWidth: 2,
-            spanGaps: false,
-            order: 1
-        },
-    ];
-
-    // Tambahkan garis forecast hanya jika ada data
-    if (forecastSuccess) {
-        datasets.push({
-            label: trans.forecast,
-            data: data.forecast,
-            borderColor: '#f97316',
-            backgroundColor: gradForecast,
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
-            pointRadius: 0,
-            pointHoverRadius: 6,
-            pointHoverBackgroundColor: '#f97316',
-            pointHoverBorderColor: '#fff',
-            pointHoverBorderWidth: 2,
-            spanGaps: true,
-            order: 2,
-            // FIX: segment — garis solid saat overlap historis,
-            //               putus-putus saat pure proyeksi
-            segment: {
-                borderDash: ctx => {
-                    const idx = ctx.p1DataIndex;
-                    // Jika titik berikutnya tidak punya actual → masa depan → putus-putus
-                    return (data.actual[idx] === null || data.actual[idx] === undefined)
-                        ? [8, 4]
-                        : [];
-                },
-                borderColor: ctx => {
-                    const idx = ctx.p1DataIndex;
-                    // Sedikit transparan saat overlap historis agar aktual tetap menonjol
-                    return (data.actual[idx] === null || data.actual[idx] === undefined)
-                        ? '#f97316'
-                        : 'rgba(249,115,22,0.55)';
-                }
-            }
-        });
-    }
-    // Tambahkan garis fitted (in-sample) jika ada
-    if (data.fitted && data.fitted.some(v => v !== null)) {
-        datasets.push({
-            label: 'Proyeksi (Bulanan)',
-            data: data.fitted,
-            borderColor: 'rgba(249,115,22,0.85)',
-            backgroundColor: 'transparent',
-            borderWidth: 1.5,
-            fill: false,
-            tension: 0.4,
-            pointRadius: 0,
-            pointHoverRadius: 5,
-            spanGaps: false,
-            order: 3
-        });
-    }
-
     mainChart = new Chart(ctx, {
         type: 'line',
-        data: { labels: data.labels, datasets },
+        data: {
+            labels: data.labels,
+            datasets: [
+                {
+                    label: trans.rentangBawah,
+                    data: data.lower,
+                    backgroundColor: 'rgba(249,115,22,0.08)',
+                    borderColor: 'transparent',
+                    fill: '+1',
+                    pointRadius: 0,
+                    tension: 0.4,
+                    spanGaps: false,
+                    order: 5
+                },
+                {
+                    label: trans.rentangAtas,
+                    data: data.upper,
+                    borderColor: 'transparent',
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.4,
+                    spanGaps: false,
+                    order: 5
+                },
+                {
+                    label: trans.hargaAktual,
+                    data: data.actual,
+                    borderColor: dark ? '#60a5fa' : '#043277',
+                    backgroundColor: gradientActual,
+                    borderWidth: 2.5,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 6,
+                    pointHoverBackgroundColor: dark ? '#60a5fa' : '#043277',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    spanGaps: false,
+                    order: 2
+                },
+                {
+                    label: trans.hargaProyeksi,
+                    data: data.fitted,
+                    borderColor: '#f97316',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: '#f97316',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    spanGaps: false,
+                    order: 3
+                },
+                {
+                    label: trans.proyeksi + ' (' + trans.bulanan + ')',
+                    data: data.forecast,
+                    borderColor: '#f97316',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    borderDash: [6, 3],
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: '#f97316',
+                    pointHoverBorderColor: '#fff',
+                    pointHoverBorderWidth: 2,
+                    spanGaps: false,
+                    order: 3
+                }
+            ]
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -561,11 +587,11 @@ function initializeChart() {
                     position: 'top',
                     align: 'end',
                     labels: {
-                        boxWidth: 12,
-                        usePointStyle: true,
+                        boxWidth: 12, boxHeight: 12, padding: 15,
+                        font: { size: 11, weight: '600' },
                         color: dark ? '#9ca3af' : '#64748b',
-                        // Sembunyikan label interval bawah & atas dari legenda
-                        filter: item => item.text !== trans.lower && item.text !== trans.upper
+                        usePointStyle: true, pointStyle: 'circle',
+                        filter: (item) => item.text !== trans.rentangBawah && item.text !== trans.rentangAtas
                     }
                 },
                 tooltip: {
@@ -573,22 +599,19 @@ function initializeChart() {
                     titleColor: dark ? '#f3f4f6' : '#1e293b',
                     bodyColor: dark ? '#9ca3af' : '#475569',
                     borderColor: dark ? '#374151' : '#e2e8f0',
-                    borderWidth: 1,
-                    padding: 12,
+                    borderWidth: 1, padding: 12, boxPadding: 6,
                     usePointStyle: true,
+                    titleFont: { size: 11, weight: '600' },
+                    bodyFont: { size: 11 },
                     callbacks: {
-                        label: ctx => {
-                            // Sembunyikan interval bawah & atas dari tooltip
-                            if (ctx.dataset.label === trans.lower || ctx.dataset.label === trans.upper) return null;
-                            let lbl = (ctx.dataset.label || '') + ': ';
-                            if (ctx.parsed.y !== null) {
-                                lbl += new Intl.NumberFormat('id-ID', {
-                                    style: 'currency',
-                                    currency: 'IDR',
-                                    maximumFractionDigits: 0
-                                }).format(ctx.parsed.y);
+                        label: function(context) {
+                            if (context.dataset.label === trans.rentangBawah || context.dataset.label === trans.rentangAtas) return null;
+                            let label = context.dataset.label || '';
+                            if (label) label += ': ';
+                            if (context.parsed.y !== null) {
+                                label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(context.parsed.y);
                             }
-                            return lbl;
+                            return label;
                         }
                     }
                 }
@@ -596,26 +619,12 @@ function initializeChart() {
             scales: {
                 y: {
                     beginAtZero: false,
-                    grid: {
-                        color: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9',
-                        drawBorder: false
-                    },
-                    ticks: {
-                        color: dark ? '#6b7280' : '#94a3b8',
-                        font: { size: 10, weight: '500' },
-                        padding: 8,
-                        callback: v => 'Rp ' + v.toLocaleString('id-ID')
-                    }
+                    grid: { color: dark ? 'rgba(255,255,255,0.05)' : '#f1f5f9', drawBorder: false },
+                    ticks: { color: dark ? '#6b7280' : '#94a3b8', font: { size: 10, weight: '500' }, padding: 8, callback: value => 'Rp ' + value.toLocaleString('id-ID') }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: {
-                        color: dark ? '#6b7280' : '#94a3b8',
-                        font: { size: 9, weight: '500' },
-                        maxRotation: 45,
-                        autoSkip: true,
-                        maxTicksLimit: 15
-                    }
+                    ticks: { color: dark ? '#6b7280' : '#94a3b8', font: { size: 9, weight: '500' }, maxRotation: 45, minRotation: 0, autoSkip: true, maxTicksLimit: 15 }
                 }
             }
         }
@@ -626,16 +635,17 @@ function initializeChart() {
    PERIOD SWITCHER
 ═══════════════════════════════════════════ */
 function changeChartPeriod(period) {
-    currentPeriod = period;
+    currentPeriod = period; insightCurrentPage = 1;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`btn-${period}`)?.classList.add('active');
-    document.getElementById('selectedPeriodText').textContent = trans[period];
-
+    document.getElementById('btn-' + period)?.classList.add('active');
+    const periodText = { 'monthly': trans.bulanan, 'yearly': trans.tahunan };
+    const el = document.getElementById('selectedPeriodText');
+    if (el) el.textContent = periodText[period] || '';
     const wrap = document.getElementById('mainChart')?.parentElement;
     if (wrap) wrap.style.opacity = '0.5';
     setTimeout(() => {
         initializeChart();
-        updateInsightTable();
+        updateInsightTable(1);
         updateMetricCards();
         if (wrap) wrap.style.opacity = '1';
     }, 150);
@@ -643,172 +653,211 @@ function changeChartPeriod(period) {
 
 /* ═══════════════════════════════════════════
    INSIGHT TABLE
-   FIX:
-   - Kolom prediksi tampil di semua baris (historis + proyeksi)
-   - Selisih dihitung: forecast vs actual untuk historis,
-     forecast vs actual-terakhir untuk proyeksi
-   - Badge "Proyeksi" hanya pada baris actual = null
+   FIX 3: Logika identik dengan admin (doc 1):
+   - actualRows pakai fitted sebagai displayForecast
+   - forecastRows pakai forecast
+   - Badge FIT untuk in-sample, badge Proyeksi untuk forecast
+   - MtM dihitung periode vs periode sebelumnya
+   - MAPE_RATE dipakai sebagai fallback interval
 ═══════════════════════════════════════════ */
-const INSIGHT_PER_PAGE = 10;
-const MAPE_RATE = {{ $mape ?? 0 }} / 100;
-let insightPage = 1;
-
-function renderInsightPagination(page, totalPages, nActual, nFitted, nForecast) {
-    const wrap = document.getElementById('insightPaginationWrap');
-    if (!wrap) return;
-    if (totalPages <= 1) { wrap.innerHTML = ''; return; }
-    let btns = '';
-    for (let p = 1; p <= totalPages; p++) {
-        btns += `<button onclick="goInsightPage(${p})"
-            class="px-2.5 py-1 rounded text-xs font-medium transition-colors
-                   ${p === page ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}">${p}</button>`;
-    }
-    wrap.innerHTML = `<div class="flex items-center gap-1.5 flex-wrap">
-        <span class="text-[10px] text-gray-400 mr-1">Hal ${page}/${totalPages}</span>
-        ${btns}
-        <span class="text-[10px] text-gray-400 ml-2">${nActual} aktual &middot; ${nFitted} fit &middot; ${nForecast} proyeksi</span>
-    </div>`;
-}
-
-function goInsightPage(p) { insightPage = p; updateInsightTable(); }
-
-function updateInsightTable() {
+function updateInsightTable(page) {
+    page = page || 1; insightCurrentPage = page;
     const data  = chartData[currentPeriod];
     const tbody = document.getElementById('insightTableBody');
     if (!tbody) return;
+    tbody.innerHTML = '';
 
-    if (!data.labels?.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 text-sm">
-            <i class="fas fa-database mr-2"></i>${trans.noData}</td></tr>`;
+    if (!data.labels || data.labels.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">${trans.tidakAdaData}</td></tr>`;
         renderInsightPagination(1, 1, 0, 0, 0);
         return;
     }
 
     const actualRows = [], forecastRows = [];
     for (let i = 0; i < data.labels.length; i++) {
-        const a  = data.actual[i]   ?? null;
-        const f  = data.forecast[i] ?? null;
-        const l  = data.lower[i]    ?? null;
-        const u  = data.upper[i]    ?? null;
-        const ft = (data.fitted && data.fitted[i] !== undefined) ? (data.fitted[i] ?? null) : null;
-        if (a !== null) actualRows.push({ label: data.labels[i], actual: a, forecast: ft, lower: l, upper: u, isFitted: ft !== null });
-        else if (f !== null) forecastRows.push({ label: data.labels[i], actual: null, forecast: f, lower: l, upper: u, isFitted: false });
+        const row = {
+            label:    data.labels[i],
+            actual:   data.actual[i]   !== undefined ? data.actual[i]   : null,
+            forecast: data.forecast[i] !== undefined ? data.forecast[i] : null,
+            fitted:   (data.fitted && data.fitted[i] !== undefined && data.fitted[i] !== null) ? data.fitted[i] : null,
+            lower:    data.lower[i]    !== undefined ? data.lower[i]    : null,
+            upper:    data.upper[i]    !== undefined ? data.upper[i]    : null
+        };
+        if (row.actual !== null) actualRows.push(row);
+        else if (row.forecast !== null) forecastRows.push(row);
     }
 
-    const allRows    = [...actualRows, ...forecastRows];
-    const totalPages = Math.max(1, Math.ceil(allRows.length / INSIGHT_PER_PAGE));
-    if (insightPage > totalPages) insightPage = totalPages;
-
-    const pageStart = (insightPage - 1) * INSIGHT_PER_PAGE;
-    const display   = allRows.slice(pageStart, pageStart + INSIGHT_PER_PAGE);
-
-    const nFitted   = actualRows.filter(r => r.isFitted).length;
-    const nForecast = forecastRows.length;
-    renderInsightPagination(insightPage, totalPages, actualRows.length, nFitted, nForecast);
+    const allRows     = actualRows.concat(forecastRows);
+    const totalRows   = allRows.length;
+    const totalPages  = Math.max(1, Math.ceil(totalRows / INSIGHT_PER_PAGE));
+    const safePage    = Math.min(Math.max(1, page), totalPages);
+    const startIdx    = (safePage - 1) * INSIGHT_PER_PAGE;
+    const endIdx      = Math.min(startIdx + INSIGHT_PER_PAGE, totalRows);
+    const display     = allRows.slice(startIdx, endIdx);
+    const actualCount = actualRows.length;
 
     if (display.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-gray-400 text-sm">
-            <i class="fas fa-database mr-2"></i>${trans.noData}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-400 dark:text-gray-500 text-xs">${trans.tidakAdaData}</td></tr>`;
+        renderInsightPagination(1, 1, 0, 0, 0);
         return;
     }
 
-    tbody.innerHTML = '';
-    const lastActual = actualRows.at(-1);
+    var html = '';
+    for (var idx = 0; idx < display.length; idx++) {
+        var row = display[idx], globalIdx = startIdx + idx;
+        var isForecastOnly = (row.actual === null && row.forecast !== null);
 
-    display.forEach((row, idx) => {
-        const { label, actual, forecast, lower, upper, isFitted } = row;
-        const isPureProyeksi = actual === null && forecast !== null;
-        const globalIdx = pageStart + idx;
-        const prevRow   = globalIdx > 0 ? allRows[globalIdx - 1] : null;
+        // FIX: baris historis pakai fitted, baris proyeksi pakai forecast
+        var displayForecast = isForecastOnly ? row.forecast : row.fitted;
+        var displayLower = row.lower, displayUpper = row.upper;
 
-        let insight = '—', insightClass = 'insight-stabil';
-        let mtmAbs = '—', mtmColor = 'text-gray-400 dark:text-gray-500';
-        let periodBadge = '';
+        // Fallback interval menggunakan MAPE_RATE
+        if (!isForecastOnly && displayForecast !== null) {
+            if (displayLower === null || displayLower === undefined) displayLower = Math.round(displayForecast * (1 - MAPE_RATE));
+            if (displayUpper === null || displayUpper === undefined) displayUpper = Math.round(displayForecast * (1 + MAPE_RATE));
+        }
 
-        if (isFitted) {
+        // MtM: bandingkan periode ini vs periode sebelumnya
+        var prevRow = globalIdx > 0 ? allRows[globalIdx - 1] : null;
+        var hargaSekarang   = isForecastOnly ? row.forecast : (row.actual !== null ? row.actual : null);
+        var hargaSebelumnya = null;
+        if (prevRow) {
+            hargaSebelumnya = (prevRow.actual !== null) ? prevRow.actual : (prevRow.forecast !== null ? prevRow.forecast : null);
+        }
+
+        var mtmPct = null;
+        if (hargaSekarang !== null && hargaSebelumnya !== null && hargaSebelumnya !== 0) {
+            mtmPct = ((hargaSekarang - hargaSebelumnya) / hargaSebelumnya) * 100;
+        }
+
+        var insight = '\u2014', insightClass = 'insight-stabil', mtmText = '\u2014';
+        if (mtmPct !== null) {
+            var mtmAbs = Math.abs(mtmPct).toFixed(1);
+            if (mtmPct > 0) {
+                insight = 'INFLASI +' + mtmAbs + '%'; insightClass = 'insight-naik'; mtmText = '+' + mtmAbs + '%';
+            } else if (mtmPct < 0) {
+                insight = 'DEFLASI -' + mtmAbs + '%'; insightClass = 'insight-turun'; mtmText = '-' + mtmAbs + '%';
+            } else {
+                insight = 'STABIL 0.0%'; insightClass = 'insight-stabil'; mtmText = '0.0%';
+            }
+        } else if (isForecastOnly) {
+            insight = trans.proyeksi; insightClass = 'insight-stabil';
+        }
+
+        var rowBg     = isForecastOnly ? 'bg-orange-50/30 dark:bg-orange-900/5' : (displayForecast !== null ? 'row-has-fitted' : '');
+        var borderTop = (globalIdx === actualCount && forecastRows.length > 0) ? 'border-t-2 border-orange-200 dark:border-orange-800' : '';
+        var periodBadge = '';
+        if (isForecastOnly) {
+            periodBadge = `<span class="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded font-bold uppercase">${trans.proyeksi}</span>`;
+        } else if (displayForecast !== null) {
             periodBadge = `<span class="fitted-badge">FIT</span>`;
-        } else if (isPureProyeksi) {
-            periodBadge = `<span class="ml-1 text-[9px] bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-1.5 py-0.5 rounded font-bold uppercase">Proyeksi</span>`;
         }
 
-        if (isPureProyeksi) {
-            const base = lastActual?.actual ?? null;
-            if (base && base !== 0) {
-                const pct = ((forecast - base) / base) * 100;
-                mtmAbs = Math.abs(pct).toFixed(2) + '%';
-                if (pct > 0.5)       { insight = 'INFLASI +' + mtmAbs; insightClass = 'insight-naik';   mtmColor = 'text-red-600 dark:text-red-400'; }
-                else if (pct < -0.5) { insight = 'DEFLASI -' + mtmAbs; insightClass = 'insight-turun';  mtmColor = 'text-emerald-600 dark:text-emerald-400'; }
-                else                 { insight = 'STABIL';              insightClass = 'insight-stabil'; mtmColor = 'text-gray-500 dark:text-gray-400'; }
-            }
-        } else if (actual !== null) {
-            const base = prevRow?.actual ?? null;
-            if (base && base !== 0) {
-                const pct = ((actual - base) / base) * 100;
-                mtmAbs = Math.abs(pct).toFixed(2) + '%';
-                if (pct > 0.5)       { insight = 'INFLASI +' + mtmAbs; insightClass = 'insight-naik';   mtmColor = 'text-red-600 dark:text-red-400'; }
-                else if (pct < -0.5) { insight = 'DEFLASI -' + mtmAbs; insightClass = 'insight-turun';  mtmColor = 'text-emerald-600 dark:text-emerald-400'; }
-                else                 { insight = 'STABIL';              insightClass = 'insight-stabil'; mtmColor = 'text-gray-500 dark:text-gray-400'; }
-            }
-        }
+        var actualCell   = row.actual !== null   ? 'Rp ' + Math.round(row.actual).toLocaleString('id-ID')          : '<span class="text-gray-300 dark:text-gray-600">\u2014</span>';
+        var forecastCell = displayForecast !== null ? 'Rp ' + Math.round(displayForecast).toLocaleString('id-ID')  : '<span class="text-gray-300 dark:text-gray-600">\u2014</span>';
+        var lowerCell    = displayLower !== null  ? 'Rp ' + Math.round(displayLower).toLocaleString('id-ID')        : '<span class="text-gray-300 dark:text-gray-600">\u2014</span>';
+        var upperCell    = displayUpper !== null  ? 'Rp ' + Math.round(displayUpper).toLocaleString('id-ID')        : '<span class="text-gray-300 dark:text-gray-600">\u2014</span>';
+        var mtmColor     = mtmPct !== null ? (mtmPct > 0 ? 'text-red-600 dark:text-red-400' : mtmPct < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400') : 'text-gray-300 dark:text-gray-600';
 
-        const displayForecast = isFitted ? forecast : (isPureProyeksi ? forecast : null);
-        const mapeVal      = MAPE_RATE > 0 && displayForecast !== null ? displayForecast * MAPE_RATE : null;
-        const lowerDisplay = lower ?? (mapeVal !== null ? Math.round(displayForecast - mapeVal) : null);
-        const upperDisplay = upper ?? (mapeVal !== null ? Math.round(displayForecast + mapeVal) : null);
-
-        const isFirstForecast = isPureProyeksi && (globalIdx === 0 || allRows[globalIdx-1]?.actual !== null);
-        const borderTop = isFirstForecast ? 'border-t-2 border-orange-200 dark:border-orange-800' : '';
-        const rowClass  = isFitted ? 'row-has-fitted' : (isPureProyeksi ? 'forecast-row' : '');
-
-        tbody.innerHTML += `
-            <tr class="${rowClass} ${borderTop} hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                <td class="px-6 py-4 text-gray-600 dark:text-gray-400 font-medium text-xs">${label}${periodBadge}</td>
-                <td class="px-6 py-4 text-right text-xs font-medium text-gray-800 dark:text-gray-200">
-                    ${actual !== null ? fmtRupiah(actual) : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
-                </td>
-                <td class="px-6 py-4 text-right text-xs font-bold text-orange-600 dark:text-orange-400">
-                    ${displayForecast !== null ? fmtRupiah(displayForecast) : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
-                </td>
-                <td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">
-                    ${lowerDisplay !== null ? fmtRupiah(lowerDisplay) : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
-                </td>
-                <td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">
-                    ${upperDisplay !== null ? fmtRupiah(upperDisplay) : '<span class="text-gray-300 dark:text-gray-600">—</span>'}
-                </td>
-                <td class="px-6 py-4 text-right text-xs font-medium ${mtmColor}">${mtmAbs}</td>
-                <td class="px-6 py-4 text-center">
-                    <span class="insight-badge ${insightClass}">${insight}</span>
-                </td>
-            </tr>`;
-    });
+        html += `<tr class="${rowBg} ${borderTop} border-b border-gray-50 dark:border-gray-700 animate-fade-in">
+            <td class="px-6 py-4 text-gray-500 dark:text-gray-400 font-medium text-xs">${row.label}${periodBadge}</td>
+            <td class="px-6 py-4 text-right text-xs font-medium text-gray-800 dark:text-gray-200">${actualCell}</td>
+            <td class="px-6 py-4 text-right text-blue-600 dark:text-blue-400 font-bold text-xs">${forecastCell}</td>
+            <td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">${lowerCell}</td>
+            <td class="px-6 py-4 text-right text-xs text-gray-400 dark:text-gray-500">${upperCell}</td>
+            <td class="px-6 py-4 text-right text-xs font-medium ${mtmColor}">${mtmText}</td>
+            <td class="px-6 py-4 text-center"><span class="insight-badge ${insightClass}">${insight}</span></td>
+        </tr>`;
+    }
+    tbody.innerHTML = html;
+    renderInsightPagination(safePage, totalPages, totalRows, startIdx + 1, endIdx);
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
-   METRIC CARDS
-════════════════════════════════════════════════════════════════════════════ */
+function renderInsightPagination(currentPage, totalPages, totalRows, fromRow, toRow) {
+    var container = document.getElementById('insightPagination');
+    if (!container) return;
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+    var btnBase = 'pg-btn', btnActive = 'pg-btn pg-btn-active', btnDisabled = 'pg-btn pg-btn-disabled';
+    var prev = currentPage > 1
+        ? `<button onclick="updateInsightTable(${currentPage - 1})" class="${btnBase}"><i class="fas fa-chevron-left"></i></button>`
+        : `<span class="${btnDisabled}"><i class="fas fa-chevron-left"></i></span>`;
+    var next = currentPage < totalPages
+        ? `<button onclick="updateInsightTable(${currentPage + 1})" class="${btnBase}"><i class="fas fa-chevron-right"></i></button>`
+        : `<span class="${btnDisabled}"><i class="fas fa-chevron-right"></i></span>`;
+    var delta = 2, start = Math.max(1, currentPage - delta), end = Math.min(totalPages, currentPage + delta), pages = '';
+    if (start > 1) { pages += `<button onclick="updateInsightTable(1)" class="${btnBase}">1</button>`; if (start > 2) pages += '<span class="px-1 text-gray-400 text-xs">\u2026</span>'; }
+    for (var p = start; p <= end; p++) pages += `<button onclick="updateInsightTable(${p})" class="${p === currentPage ? btnActive : btnBase}">${p}</button>`;
+    if (end < totalPages) { if (end < totalPages - 1) pages += '<span class="px-1 text-gray-400 text-xs">\u2026</span>'; pages += `<button onclick="updateInsightTable(${totalPages})" class="${btnBase}">${totalPages}</button>`; }
+    container.innerHTML = `<div class="flex items-center justify-between px-6 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50/30 dark:bg-gray-800/30"><span class="text-xs text-gray-500 dark:text-gray-400">Menampilkan ${fromRow}&ndash;${toRow} dari ${totalRows} data</span><div class="flex items-center gap-1">${prev}${pages}${next}</div></div>`;
+}
+
+/* ═══════════════════════════════════════════
+   METRIC CARDS — recalculate dari period aktif
+═══════════════════════════════════════════ */
 function updateMetricCards() {
     const actuals = chartData[currentPeriod].actual.filter(v => v !== null);
     if (!actuals.length) return;
     const avg = actuals.reduce((a, b) => a + b, 0) / actuals.length;
-    document.getElementById('avg-price-value').textContent = fmtRupiah(avg);
-    document.getElementById('max-price-value').textContent = fmtRupiah(Math.max(...actuals));
+    const el1 = document.getElementById('avg-price-value');
+    const el2 = document.getElementById('max-price-value');
+    if (el1) el1.textContent = fmtRupiah(avg);
+    if (el2) el2.textContent = fmtRupiah(Math.max(...actuals));
 }
+
+/* ═══════════════════════════════════════════
+   GLOBAL FLOATING TOOLTIP
+═══════════════════════════════════════════ */
+(function () {
+    const tooltip = document.getElementById('global-tooltip');
+    if (!tooltip) return;
+    const colorMap = { blue: '#93c5fd', orange: '#fdba74', green: '#86efac', red: '#fca5a5' };
+    function show(e) {
+        const el    = e.currentTarget;
+        const title = el.getAttribute('data-tooltip-title');
+        const body  = el.getAttribute('data-tooltip-body');
+        const color = el.getAttribute('data-tooltip-color') || 'blue';
+        if (!title && !body) return;
+        const titleColor = colorMap[color] || colorMap.blue;
+        tooltip.innerHTML = (title ? `<strong style="color:${titleColor};display:block;margin-bottom:4px;">${title}</strong>` : '') + (body || '');
+        tooltip.classList.remove('hidden');
+        move(e);
+    }
+    function move(e) {
+        const pad = 14, tw = tooltip.offsetWidth || 240, th = tooltip.offsetHeight || 60;
+        let x = e.clientX + pad, y = e.clientY - th - pad;
+        if (x + tw > window.innerWidth  - pad) x = e.clientX - tw - pad;
+        if (y < pad)                            y = e.clientY + pad;
+        if (y + th > window.innerHeight - pad)  y = window.innerHeight - th - pad;
+        tooltip.style.left = x + 'px';
+        tooltip.style.top  = y + 'px';
+    }
+    function hide() { tooltip.classList.add('hidden'); }
+    function bind() {
+        document.querySelectorAll('[data-tooltip-title],[data-tooltip-body]').forEach(el => {
+            el.removeEventListener('mouseenter', show);
+            el.removeEventListener('mousemove',  move);
+            el.removeEventListener('mouseleave', hide);
+            el.addEventListener('mouseenter', show);
+            el.addEventListener('mousemove',  move);
+            el.addEventListener('mouseleave', hide);
+        });
+    }
+    document.addEventListener('DOMContentLoaded', bind);
+    new MutationObserver(bind).observe(document.body, { childList: true, subtree: true });
+})();
 
 /* ═══════════════════════════════════════════
    INIT
 ═══════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
-    initializeChart();
-    updateInsightTable();
-    updateMetricCards();
+document.addEventListener('DOMContentLoaded', function() {
+    changeChartPeriod('monthly');
     checkFlaskStatus();
     setInterval(checkFlaskStatus, 30000);
 });
 
 // Re-render chart saat toggle dark mode
-new MutationObserver(muts => {
-    muts.forEach(m => { if (m.attributeName === 'class') initializeChart(); });
-}).observe(document.documentElement, { attributes: true });
+new MutationObserver(() => { if (mainChart) initializeChart(); })
+    .observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 </script>
 
 @endsection
