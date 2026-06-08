@@ -121,9 +121,11 @@ trait SavesUserPreferences
         }
 
         // ── Forecast weeks ─────────────────────────────────────
-        $forecastWeeks = (int) $get('forecast_months', $prefs->forecast_months, 12);
-        $forecastWeeks = max(1, min(52, $forecastWeeks));
+        // $forecastWeeks = (int) $get('forecast_months', $prefs->forecast_months, 12);
+        // $forecastWeeks = max(1, min(52, $forecastWeeks));
 
+        $forecastMonths = (int) $get('forecast_months', $prefs->forecast_months, 12);
+        $forecastMonths = max(1, min(52, $forecastMonths));
         // ── Changepoint prior scale ────────────────────────────
         $cpScale = (float) $get('changepoint_prior_scale', $prefs->changepoint_prior_scale, 0.1);
         $cpScale = max(0.001, min(0.5, $cpScale));
@@ -153,7 +155,8 @@ trait SavesUserPreferences
         Log::info('[TRAIT resolveParameters] Hasil resolve:', [
             'startDate'     => $startDate,
             'endDate'       => $endDate,
-            'forecastWeeks' => $forecastWeeks,
+            // 'forecastWeeks' => $forecastWeeks,
+            'forecastMonths' => $forecastMonths,
             'cpScale'       => $cpScale,
             'seasonScale'   => $seasonScale,
             'seasonMode'    => $seasonMode,
@@ -161,9 +164,15 @@ trait SavesUserPreferences
             'yearlySeason'  => $yearlySeason,
         ]);
 
+        // return compact(
+        //     'startDate', 'endDate',
+        //     'forecastWeeks',
+        //     'cpScale', 'seasonScale', 'seasonMode',
+        //     'weeklySeason', 'yearlySeason'
+        // );
         return compact(
             'startDate', 'endDate',
-            'forecastWeeks',
+            'forecastMonths',       // ← ganti variable juga di atasnya
             'cpScale', 'seasonScale', 'seasonMode',
             'weeklySeason', 'yearlySeason'
         );

@@ -277,5 +277,6 @@ return [
 
     // ── PESAN UMUM ───────────────────────────────────────────────
     'data_tidak_ditemukan'         => 'No data found.',
+    'bulan_ke_depan'               => 'months ahead',
 
 ];
