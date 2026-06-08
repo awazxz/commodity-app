@@ -6,24 +6,24 @@ Backtest runner untuk semua komoditi dari database MySQL.
 Changelog:
   v6 (FIX + SPEEDUP):
     FIX 1 — Threshold directional dikalibrasi untuk 5 titik OOS:
-             FAIL 45%→35%, WARN 55%→45%
+             FAIL 45%->35%, WARN 55%->45%
              + weighted blend OOS+CV dir_acc sebelum verdict
     FIX 2 — Threshold coverage disesuaikan realitas Prophet data pendek:
-             FAIL 40%→20%, WARN 60%→40%
-    FIX 3 — CV_MONTHLY_MIN_TRAIN 18→24 bln agar fold awal lebih representatif
+             FAIL 40%->20%, WARN 60%->40%
+    FIX 3 — CV_MONTHLY_MIN_TRAIN 18->24 bln agar fold awal lebih representatif
              + weighted fold: fold akhir diberi bobot 2x (lebih relevan untuk prediksi)
              + CV MAPE tidak masuk verdict — hanya jadi info tambahan
 
     SPEEDUP 1 — Grid search OFF by default (--gridsearch untuk aktifkan)
-    SPEEDUP 2 — BACKTEST_GRID diperkecil: 5×3×2×3×3 → 3×2×2×2×2 = 48 combo (dari 270)
+    SPEEDUP 2 — BACKTEST_GRID diperkecil: 5×3×2×3×3 -> 3×2×2×2×2 = 48 combo (dari 270)
     SPEEDUP 3 — Parallel processing via ProcessPoolExecutor (--workers N)
-    SPEEDUP 4 — CV_N_FOLDS 4→3 (cukup untuk sinyal, hemat ~25% waktu CV)
+    SPEEDUP 4 — CV_N_FOLDS 4->3 (cukup untuk sinyal, hemat ~25% waktu CV)
     SPEEDUP 5 -- Prophet suppress_stdout_stderr agar log tidak banjir
 
   v5: Structural break detection, trim training ke N bulan terakhir.
   v4: Fix bug nama konflik run_grid_search, interval_width 0.95, clip negatif.
   v3: Rolling CV langsung di backtest.
-  v2: N_HOLDOUT 16→6, hyperparams adaptif.
+  v2: N_HOLDOUT 16->6, hyperparams adaptif.
 
 Jalankan:
     python backtest_prophet_v6.py                      # cepat, no grid search
@@ -79,7 +79,7 @@ THRESHOLDS = {
     "directional_fail": 35.0,   # turun dari 45%
 
     # --- FIX 2: coverage — Prophet data pendek selalu underestimate uncertainty ---
-    # Empiris: 18-34 bln data → coverage aktual 20-40% meski INTERVAL_WIDTH=0.95
+    # Empiris: 18-34 bln data -> coverage aktual 20-40% meski INTERVAL_WIDTH=0.95
     # Threshold lama 40% FAIL / 60% WARN menyebabkan semua FAIL
     "coverage_warn": 0.40,      # turun dari 0.60
     "coverage_fail": 0.20,      # turun dari 0.40
@@ -112,17 +112,17 @@ BACKTEST_GRID = {
     'yearly_fourier_order':    [3, 7],                    # 2 nilai (dari 3)
     'n_changepoints':          [8, 15],                   # 2 nilai (dari 3)
 }
-# Total: 3×2×2×2×2 = 48 kombinasi (vs 270 sebelumnya → ~6x lebih cepat)
+# Total: 3×2×2×2×2 = 48 kombinasi (vs 270 sebelumnya -> ~6x lebih cepat)
 
 ALWAYS_POSITIVE_COMMODITIES = True
 
 # FIX 3: min_train naik ke 24 bln agar fold awal punya data cukup
 CV_MONTHLY_TEST_N    = 3    # bulan per fold (tetap)
-CV_MONTHLY_MIN_TRAIN = 24   # naik dari 18 → fold awal lebih representatif
-CV_N_FOLDS           = 3    # turun dari 4 → hemat ~25% waktu CV (SPEEDUP 4)
+CV_MONTHLY_MIN_TRAIN = 24   # naik dari 18 -> fold awal lebih representatif
+CV_N_FOLDS           = 3    # turun dari 4 -> hemat ~25% waktu CV (SPEEDUP 4)
 
 # Bobot fold untuk weighted CV MAPE (fold akhir lebih relevan)
-# Contoh 3 fold: [1.0, 1.5, 2.0] → fold terakhir bobotnya 2x fold pertama
+# Contoh 3 fold: [1.0, 1.5, 2.0] -> fold terakhir bobotnya 2x fold pertama
 CV_FOLD_WEIGHTS = [1.0, 1.5, 2.0]
 
 # Blending OOS dan CV untuk directional verdict
@@ -217,9 +217,9 @@ def run_rolling_cv(
     FIX 3: bobot fold akhir lebih besar (lebih relevan untuk prediksi).
 
     Skema dengan min_train=24, test_n=3, n_folds=3:
-      Fold 1: train[0:24] → test[24:27]   bobot=1.0
-      Fold 2: train[0:27] → test[27:30]   bobot=1.5
-      Fold 3: train[0:30] → test[30:33]   bobot=2.0
+      Fold 1: train[0:24] -> test[24:27]   bobot=1.0
+      Fold 2: train[0:27] -> test[27:30]   bobot=1.5
+      Fold 3: train[0:30] -> test[30:33]   bobot=2.0
     """
     n         = len(df_train)
     df_sorted = df_train.sort_values('ds').reset_index(drop=True)
@@ -238,7 +238,7 @@ def run_rolling_cv(
     if actual_folds < 1:
         if verbose:
             print(f"  [RollingCV] Tidak cukup data: n={n}, min_train={min_train}, "
-                  f"test_n={test_n} → max_possible={max_possible} fold")
+                  f"test_n={test_n} -> max_possible={max_possible} fold")
         return {
             'fold_mapes': [], 'fold_dir_accs': [], 'fold_coverages': [],
             'weighted_cv_mape':    0.0,
@@ -572,7 +572,7 @@ def run_backtest_single(
         df_trimmed = df_train.tail(n_recent).reset_index(drop=True)
         if verbose:
             print(f"\n  [StructuralBreak] TERDETEKSI! ratio={break_info['ratio']}x")
-            print(f"  [StructuralBreak] Trim: {len(df_train)} → {len(df_trimmed)} bulan terakhir")
+            print(f"  [StructuralBreak] Trim: {len(df_train)} -> {len(df_trimmed)} bulan terakhir")
         df_train_final = df_trimmed
         result["structural_break"]["trimmed_to"]      = len(df_trimmed)
         result["structural_break"]["original_train"]  = len(df_train)

@@ -16,8 +16,8 @@ Catatan metodologi:
   - Inflasi MtoM forecast = (IHK_forecast_t / IHK_forecast_{t-1} - 1) × 100
   - Inflasi YtD  forecast = (IHK_forecast_t / IHK_Des_{tahun lalu} - 1) × 100
   - Inflasi YoY  forecast = (IHK_forecast_t / IHK_{t-12} - 1) × 100
-    → untuk YoY: jika t-12 ada di historis, pakai historis
-    → jika t-12 ada di forecast, pakai forecast
+    -> untuk YoY: jika t-12 ada di historis, pakai historis
+    -> jika t-12 ada di forecast, pakai forecast
   - Kondisi: inflasi >+0.1%, deflasi <-0.1%, stabil lainnya
 
 Tabel DB:
@@ -50,7 +50,7 @@ STABIL_THRESHOLD   = 0.1    # ±0.1% sesuai BPS
 IHK_FORECAST_TABLE = 'ihk_forecast_bulanan'
 
 # Hyperparameter default Prophet untuk IHK
-# IHK lebih smooth dari harga mentah → cp lebih kecil, seasonality lebih sederhana
+# IHK lebih smooth dari harga mentah -> cp lebih kecil, seasonality lebih sederhana
 IHK_PROPHET_PARAMS = {
     'changepoint_prior_scale': 0.05,
     'seasonality_prior_scale': 5.0,

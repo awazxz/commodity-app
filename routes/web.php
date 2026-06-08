@@ -23,7 +23,7 @@ Route::get('/', function () {
     if (auth()->check()) {
         return redirect()->route('laporan.komoditas.index');
     }
-    return view('welcome');
+    return redirect()->route('login');
 })->name('home');
 
 Route::get('/contact-admin', function () {

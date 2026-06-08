@@ -4,7 +4,7 @@ models/predictor.py
 Changelog v8.3 — Monthly Support + Hybrid Removed:
   - Hapus train_hybrid / HybridCommodityModel (tidak diperlukan)
   - Patch _convert_periods(): support data bulanan (MS) dengan benar
-  - DEFAULT_HYPERPARAMS: yearly_fourier_order 20→10, n_changepoints 25→15
+  - DEFAULT_HYPERPARAMS: yearly_fourier_order 20->10, n_changepoints 25->15
     untuk data bulanan (lebih ringan dan stabil)
 
 Changelog v8.2 — Hyperparams Sync Fix:
@@ -83,7 +83,7 @@ def _convert_periods(periods: int, freq: str) -> int:
     Frontend kirim periods:
     - Data bulanan (MS) : periods = jumlah bulan langsung (dari target_month)
                           Minimal 3, maksimal 24 bulan.
-    - Data mingguan (W) : periods dalam hari → bagi 7, minimal 4 minggu.
+    - Data mingguan (W) : periods dalam hari -> bagi 7, minimal 4 minggu.
     - Data harian (D)   : periods dalam hari, minimal 30.
     """
     if freq in ('MS', 'M', 'ME'):
@@ -132,7 +132,7 @@ def _detect_user_override(hyperparams: dict) -> bool:
             if user_val != default_val:
                 return True
 
-    print(f"   [Predictor] _detect_user_override: semua param sama → False")
+    print(f"   [Predictor] _detect_user_override: semua param sama -> False")
     return False
 
 
@@ -169,8 +169,8 @@ class CommodityPredictor:
 
         print(f"\n   [Predictor] commodity_id={commodity_id} | "
               f"rows={len(historical_df)} | "
-              f"freq_detected={detected_freq} → {use_freq} | "
-              f"periods={periods} → {forecast_periods} {use_freq}")
+              f"freq_detected={detected_freq} -> {use_freq} | "
+              f"periods={periods} -> {forecast_periods} {use_freq}")
 
         if len(historical_df) >= MIN_DATA_POINTS:
             return self._predict_prophet(
@@ -315,8 +315,8 @@ class CommodityPredictor:
 
         # ──────────────────────────────────────────────────────
         # Panggil predict() dengan include_history=True
-        # Pisah: ds <= last_data_date → fitted_values
-        #        ds >  last_data_date → forecast_df
+        # Pisah: ds <= last_data_date -> fitted_values
+        #        ds >  last_data_date -> forecast_df
         # ──────────────────────────────────────────────────────
         try:
             full_df = forecaster.predict(
@@ -365,7 +365,7 @@ class CommodityPredictor:
             first_forecast = forecast_df['ds'].min()
             last_forecast  = forecast_df['ds'].max()
             print(f"   [Predictor] forecast range: "
-                  f"{first_forecast.date()} → {last_forecast.date()} "
+                  f"{first_forecast.date()} -> {last_forecast.date()} "
                   f"({len(forecast_df)} titik)")
 
         predictions           = self._format_predictions(forecast_df)

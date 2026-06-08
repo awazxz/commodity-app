@@ -35,7 +35,7 @@ EXCEL_PATH = "Form Input RH.xlsx"
 # Untuk Riau gabungan, pilih sheet yang paling lengkap
 SHEET_NAME = "1471"
 
-# Mapping nama komoditas di Excel → komoditas_id di database
+# Mapping nama komoditas di Excel -> komoditas_id di database
 # Kamu perlu isi ini sesuai data master_komoditas-mu
 # Format: 'NAMA DI EXCEL': komoditas_id
 KOMODITAS_MAP = {
@@ -85,8 +85,8 @@ def get_engine():
 
 def parse_periode(header: str):
     """
-    Parse 'RH 2301' → date(2023, 1, 1)
-    Parse 'RH 2412' → date(2024, 12, 1)
+    Parse 'RH 2301' -> date(2023, 1, 1)
+    Parse 'RH 2412' -> date(2024, 12, 1)
     """
     if not header or not str(header).startswith('RH '):
         return None
@@ -110,7 +110,7 @@ def parse_periode(header: str):
 def load_komoditas_from_db(engine) -> dict:
     """
     Ambil semua komoditas dari DB dan buat mapping
-    nama_komoditas (uppercase) → komoditas_id
+    nama_komoditas (uppercase) -> komoditas_id
     """
     query = "SELECT id, nama_komoditas FROM master_komoditas"
     with engine.connect() as conn:
@@ -123,7 +123,7 @@ def load_komoditas_from_db(engine) -> dict:
 
     print(f"[DB] {len(mapping)} komoditas dimuat dari database:")
     for nama, cid in mapping.items():
-        print(f"     ID {cid:2d} → {nama}")
+        print(f"     ID {cid:2d} -> {nama}")
     return mapping
 
 
@@ -167,7 +167,7 @@ def read_rh_from_excel(excel_path: str, sheet_name: str) -> pd.DataFrame:
     print(f"[Excel] Header ditemukan di baris {header_row_idx + 1}")
 
     # Parse kolom periode
-    col_periodes = {}  # col_index → date
+    col_periodes = {}  # col_index -> date
     for col_idx, h in enumerate(headers):
         if h and str(h).startswith('RH '):
             tgl = parse_periode(str(h))
@@ -226,7 +226,7 @@ def read_rh_from_excel(excel_path: str, sheet_name: str) -> pd.DataFrame:
 
 
 # ═══════════════════════════════════════════════════════════════
-# STEP 3 — Matching nama komoditas Excel → ID database
+# STEP 3 — Matching nama komoditas Excel -> ID database
 # ═══════════════════════════════════════════════════════════════
 
 def match_komoditas(df: pd.DataFrame, db_mapping: dict) -> pd.DataFrame:
@@ -307,7 +307,7 @@ def save_rh_to_db(df: pd.DataFrame, engine) -> dict:
 
 def main():
     print("=" * 60)
-    print("  IMPORT DATA RH DARI EXCEL BPS → DATABASE")
+    print("  IMPORT DATA RH DARI EXCEL BPS -> DATABASE")
     print("=" * 60)
 
     # Cek file Excel

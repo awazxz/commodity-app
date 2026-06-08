@@ -1697,7 +1697,7 @@ function checkFlaskStatus() {
     badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-gray-100 text-gray-500';
     dot.className   = 'w-2 h-2 rounded-full bg-gray-400 animate-pulse';
     text.textContent = 'Memeriksa...';
-    fetch('/api/flask-health')
+    fetch('{{ url("/api/flask-health") }}')
         .then(res => {
             if (res.ok) {
                 badge.className = 'flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium transition-all duration-500 bg-green-100 text-green-700';

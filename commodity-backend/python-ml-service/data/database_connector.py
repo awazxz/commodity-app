@@ -35,7 +35,7 @@ class DatabaseConnector:
             f'mysql+pymysql://{DB_USER}:{DB_PASS}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
             f'?charset=utf8mb4'
         )
-        print(f"   [DB] Connecting → {DB_HOST}:{DB_PORT}/{DB_NAME} as '{DB_USER}'")
+        print(f"   [DB] Connecting to {DB_HOST}:{DB_PORT}/{DB_NAME} as '{DB_USER}'")
 
         return create_engine(
             conn_str,
@@ -160,7 +160,7 @@ class DatabaseConnector:
                     .reset_index(drop=True)
                 )
 
-        print(f"   [DB] get_commodity_prices: id={commodity_id} → {len(df)} baris valid")
+        print(f"   [DB] get_commodity_prices: id={commodity_id} -> {len(df)} baris valid")
         return df
 
     def get_latest_price_date(self, commodity_id: int):
@@ -252,7 +252,7 @@ class DatabaseConnector:
         """
         Simpan hasil forecast ke tabel price_forecasts.
 
-        Pola: DELETE lama → INSERT baru (dalam satu transaksi).
+        Pola: DELETE lama -> INSERT baru (dalam satu transaksi).
         `periode` disesuaikan dengan frekuensi data aktual.
 
         Return: jumlah baris yang berhasil diinsert

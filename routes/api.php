@@ -20,8 +20,8 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 Route::get('/flask-health', function () {
     try {
         // PERBAIKAN DI SINI: Sesuaikan dengan route di app.py Anda
-        // Kita panggil http://127.0.0.1:5000/api/flask-health
-        $response = Http::timeout(2)->get('http://127.0.0.1:5000/api/flask-health');
+        // Kita panggil http://127.0.0.1:5000/api/health
+        $response = Http::timeout(2)->get('http://127.0.0.1:5000/api/health');
         
         if ($response->successful()) {
             // Kita langsung kembalikan respon dari Flask karena sudah mengandung {'status': 'online'}

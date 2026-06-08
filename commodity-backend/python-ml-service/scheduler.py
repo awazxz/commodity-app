@@ -4,15 +4,15 @@ scheduler.py
 Background scheduler untuk auto-retraining model Prophet.
 
 Jadwal:
-- Setiap hari  jam 02:00 → retrain komoditas yang butuh update
-- Setiap Senin jam 03:00 → force retrain mingguan (termasuk drift check)
-- Setiap hari  jam 04:00 → async drift check (tidak blocking request)
-- Setiap hari  jam 02:30 → recalculate IHK 3 bulan terakhir
-- Setiap Senin jam 03:30 → forecast IHK 6 bulan ke depan
+- Setiap hari  jam 02:00 -> retrain komoditas yang butuh update
+- Setiap Senin jam 03:00 -> force retrain mingguan (termasuk drift check)
+- Setiap hari  jam 04:00 -> async drift check (tidak blocking request)
+- Setiap hari  jam 02:30 -> recalculate IHK 3 bulan terakhir
+- Setiap Senin jam 03:30 -> forecast IHK 6 bulan ke depan
 
 Changelog v3.2:
-  FIX 1: yearly_fourier_order 20 → 10 (sinkron predictor.py v8.3)
-  FIX 2: n_changepoints 25 → 15 (sinkron predictor.py v8.3)
+  FIX 1: yearly_fourier_order 20 -> 10 (sinkron predictor.py v8.3)
+  FIX 2: n_changepoints 25 -> 15 (sinkron predictor.py v8.3)
   FIX 3: Hapus train_hybrid — HybridCommodityModel sudah dihapus di v8.3
   FIX 4: Tambah jadwal IHK (recalculate + forecast) agar IHK selalu fresh
 
@@ -187,7 +187,7 @@ def retrain_all_commodities(force: bool = False):
 
             print(f"        Selesai | MAPE={mape:.2f}% | "
                   f"{len(preds)} titik | freq={use_freq} | "
-                  f"forecast: {first_pred} → {last_pred}")
+                  f"forecast: {first_pred} -> {last_pred}")
 
             retrained += 1
             results.append({
@@ -342,7 +342,7 @@ def forecast_ihk(periods: int = 6):
         elapsed = (datetime.now() - start_time).total_seconds()
         print(f"  IHK FORECAST SELESAI dalam {elapsed:.1f} detik")
         if result.get('success'):
-            print(f"  Forecast: {result.get('forecast_mulai')} → {result.get('forecast_sampai')}")
+            print(f"  Forecast: {result.get('forecast_mulai')} -> {result.get('forecast_sampai')}")
             print(f"  MAPE in-sample: {result.get('model_info', {}).get('mape_insample', 0):.4f}%")
         else:
             print(f"  Gagal: {result.get('message')}")
@@ -385,11 +385,11 @@ def run_ihk_weekly():
 def _run_scheduler_loop():
     print("   [Scheduler] Background thread aktif")
     print(f"   [Scheduler] Jadwal:")
-    print(f"               - Setiap hari  jam 02:00 → auto-retrain komoditas")
-    print(f"               - Setiap Senin jam 03:00 → force retrain komoditas")
-    print(f"               - Setiap hari  jam 04:00 → async drift check")
-    print(f"               - Setiap hari  jam 02:30 → recalculate IHK 3 bulan")
-    print(f"               - Setiap Senin jam 03:30 → forecast IHK 12 bulan")
+    print(f"               - Setiap hari  jam 02:00 -> auto-retrain komoditas")
+    print(f"               - Setiap Senin jam 03:00 -> force retrain komoditas")
+    print(f"               - Setiap hari  jam 04:00 -> async drift check")
+    print(f"               - Setiap hari  jam 02:30 -> recalculate IHK 3 bulan")
+    print(f"               - Setiap Senin jam 03:30 -> forecast IHK 12 bulan")
 
     while True:
         schedule.run_pending()

@@ -3,18 +3,18 @@ models/prophet_forecasting.py
 
 Changelog v10.4 — Sync Fix + Metrics Accuracy:
   FIX 1: CommodityForecastModel.__init__ default:
-          yearly_fourier_order 20 → 10 (sinkron predictor.py v8.3)
-          n_changepoints       25 → 15 (sinkron predictor.py v8.3)
-  FIX 2: GRID_SEARCH_SPACE n_changepoints [25,35,50] → [10,15,25,35]
+          yearly_fourier_order 20 -> 10 (sinkron predictor.py v8.3)
+          n_changepoints       25 -> 15 (sinkron predictor.py v8.3)
+  FIX 2: GRID_SEARCH_SPACE n_changepoints [25,35,50] -> [10,15,25,35]
           agar grid search mencoba nilai yang cocok untuk data bulanan
-  FIX 3: load_model() fallback yearly_fourier_order 20→10, n_changepoints 25→15
+  FIX 3: load_model() fallback yearly_fourier_order 20->10, n_changepoints 25->15
           agar model lama yang di-load tidak pakai nilai lama
   FIX 4: coverage dihitung dari actual yhat_lower/upper (bukan hardcode)
           — sudah benar di _compute_cv_metrics, pastikan konsisten di semua fungsi
   FIX 5: directional_acc di _compute_cv_metrics sekarang menggunakan
           data out-of-sample (CV), bukan in-sample — lebih representatif
   FIX 6: rolling CV n_folds adaptif berdasarkan panjang data bulanan:
-          data < 36 bulan → 2 fold, >= 36 bulan → 3 fold (was: < 200 rows)
+          data < 36 bulan -> 2 fold, >= 36 bulan -> 3 fold (was: < 200 rows)
   FIX 7: _compute_rolling_cv test_n minimum disesuaikan untuk data bulanan:
           min 3 bulan (was: 13) agar data pendek tetap bisa dievaluasi
 

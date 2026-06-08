@@ -16,10 +16,10 @@ FLASK_URL = "http://localhost:5000"
 
 # v8.2 FIX: Sinkronkan dengan prophet_forecasting.py v10.2
 # Nilai lama yang menyebabkan forecast drop jauh:
-#   changepoint_prior_scale: 0.3  → 0.1
-#   seasonality_prior_scale: 5.0  → 10.0
-#   weekly_seasonality:      True → False
-#   changepoint_range:       0.95 → 0.85
+#   changepoint_prior_scale: 0.3  -> 0.1
+#   seasonality_prior_scale: 5.0  -> 10.0
+#   weekly_seasonality:      True -> False
+#   changepoint_range:       0.95 -> 0.85
 DEFAULT_HYPERPARAMS = {
     'changepoint_prior_scale': 0.1,    # FIX v8.2: was 0.3
     'seasonality_prior_scale': 10.0,   # FIX v8.2: was 5.0
@@ -106,7 +106,7 @@ def run_via_api(commodity_ids: list, force: bool, dry_run: bool) -> dict:
                 print(f"         OK | MAPE={metrics.get('mape', 0):.2f}% | "
                       f"titik={len(preds)} | source={source}")
                 print(f"           data terakhir={last_data} | "
-                      f"forecast: {first_pred} → {last_pred}")
+                      f"forecast: {first_pred} -> {last_pred}")
 
                 success_list.append({
                     'id': cid, 'name': nama,
@@ -237,7 +237,7 @@ def run_direct(commodity_ids: list, force: bool, dry_run: bool) -> dict:
             print(f"         OK | MAPE={mape:.2f}% | titik={len(preds)} | "
                   f"freq={use_freq} | engine={result['engine']}")
             print(f"           data terakhir={result.get('last_data_date', '-')} | "
-                  f"forecast: {first_pred} → {last_pred}")
+                  f"forecast: {first_pred} -> {last_pred}")
 
             success_list.append({
                 'id': cid, 'name': nama, 'mape': round(mape, 4),
@@ -286,7 +286,7 @@ def print_summary(results: dict, elapsed: float):
         for r in success:
             print(f"     [{r['id']}] {r['name']}")
             print(f"       data terakhir : {r.get('last_data', '-')}")
-            print(f"       forecast      : {r.get('first_pred', '-')} → {r.get('last_pred', '-')}")
+            print(f"       forecast      : {r.get('first_pred', '-')} -> {r.get('last_pred', '-')}")
 
     if failed:
         print(f"\n   Komoditas gagal:")

@@ -153,8 +153,8 @@ class IHKKomoditasForecaster:
     Forecast IHK per komoditas menggunakan Prophet.
 
     Perbedaan dengan IHKForecaster (agregat):
-      - IHKForecaster          : 1 model Prophet → 1 IHK agregat berbobot
-      - IHKKomoditasForecaster : N model Prophet → N IHK per komoditas
+      - IHKForecaster          : 1 model Prophet -> 1 IHK agregat berbobot
+      - IHKKomoditasForecaster : N model Prophet -> N IHK per komoditas
     """
 
     def __init__(self, db_connector):
@@ -256,7 +256,7 @@ class IHKKomoditasForecaster:
 
         Kolom:
           - tanggal
-          - nilai_ihk_komoditas  → input Prophet (y)
+          - nilai_ihk_komoditas  -> input Prophet (y)
         """
         query = """
             SELECT
@@ -381,7 +381,7 @@ class IHKKomoditasForecaster:
             tgl    = pd.Timestamp(row['ds']).replace(day=1)
             t_prev = (tgl - pd.DateOffset(months=1)).replace(day=1)
 
-            # Prioritas: historis aktual → forecast sebelumnya
+            # Prioritas: historis aktual -> forecast sebelumnya
             ihk_prev = ihk_hist_lookup.get(t_prev) or ihk_fc_lookup.get(t_prev)
 
             ihk_fc_val = float(row['yhat'])

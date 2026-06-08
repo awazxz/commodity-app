@@ -46,7 +46,7 @@ Metodologi (sesuai Form Penghitungan Inflasi BPS 2022=100):
     • IHK agregat UMUM    : ROUND(..., 2)
     • Semua inflasi (MtoM/YtD/YoY) dihitung dari IHK yang SUDAH dibulatkan
     • NK intermediate     : TIDAK dibulatkan (presisi penuh)
-    • Tanpa pembulatan IHK → YtD/YoY akan berbeda dari form BPS
+    • Tanpa pembulatan IHK -> YtD/YoY akan berbeda dari form BPS
 
 Tabel DB:
   READ  : master_komoditas, bobot_komoditas, rh_komoditas
@@ -269,7 +269,7 @@ class IHKCalculator:
                     seed[kid]  = nk_dasar * ihk_seed / 100.0
 
                 still_missing = missing - set(int(r[0]) for r in rows2)
-                print(f"  [SEED] {len(rows2)} NK komoditas dari ihk_seed (konversi IHK→NK)")
+                print(f"  [SEED] {len(rows2)} NK komoditas dari ihk_seed (konversi IHK->NK)")
 
                 if still_missing:
                     print(f"  [SEED] WARNING: {len(still_missing)} komoditas tidak ada di "
@@ -320,7 +320,7 @@ class IHKCalculator:
           IHK_t  = ROUND(NK_t / NK_dasar × 100, 2) ← dibulatkan 2 desimal
 
         Parameter nk_seed:
-          - Nilai None → gunakan nk_dasar komoditas (setara IHK_seed = 100)
+          - Nilai None -> gunakan nk_dasar komoditas (setara IHK_seed = 100)
         """
         # Buat lookup nk_dasar per komoditas_id
         nk_dasar_map = dict(zip(
@@ -339,7 +339,7 @@ class IHKCalculator:
             # NK seed: ambil dari dict, fallback ke nk_dasar (= IHK_seed 100)
             nk_prev = nk_seed.get(int(kid))
             if nk_prev is None:
-                nk_prev = nk_dasar   # IHK_seed = 100 → NK_seed = NK_dasar
+                nk_prev = nk_dasar   # IHK_seed = 100 -> NK_seed = NK_dasar
 
             nk_vals  = []
             ihk_vals = []

@@ -10,10 +10,10 @@ v8.3 (Monthly Frequency Fix):
 
 v8.2 (Hyperparams Sync Fix):
 - _DEFAULT_HP disinkronkan dengan prophet_forecasting.py v10.2:
-    changepoint_prior_scale: 0.3 → 0.1
-    seasonality_prior_scale: 5.0 → 10.0
-    weekly_seasonality:      True → False
-    changepoint_range:       0.95 → 0.85
+    changepoint_prior_scale: 0.3 -> 0.1
+    seasonality_prior_scale: 5.0 -> 10.0
+    weekly_seasonality:      True -> False
+    changepoint_range:       0.95 -> 0.85
 
 v8.1 (Fitted Values Fix):
 - predict_forecast_advanced() sekarang menyertakan 'fitted_values' di response.
