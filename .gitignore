@@ -21,4 +21,4 @@ python-backend/*.pyc
 python-backend/uploads/*
 !python-backend/uploads/.gitkeep
 python-backend/.env
-python-backend/*.csv
+python-backend/*.csvapp/flask_changes/
