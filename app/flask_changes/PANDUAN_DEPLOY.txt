@@ -1,0 +1,133 @@
+# PANDUAN DEPLOY — Flask API Key Security (v8.4)
+# ═══════════════════════════════════════════════════════════
+
+Perubahan ini menambahkan autentikasi API key antara Laravel dan Flask.
+Tidak ada perubahan tampilan, tidak ada perubahan database.
+
+────────────────────────────────────────────────────────────
+FILE YANG PERLU DIGANTI / DIUPDATE
+────────────────────────────────────────────────────────────
+
+1. python-forecasting/app.py          ← ganti seluruh file
+2. app/Http/Controllers/AdminController.php    ← ganti seluruh file
+3. app/Http/Controllers/OperatorController.php ← ganti seluruh file
+4. app/Http/Controllers/UserController.php     ← ganti seluruh file
+5. routes/api.php                              ← ganti seluruh file
+
+TIDAK ADA perubahan di:
+- ihk_routes.py       (tidak perlu diubah)
+- Database/migrations (tidak ada schema baru)
+- Semua file Blade/React (tampilan tetap sama)
+- .env (hanya TAMBAH baris baru, tidak ubah yang lama)
+
+────────────────────────────────────────────────────────────
+LANGKAH 1 — Generate API Key
+────────────────────────────────────────────────────────────
+
+Jalankan perintah ini SEKALI untuk generate key rahasia:
+
+    python3 -c "import secrets; print(secrets.token_hex(32))"
+
+Contoh output:
+    d77f0bfe85435adaf46dcab6fc2b6be21c8a5d9084fd0bcf57283b931012ed06
+
+Simpan output ini — kamu akan pakai di dua tempat.
+
+────────────────────────────────────────────────────────────
+LANGKAH 2 — Tambah ke .env Flask
+────────────────────────────────────────────────────────────
+
+Buka file .env di folder python-forecasting/, tambahkan:
+
+    FLASK_API_KEY=hasil_key_dari_langkah_1
+
+────────────────────────────────────────────────────────────
+LANGKAH 3 — Tambah ke .env Laravel
+────────────────────────────────────────────────────────────
+
+Buka file .env di root project Laravel, tambahkan:
+
+    FLASK_API_KEY=hasil_key_dari_langkah_1
+
+(nilai harus SAMA PERSIS dengan yang di .env Flask)
+
+────────────────────────────────────────────────────────────
+LANGKAH 4 — Copy file yang diubah
+────────────────────────────────────────────────────────────
+
+Copy file-file dari folder ini ke posisi yang benar:
+
+    app.py              → python-forecasting/app.py
+    AdminController.php → app/Http/Controllers/AdminController.php
+    OperatorController.php → app/Http/Controllers/OperatorController.php
+    UserController.php  → app/Http/Controllers/UserController.php
+    api.php             → routes/api.php
+
+────────────────────────────────────────────────────────────
+LANGKAH 5 — Restart Flask
+────────────────────────────────────────────────────────────
+
+Setelah file diganti, restart Flask server:
+
+    # Jika pakai systemd:
+    sudo systemctl restart flask-commodity
+
+    # Jika manual (kill dulu, lalu jalankan ulang):
+    pkill -f "python app.py"
+    cd /path/to/python-forecasting
+    python app.py &
+
+────────────────────────────────────────────────────────────
+LANGKAH 6 — Clear Laravel config cache
+────────────────────────────────────────────────────────────
+
+    php artisan config:clear
+    php artisan cache:clear
+
+────────────────────────────────────────────────────────────
+LANGKAH 7 — Test
+────────────────────────────────────────────────────────────
+
+Test 1: Pastikan health check masih bisa diakses (tanpa key = publik):
+    curl http://127.0.0.1:5000/api/flask-health
+    → Harus dapat response {"status": "online", ...}
+
+Test 2: Pastikan endpoint dilindungi (tanpa key = ditolak):
+    curl -X POST http://127.0.0.1:5000/api/forecast/predict-advanced \
+         -H "Content-Type: application/json" \
+         -d '{"commodity_id": 1}'
+    → Harus dapat response 401 {"message": "Unauthorized: X-Flask-API-Key header missing."}
+
+Test 3: Pastikan dengan key bisa diakses:
+    curl -X POST http://127.0.0.1:5000/api/forecast/predict-advanced \
+         -H "Content-Type: application/json" \
+         -H "X-Flask-API-Key: HASIL_KEY_KAMU" \
+         -d '{"commodity_id": 1}'
+    → Harus dapat response prediksi normal
+
+Test 4: Coba jalankan prediksi dari aplikasi web — harus berjalan normal.
+
+────────────────────────────────────────────────────────────
+CARA KERJA (ringkasan teknis)
+────────────────────────────────────────────────────────────
+
+Flask (app.py):
+  - @before_request middleware memeriksa header X-Flask-API-Key
+    sebelum setiap request masuk ke /api/*
+  - Endpoint yang dikecualikan (publik): GET / dan GET /api/flask-health
+  - Request tanpa key → 401 Unauthorized
+  - Request dengan key salah → 401 Unauthorized
+  - Key dibandingkan dengan hmac.compare_digest() untuk mencegah timing attack
+
+Laravel:
+  - AdminController, OperatorController, UserController:
+    menggunakan method flaskHttp() yang otomatis menambahkan header
+  - routes/api.php: menggunakan function flaskHttp() yang sama
+  - Key dibaca dari env('FLASK_API_KEY') yang ada di .env Laravel
+
+────────────────────────────────────────────────────────────
+PENTING: JANGAN COMMIT .env KE GIT
+────────────────────────────────────────────────────────────
+
+Pastikan .env ada di .gitignore (biasanya sudah ada di Laravel).
+Jangan pernah commit FLASK_API_KEY ke repository.
