@@ -277,5 +277,6 @@ return [
 
     // ── PESAN UMUM ───────────────────────────────────────────────
     'data_tidak_ditemukan'         => 'Data tidak ditemukan.',
+    'bulan_ke_depan'               => 'bulan ke depan',
 
 ];
